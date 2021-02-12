@@ -8,12 +8,6 @@ typedef TypeId ComponentTypeId;
 
 class ComponentBase {
 
-public:
-	virtual void CopyData(void *source, void *destination) {}
-
-	virtual void DeleteData(void *location) {}
-
-	virtual void ComponentSize() {}
 };
 
 template <typename T>
@@ -21,22 +15,6 @@ class Component : ComponentBase {
 
 public:
 	static uint64_t count = 0;
-
-	void CopyData(void *source, void *destination) 
-	{
-		new (destination) T(std::move(*reinterpret_cast<T*>(source)));
-	}
-
-	void DeleteData(void *location) 
-	{
-		T *componentPtr = static_cast<T*>(location);
-		componentPtr->~T();
-	}
-
-	void ComponentSize() 
-	{
-		return sizeof(T);
-	}
 
 	static ComponentTypeId GetTypeId() {
 		return type_id_;

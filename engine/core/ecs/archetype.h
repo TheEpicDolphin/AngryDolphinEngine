@@ -14,6 +14,8 @@ public:
 	virtual void Append(ComponentBase component) {}
 
 	virtual ComponentBase RemoveWithSwapAtIndex(std::size_t index) {}
+
+	virtual ComponentArrayBase* Empty() {}
 };
 
 template<class T>
@@ -53,6 +55,10 @@ public:
 
 	}
 
+	ComponentArrayBase* Empty() {
+		return new ComponentArray<T>();
+	}
+
 private:
 	std::vector<T> components;
 };
@@ -63,17 +69,9 @@ typedef std::vector<ComponentTypeId> ArchetypeId;
 class Archetype 
 {
 public:
-	public Archetype(ArchetypeId component_types) {
-		this->componentTypes = component_types;
-	}
+	ArchetypeId component_types;
 
-	ArchetypeId componentTypes;
-	
-	std::vector<void *> componentArrays;
-
-	std::vector<std::size_t> componentArrayAllocSizes;
-
-	std::vector<EntityId> entityIds;
+	std::vector<EntityId> entity_ids;
 
 	std::vector<ComponentArrayBase*> component_arrays;
 
@@ -81,6 +79,7 @@ public:
 	ComponentArray<T>* GetComponentArray() 
 	{
 		ComponentTypeId component_type = Component<T>::GetTypeId();
+		// TODO: Perform binary search to look for component array given component_type
 		for (std::size_t c_idx = 0; c_idx < componentTypes.size; ++c_idx) {
 			if (component_type == componentTypes[c_idx]) {
 				return static_cast<T*>(component_arrays[c_idx]);
