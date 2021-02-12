@@ -26,6 +26,8 @@ class ECS {
 
 		if (entity_archetype_record_map_.find(entity_id) != entity_archetype_record_map_.end())
 		{
+			// The entity currently belongs to an archetype. This archetype will be
+			// referred to as the "previous_archetype"
 			Record record = entity_archetype_record_map_[entity_id];
 			Archetype *previous_archetype = record.archtype;
 			if (std::find(previous_archetype->component_types.begin(),
@@ -107,6 +109,8 @@ class ECS {
 			entity_archetype_record_map_[entity_id] = new_record;
 		}
 		else {
+			// This entity will be added to an archetype for the first time. This also
+			// means that the component to be added will be this entity's first component.
 			Archetype *existing_archetype = GetMatchingArchetype({ new_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
@@ -146,6 +150,7 @@ class ECS {
 	void RemoveComponent(Entity entity)
 	{
 		// TODO: Do stuff
+
 		
 		if (Component<T>::count > 0) {
 			Component<T>::count -= 1;
