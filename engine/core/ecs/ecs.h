@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstring>
 #include <unordered_map>
+#include <functional>
 
 #include "type_id_generator.h"
 #include "entity.h"
@@ -12,7 +13,7 @@
 class ECS {
 
 	template<typename T, typename... Args>
-	T* AddComponent(EntityId entity_id, Args&&...args)
+	void AddComponent(EntityId entity_id, Args&&...args)
 	{
 		static_assert(std::is_base_of<Component<T>, T>::value,
 			"Component to add must derive from base class 'Component<T>'" > );
@@ -23,11 +24,10 @@ class ECS {
 			new_component_type = RegisterComponent<T>();
 		}
 
-		T *added_component;
 		if (entity_archetype_record_map_.find(entity_id) != entity_archetype_record_map_.end())
 		{
 			Record record = entity_archetype_record_map_[entity_id];
-			Archetype *previous_archetype = record.archtype_ptr;
+			Archetype *previous_archetype = record.archtype;
 			if (std::find(previous_archetype->componentTypes.begin(),
 				previous_archetype->componentTypes.end(),
 				new_component_type) != previous_archetype->componentTypes.end())
@@ -65,7 +65,6 @@ class ECS {
 			for (std::size_t c_idx = 0; c_idx < existing_archetype->componentTypes.size; ++c_idx) {
 				if (existing_archetype->componentTypes[c_idx] == new_component_type) {
 					existing_archetype->component_arrays[c_idx]->Append(T(args));
-					added_component = &existing_archetype->component_arrays[c_idx]->ItemAtIndex(entity_count);
 				}
 				else if (existing_archetype->componentTypes[c_idx] > new_component_type) {
 					ComponentBase comp = previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
@@ -95,6 +94,8 @@ class ECS {
 			entity_archetype_record_map_[entity_id] = new_record;
 		}
 		else {
+			// TODO: FIX THIS
+
 			Archetype *existing_archetype = GetMatchingArchetype({ new_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
@@ -141,7 +142,6 @@ class ECS {
 		}
 
 		Component<T>::count += 1;
-		return added_component;
 	}
 
 	/*
@@ -337,22 +337,22 @@ class ECS {
 	}
 
 	template<typename T>
-	T& GetComponent(EntityId entity_id)
+	void GetComponent(EntityId entity_id, std::function<void(const T&)> read_block)
 	{
 		Record record = entity_archetype_record_map_[entity_id];
-		std::size_t component_count = record.archtype_ptr->componentTypes.size;
-		ComponentTypeId component_type = Component<T>::GetTypeId();
-		for (int i = 0; i < component_count; i++) {
-			if (component_type == record.archetype_ptr->componentTypes[i]) {
-				return (T)record.archtype_ptr->componentArrays[i][record.index];
-			}
+		std::size_t component_count = record.archtype->componentTypes.size;
+		ComponentArray<T> *component_array = record.archtype->GetComponentArray<T>();
+		if (component_array) {
+			component_array->ReadComponentAtIndex(record.index, read_block);
 		}
-		return NULL;
+		else {
+			read_block(NULL);
+		}
 	}
 
 private:
 	struct Record {
-		Archetype *archtype_ptr;
+		Archetype *archtype;
 		std::size_t index;
 	};
 

@@ -2,27 +2,24 @@
 
 #include <iostream>
 #include <vector>
+#include <functional>
 
 #include "type_id_generator.h"
 #include "component.h"
 #include "entity.h"
 
-struct ComponentArrayBase
+class ComponentArrayBase
 {
 public:
 	virtual void Append(ComponentBase component) {}
 
 	virtual ComponentBase RemoveWithSwapAtIndex(std::size_t index) {}
-
-	// TODO: This is sketchy because pointer can be invalidated when vector is resized
-	virtual ComponentBase* ItemAtIndex(std::size_t index) {}
 };
 
 template<class T>
-struct ComponentArray : ComponentArrayBase 
+class ComponentArray : ComponentArrayBase 
 {
-	std::vector<T> components;
-
+public:
 	void Append(ComponentBase component) {
 		T casted_component = static_cast<T>(component)
 		components.push_back(casted_component);
@@ -41,13 +38,23 @@ struct ComponentArray : ComponentArrayBase
 		return (ComponentBase)component;
 	}
 
-	ComponentBase* ItemAtIndex(std::size_t index) 
+	void ReadComponentAtIndex(std::size_t index, std::function<void(const T&)> read_block) 
 	{
 		if (index >= components.size) {
-			return nullptr;
+			read_block(NULL);
 		}
-		return &components.data[index];
+		else {
+			read_block(components[index]);
+		}
 	}
+
+	void UpdateComponentAtIndex(std::size_t index, std::function<void(T&)> write_block) 
+	{
+
+	}
+
+private:
+	std::vector<T> components;
 };
 
 // Always in order Least->Greatest
@@ -69,4 +76,16 @@ public:
 	std::vector<EntityId> entityIds;
 
 	std::vector<ComponentArrayBase*> component_arrays;
+
+	template<class T>
+	ComponentArray<T>* GetComponentArray() 
+	{
+		ComponentTypeId component_type = Component<T>::GetTypeId();
+		for (std::size_t c_idx = 0; c_idx < componentTypes.size; ++c_idx) {
+			if (component_type == componentTypes[c_idx]) {
+				return static_cast<T*>(component_arrays[c_idx]);
+			}
+		}
+		return nullptr;
+	}
 };
