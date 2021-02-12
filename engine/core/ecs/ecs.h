@@ -107,8 +107,6 @@ class ECS {
 			entity_archetype_record_map_[entity_id] = new_record;
 		}
 		else {
-			// TODO: FIX THIS
-
 			Archetype *existing_archetype = GetMatchingArchetype({ new_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
