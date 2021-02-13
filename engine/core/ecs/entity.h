@@ -18,7 +18,7 @@ public:
 	~Entity() 
 	{
 		TypeIdGenerator<Entity>().ReturnId(id_);
-		id_ = INVALID;
+		id_ = 0;
 	}
 
 	void destroy();

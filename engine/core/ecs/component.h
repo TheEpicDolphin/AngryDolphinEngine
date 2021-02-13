@@ -21,11 +21,19 @@ public:
 	}
 
 	static ComponentTypeId ClaimTypeId() {
+		if (type_id_) {
+			throw std::runtime_error("Attempting to claim new ComponentTypeId when component already has one.");
+			return type_id_;
+		}
 		type_id_ = TypeIdGenerator<ComponentBase>().CheckoutNewId();
 		return type_id_;
 	}
 
 	static void ClearTypeId() {
+		if (!type_id_) {
+			throw std::runtime_error("Attempting to relinquish ComponentTypeId when component doesn't have a valid one yet.");
+			return;
+		}
 		TypeIdGenerator<ComponentBase>().ReturnId(type_id_);
 		type_id_ = 0;
 	}

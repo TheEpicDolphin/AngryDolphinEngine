@@ -12,6 +12,7 @@
 
 class ECS {
 
+public:
 	template<typename T, typename... Args>
 	void AddComponent(EntityId entity_id, Args&&...args)
 	{
@@ -74,7 +75,7 @@ class ECS {
 				}
 			}
 
-			// Copy over the entity's component data from the previous archetype to
+			// Move over the entity's component data from the previous archetype to
 			// the existing one and insert new component data.
 			for (std::size_t c_idx = 0; c_idx < existing_archetype->component_types.size; ++c_idx) {
 				if (existing_archetype->component_types[c_idx] == added_component_type) {
@@ -194,15 +195,15 @@ class ECS {
 				}
 			}
 
-			// Copy over the entity's component data from the previous archetype to
-			// the existing one and insert new component data.
-			for (std::size_t c_idx = 0; c_idx < existing_archetype->component_types.size; ++c_idx) {
-				if (existing_archetype->component_types[c_idx] == added_component_type) {
-					existing_archetype->component_arrays[c_idx]->Append(T(args));
+			// Move over the entity's component data from the previous archetype to
+			// the existing one, except that of the component to be removed.
+			for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
+				if (previous_archetype->component_types[c_idx] == removed_component_type) {
+					existing_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
-				else if (existing_archetype->component_types[c_idx] > added_component_type) {
-					ComponentBase comp = previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
-					existing_archetype->component_arrays[c_idx]->Append(comp);
+				else if (previous_archetype->component_types[c_idx] > removed_component_type) {
+					ComponentBase comp = previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
+					existing_archetype->component_arrays[c_idx - 1]->Append(comp);
 				}
 				else {
 					ComponentBase comp = previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
@@ -267,7 +268,7 @@ private:
 	std::unordered_map<EntityId, Record> entity_archetype_record_map_;
 	std::unordered_map<ComponentTypeId, ComponentBase*> type_component_base_map_;
 
-	Archetype *FindMatchingArchetype(ArchetypeId archtype_Id)
+	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{
 		for (std::vector<Archetype>::iterator it = archetypes_.begin(); it != archetypes_.end(); ++it) {
 			if (archtype_Id == it->component_types) {
