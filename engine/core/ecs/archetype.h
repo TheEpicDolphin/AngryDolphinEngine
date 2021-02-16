@@ -24,43 +24,38 @@ class ComponentArray : ComponentArrayBase
 public:
 	void Append(ComponentBase component) {
 		T casted_component = static_cast<T>(component)
-		components.push_back(casted_component);
+		components_.push_back(casted_component);
 	}
 
 	ComponentBase RemoveWithSwapAtIndex(std::size_t index)
 	{
-		if (index >= components.size) {
-			return NULL;
+		if (index >= components_.size) {
+			throw std::runtime_error("ComponentArray index out of range.");
 		}
-		T component = components[index];
-		if (index < components.size - 1) {
-			components[index] = components.end();
+		T component = components_[index];
+		if (index < components_.size - 1) {
+			components_[index] = components_.end();
 		}
-		components.pop_back();
+		components_.pop_back();
 		return (ComponentBase)component;
-	}
-
-	void ReadComponentAtIndex(std::size_t index, std::function<void(const T&)> read_block) 
-	{
-		if (index >= components.size) {
-			read_block(NULL);
-		}
-		else {
-			read_block(components[index]);
-		}
-	}
-
-	void UpdateComponentAtIndex(std::size_t index, std::function<void(T&)> write_block) 
-	{
-
 	}
 
 	ComponentArrayBase* Empty() {
 		return new ComponentArray<T>();
 	}
 
+	T& ComponentAtIndex(std::size_t index)
+	{
+		if (index >= components_.size) {
+			throw std::runtime_error("ComponentArray index out of range.");
+		}
+		else {
+			return components_[index];
+		}
+	}
+
 private:
-	std::vector<T> components;
+	std::vector<T> components_;
 };
 
 // Always in order Least->Greatest

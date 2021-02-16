@@ -245,16 +245,32 @@ public:
 	}
 
 	template<typename T>
-	void GetComponent(EntityId entity_id, std::function<void(const T&)> read_block)
+	bool GetComponent(EntityId entity_id, std::function<void(const T&)> read_block)
 	{
 		Record record = entity_archetype_record_map_[entity_id];
 		std::size_t component_count = record.archtype->component_types.size;
 		ComponentArray<T> *component_array = record.archtype->GetComponentArray<T>();
 		if (component_array) {
-			component_array->ReadComponentAtIndex(record.index, read_block);
+			const T& component = Component_array->ComponentAtIndex(record.index);
+			read_block(component);
+			return true;
 		}
 		else {
-			read_block(NULL);
+			return false;
+		}
+	}
+
+	template<class... Ts>
+	void EnumerateComponentsWithBlock(std::function<void(EntityId entity_id, const Ts&...)> block)
+	{
+		std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts>();
+		for (Archetype *archetype : archetypes) {
+			[](std::vector<EntityId>& entity_ids, ComponentArray<Ts>* ...component_arrays) {
+				std::size_t entity_count = entity_ids.size();
+				for (std::size_t e_idx = 0; e_idx < entity_count; ++e_idx) {
+					block(entity_ids[e_idx], component_arrays->ComponentAtIndex(e_idx)...);
+				}
+			}(archetype->entity_ids, archetype->GetComponentArray<Ts>()...);
 		}
 	}
 
@@ -276,6 +292,12 @@ private:
 			}
 		}
 		return nullptr;
+	}
+
+	template<class... Ts>
+	std::vector<Archetype *> GetArchetypesWithComponents() 
+	{
+		std::vector<ComponentTypeId> component_types = { (Component<Ts>::ClaimTypeId())... };
 	}
 
 	template<typename T>
