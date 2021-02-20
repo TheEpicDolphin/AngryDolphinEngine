@@ -4,7 +4,6 @@
 #include <vector>
 #include <functional>
 
-#include "type_id_generator.h"
 #include "component.h"
 #include "entity.h"
 
@@ -19,7 +18,7 @@ public:
 };
 
 template<class T>
-class ComponentArray : ComponentArrayBase 
+class ComponentArray : public ComponentArrayBase 
 {
 public:
 	void Append(ComponentBase component) {
@@ -59,21 +58,21 @@ private:
 };
 
 // Always in order Least->Greatest
-typedef std::vector<ComponentTypeId> ArchetypeId;
+typedef std::vector<ComponentTypeID> ArchetypeId;
 
 class Archetype 
 {
 public:
 	ArchetypeId component_types;
 
-	std::vector<EntityId> entity_ids;
+	std::vector<EntityID> entity_ids;
 
 	std::vector<ComponentArrayBase*> component_arrays;
 
 	template<class T>
 	ComponentArray<T>* GetComponentArray() 
 	{
-		ComponentTypeId component_type = Component<T>::GetTypeId();
+		ComponentTypeID component_type = Component<T>::GetTypeId();
 		// TODO: Perform binary search to look for component array given component_type
 		for (std::size_t c_idx = 0; c_idx < componentTypes.size; ++c_idx) {
 			if (component_type == componentTypes[c_idx]) {

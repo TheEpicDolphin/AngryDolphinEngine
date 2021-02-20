@@ -5,21 +5,20 @@
 #include <unordered_map>
 #include <functional>
 
-#include "type_id_generator.h"
 #include "entity.h"
 #include "component.h"
 #include "archetype.h"
 
 class ECS {
-
+	
 public:
 	template<typename T, typename... Args>
-	void AddComponent(EntityId entity_id, Args&&...args)
+	void AddComponent(EntityID entity_id, Args&&...args)
 	{
 		static_assert(std::is_base_of<Component<T>, T>::value,
 			"Component to add must derive from base class 'Component<T>'" > );
 
-		ComponentTypeId added_component_type = Component<T>::GetTypeId();
+		ComponentTypeID added_component_type = Component<T>::GetTypeId();
 		if (!added_component_type) {
 			// We are adding a component of this type for the first time. Register it.
 			added_component_type = RegisterComponent<T>();
@@ -40,10 +39,10 @@ public:
 			}
 
 			// Determine the entity's new archetype id.
-			std::vector<ComponentTypeId> new_component_types;
+			std::vector<ComponentTypeID> new_component_types;
 			bool has_added_new_component = false;
 			for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
-				ComponentTypeId component_type = previous_archetype->component_types[c_idx];
+				ComponentTypeID component_type = previous_archetype->component_types[c_idx];
 				if (added_component_type < component_type && !has_added_new_component) {
 					new_component_types.push_back(added_component_type);
 					has_added_new_component = true;
@@ -98,7 +97,7 @@ public:
 				delete previous_archetype;
 			}
 			else {
-				EntityId moved_entity = previous_archetype->entity_ids[record.index];
+				EntityID moved_entity = previous_archetype->entity_ids[record.index];
 				entity_archetype_record_map_[moved_entity] = { previous_archetype, record.index };
 			}
 
@@ -150,9 +149,9 @@ public:
 	}
 
 	template<typename T>
-	void RemoveComponent(EntityId entity_id)
+	void RemoveComponent(EntityID entity_id)
 	{
-		ComponentTypeId removed_component_type = Component<T>::GetTypeId();
+		ComponentTypeID removed_component_type = Component<T>::GetTypeId();
 		if (!removed_component_type) {
 			throw std::runtime_error("Cannot remove component that has not been registered");
 			return;
@@ -173,9 +172,9 @@ public:
 			}
 
 			// Determine the entity's new archetype id.
-			std::vector<ComponentTypeId> new_component_types;
+			std::vector<ComponentTypeID> new_component_types;
 			for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
-				ComponentTypeId component_type = previous_archetype->component_types[c_idx];
+				ComponentTypeID component_type = previous_archetype->component_types[c_idx];
 				if (component_type != removed_component_type) {
 					new_component_types.push_back(component_type);
 				}
@@ -216,7 +215,7 @@ public:
 				archetypes_.erase(previous_archetype);
 			}
 			else {
-				EntityId moved_entity = previous_archetype->entityIds[record.index];
+				EntityID moved_entity = previous_archetype->entityIds[record.index];
 				entity_archetype_record_map_[moved_entity] = { previous_archetype, record.index };
 			}
 
@@ -245,7 +244,7 @@ public:
 	}
 
 	template<typename T>
-	bool GetComponent(EntityId entity_id, std::function<void(const T&)> read_block)
+	bool GetComponent(EntityID entity_id, std::function<void(const T&)> read_block)
 	{
 		Record record = entity_archetype_record_map_[entity_id];
 		std::size_t component_count = record.archtype->component_types.size;
@@ -261,11 +260,11 @@ public:
 	}
 
 	template<class... Ts>
-	void EnumerateComponentsWithBlock(std::function<void(EntityId entity_id, const Ts&...)> block)
+	void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block)
 	{
 		std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts>();
 		for (Archetype *archetype : archetypes) {
-			[](std::vector<EntityId>& entity_ids, ComponentArray<Ts>* ...component_arrays) {
+			[block](std::vector<EntityID>& entity_ids, ComponentArray<Ts>* ...component_arrays) {
 				std::size_t entity_count = entity_ids.size();
 				for (std::size_t e_idx = 0; e_idx < entity_count; ++e_idx) {
 					block(entity_ids[e_idx], component_arrays->ComponentAtIndex(e_idx)...);
@@ -281,8 +280,8 @@ private:
 	};
 
 	std::vector<Archetype *> archetypes_;
-	std::unordered_map<EntityId, Record> entity_archetype_record_map_;
-	std::unordered_map<ComponentTypeId, ComponentBase*> type_component_base_map_;
+	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
+	std::unordered_map<ComponentTypeID, ComponentBase*> type_component_base_map_;
 
 	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{
@@ -297,13 +296,13 @@ private:
 	template<class... Ts>
 	std::vector<Archetype *> GetArchetypesWithComponents() 
 	{
-		std::vector<ComponentTypeId> component_types = { (Component<Ts>::ClaimTypeId())... };
+		std::vector<ComponentTypeID> component_types = { (Component<Ts>::ClaimTypeId())... };
 	}
 
 	template<typename T>
-	ComponentTypeId RegisterComponent() 
+	ComponentTypeID RegisterComponent()
 	{
-		TypeId claimed_type_id = Component<T>::ClaimTypeId();
+		ComponentTypeID claimed_type_id = Component<T>::ClaimTypeId();
 		type_component_base_map_.insert({ claimed_type_id, new Component<T>() });
 		return claimed_type_id;
 	}

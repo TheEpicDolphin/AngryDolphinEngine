@@ -6,7 +6,9 @@
 
 #include <core/ecs/component.h>
 
-class Mesh : Component
+typedef std::uint64_t MeshID;
+
+class Mesh : public Component<Mesh>
 {
 public:
 	// Structure describing data for a single triangle in the mesh.
@@ -28,4 +30,7 @@ public:
 protected:
 	std::vector<glm::vec3> verts_;
 	std::vector<triangle> tris_;
+
+private:
+	MeshID id_;
 };
