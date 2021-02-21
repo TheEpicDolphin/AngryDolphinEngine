@@ -1,3 +1,4 @@
+
 #include "mesh.h"
 
 Mesh::Mesh()
@@ -38,7 +39,7 @@ void Mesh::SetVertices(std::vector<glm::vec3> verts)
 	verts_ = verts;
 }
 
-void Mesh::SetTriangles(std::vector<triangle> tris) 
+void Mesh::SetTriangles(std::vector<Triangle> tris) 
 {
 	tris_ = tris;
 }

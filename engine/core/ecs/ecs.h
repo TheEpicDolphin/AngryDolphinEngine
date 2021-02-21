@@ -281,7 +281,6 @@ private:
 
 	std::vector<Archetype *> archetypes_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
-	std::unordered_map<ComponentTypeID, ComponentBase*> type_component_base_map_;
 
 	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{
@@ -303,14 +302,12 @@ private:
 	ComponentTypeID RegisterComponent()
 	{
 		ComponentTypeID claimed_type_id = Component<T>::ClaimTypeId();
-		type_component_base_map_.insert({ claimed_type_id, new Component<T>() });
 		return claimed_type_id;
 	}
 
 	template<typename T>
 	void UnregisterComponent() 
 	{
-		type_component_base_map_.erase(Component<T>::GetTypeId());
 		Component<T>::ClearTypeId();
 	}
 

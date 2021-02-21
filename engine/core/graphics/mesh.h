@@ -3,12 +3,17 @@
 #include <iostream>
 #include <glm/vec3.hpp>
 #include <vector>
+#include <core/ecs/uid_generator.h>
+
+typedef UID MeshID;
 
 class Mesh
 {
 public:
+	MeshID id_;
+
 	// Structure describing data for a single triangle in the mesh.
-	struct triangle
+	struct Triangle
 	{
 		size_t indices[3] = { 0, 0, 0 };
 	};
@@ -21,9 +26,11 @@ public:
 
 	void SetVertices(std::vector<glm::vec3> verts);
 
-	void SetTriangles(std::vector<triangle> tris);
+	void SetTriangles(std::vector<Triangle> tris);
 
 private:
 	std::vector<glm::vec3> verts_;
-	std::vector<triangle> tris_;
+	std::vector<Triangle> tris_;
+	std::vector<glm::vec3> normals_;
+	std::vector<glm::vec2> tex_coords_;
 };

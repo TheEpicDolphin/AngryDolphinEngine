@@ -17,6 +17,6 @@ public:
 
 	virtual void Update() {}
 
-private:
+protected:
 	ECS ecs_;
 };
