@@ -7,7 +7,7 @@ class SystemBase {
 
 };
 
-template<class... Ts>
+template<typename T>
 class System : SystemBase
 {
 public:

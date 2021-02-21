@@ -4,11 +4,7 @@
 #include <glm/vec3.hpp>
 #include <vector>
 
-#include <core/ecs/component.h>
-
-typedef std::uint64_t MeshID;
-
-class Mesh : public Component<Mesh>
+class Mesh
 {
 public:
 	// Structure describing data for a single triangle in the mesh.
@@ -27,10 +23,7 @@ public:
 
 	void SetTriangles(std::vector<triangle> tris);
 
-protected:
+private:
 	std::vector<glm::vec3> verts_;
 	std::vector<triangle> tris_;
-
-private:
-	MeshID id_;
 };

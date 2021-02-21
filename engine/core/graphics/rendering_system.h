@@ -2,7 +2,7 @@
 
 #include <core/ecs/system.h>
 
-class RenderingSystem : System
+class RenderingSystem : public System<RenderingSystem>
 {
 
 };
