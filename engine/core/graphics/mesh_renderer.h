@@ -7,9 +7,8 @@
 #include "mesh.h"
 #include "material.h"
 
-class Model : public Component<Model>
+struct MeshRenderer : public Component<MeshRenderer>
 {
-public:
 	std::shared_ptr<Mesh> mesh;
 	std::shared_ptr<Material> material;
 };

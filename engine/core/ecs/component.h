@@ -6,12 +6,12 @@
 
 typedef UID ComponentTypeID;
 
-class ComponentBase {
+struct ComponentBase {
 
 };
 
 template <typename T>
-class Component : public ComponentBase {
+struct Component : public ComponentBase {
 
 public:
 	static uint64_t count = 0;

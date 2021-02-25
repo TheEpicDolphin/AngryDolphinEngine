@@ -3,6 +3,8 @@
 #include <chrono>
 #include <core/ecs/ecs.h>
 #include <core/graphics/rendering_system.h>
+#include <core/simulation/physics_system.h>
+#include <core/simulation/physics_interpolation_system.h>
 
 using namespace std::chrono;
 
@@ -32,25 +34,22 @@ public:
 
 			while (accumulator >= fixed_dt)
 			{
-				//previousState = currentState;
-				//FixedUpdates
-				//double t = duration<double>(system_clock::now() - start_time).count();
-				//integrate(currentState, t, fixed_dt);
+				physics_system_.Update(fixed_dt);
 				accumulator -= fixed_dt;
 			}
 
 			const double alpha = accumulator / fixed_dt;
+			// interpolate physics states to avoid jitter in render
+			physics_interp_system_.Update(alpha);
 
-
-			//State state = next_physics_state * alpha + prev_physics_state * (1.0 - alpha);
-
+			// render
 			rendering_system_.Update();
-			//render(state);
-			//Updates
 		}
 	}
 
 private:
 	ECS ecs_;
 	RenderingSystem rendering_system_;
+	PhysicsSystem physics_system_;
+	PhysicsInterpolationSystem physics_interp_system_;
 };
