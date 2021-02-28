@@ -33,5 +33,5 @@ private:
 	std::queue<UID> unused_ids_;
 
 	/* id of 0 indicates invalid id */
-	static UID id_count_ = 1;
+	static const UID id_count_ = 1;
 };

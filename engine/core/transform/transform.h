@@ -1,14 +1,12 @@
 #pragma once
 
 #include <iostream>
-#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 #include <vector>
 
 #include <core/ecs/component.h>
 
-class Transform : public Component<Transform>
+struct Transform : public Component<Transform>
 {
-
-private:
-	glm::mat4 transform_mat_;
+	glm::mat4 matrix;
 };

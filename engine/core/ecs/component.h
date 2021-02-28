@@ -25,7 +25,7 @@ public:
 			throw std::runtime_error("Attempting to claim new ComponentTypeID when component already has one.");
 			return type_id_;
 		}
-		type_id_ = TypeIdGenerator<ComponentBase>().CheckoutNewId();
+		type_id_ = UIDGenerator<ComponentBase>().CheckoutNewId();
 		return type_id_;
 	}
 
@@ -34,7 +34,7 @@ public:
 			throw std::runtime_error("Attempting to relinquish ComponentTypeID when component doesn't have a valid one yet.");
 			return;
 		}
-		TypeIdGenerator<ComponentBase>().ReturnId(type_id_);
+		UIDGenerator<ComponentBase>().ReturnId(type_id_);
 		type_id_ = 0;
 	}
 
