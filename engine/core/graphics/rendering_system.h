@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+#include <map>
 #include <core/ecs/system.h>
 #include <core/ecs/ecs.h>
 #include <core/transform/transform.h>
@@ -19,12 +21,16 @@ public:
 		std::function<void(EntityID, MeshRenderer&, Transform&)> block =
 		[](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
 			// TODO: render each entity
-			
+
+			if (!vao_map_.Contains()) {
+
+			}
 		};
 		ecs_.EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
 
 		GLuint vertexArrayID;
 		glGenVertexArrays(1, &vertexArrayID);
+		glBindVertexArray(vertexArrayID);
 
 		// The following commands will talk about our 'vertexbuffer' buffer
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -49,4 +55,11 @@ public:
 
 		// TODO: Do above inside window context
 	}
+
+	void CreateVAO() {
+
+	}
+
+private:
+	std::map<uint64_t, GLuint> vao_map_;
 };
