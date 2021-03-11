@@ -3,19 +3,19 @@
 #include <iostream>
 #include <queue>
 
-typedef std::uint64_t UID;
+typedef std::uint64_t TypeID;
 
 template<class T>
-class UIDGenerator {
+class TypeIDGenerator {
 
 public:
-	UIDGenerator() {}
+	TypeIDGenerator() {}
 
-	~UIDGenerator() {}
+	~TypeIDGenerator() {}
 
-	UID CheckoutNewId() {
+	TypeID CheckoutNewId() {
 		if (unused_ids_.size() > 0) {
-			TypeId id = unused_ids_.front();
+			TypeID id = unused_ids_.front();
 			unused_ids_.pop();
 			return id;
 		}
@@ -24,14 +24,14 @@ public:
 		}
 	}
 
-	void ReturnId(UID id) {
+	void ReturnId(TypeID id) {
 		id_count_--;
 		unused_ids_.push(id);
 	}
 
 private:
-	std::queue<UID> unused_ids_;
+	std::queue<TypeID> unused_ids_;
 
 	/* id of 0 indicates invalid id */
-	static const UID id_count_ = 1;
+	static const TypeID id_count_ = 1;
 };

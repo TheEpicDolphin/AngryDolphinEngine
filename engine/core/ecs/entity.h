@@ -2,9 +2,9 @@
 
 #include <iostream>
 
-#include "uid_generator.h"
+#include "typeid_generator.h"
 
-typedef UID EntityID;
+typedef TypeID EntityID;
 
 class Entity {
 	
@@ -12,12 +12,12 @@ public:
 
 	Entity() 
 	{
-		id_ = UIDGenerator<Entity>().CheckoutNewId();
+		id_ = TypeIDGenerator<Entity>().CheckoutNewId();
 	}
 
 	~Entity() 
 	{
-		UIDGenerator<Entity>().ReturnId(id_);
+		TypeIDGenerator<Entity>().ReturnId(id_);
 		id_ = 0;
 	}
 

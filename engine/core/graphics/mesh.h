@@ -3,15 +3,12 @@
 #include <iostream>
 #include <glm/vec3.hpp>
 #include <vector>
-#include <core/ecs/uid_generator.h>
+#include <core/ecs/typeid_generator.h>
+#include <core/object/object.h>
 
-typedef UID MeshID;
-
-class Mesh
+class Mesh : public Object<Mesh>
 {
 public:
-	MeshID id_;
-
 	// Structure describing data for a single triangle in the mesh.
 	struct Triangle
 	{

@@ -3,10 +3,11 @@
 #include <iostream>
 #include <glm/vec3.hpp>
 #include <vector>
+#include <core/object/object.h>
 
 #include "shader.h"
 
-class Material
+class Material : Object<Material>
 {
 	Material() 
 	{

@@ -1,10 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include "entity.h"
-#include "uid_generator.h"
+#include "typeid_generator.h"
 
-typedef UID ComponentTypeID;
+typedef TypeID ComponentTypeID;
 
 struct ComponentBase {
 
@@ -25,7 +24,7 @@ public:
 			throw std::runtime_error("Attempting to claim new ComponentTypeID when component already has one.");
 			return type_id_;
 		}
-		type_id_ = UIDGenerator<ComponentBase>().CheckoutNewId();
+		type_id_ = TypeIDGenerator<ComponentBase>().CheckoutNewId();
 		return type_id_;
 	}
 
@@ -34,7 +33,7 @@ public:
 			throw std::runtime_error("Attempting to relinquish ComponentTypeID when component doesn't have a valid one yet.");
 			return;
 		}
-		UIDGenerator<ComponentBase>().ReturnId(type_id_);
+		TypeIDGenerator<ComponentBase>().ReturnId(type_id_);
 		type_id_ = 0;
 	}
 

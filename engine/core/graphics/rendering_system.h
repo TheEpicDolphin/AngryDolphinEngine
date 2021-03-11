@@ -21,7 +21,8 @@ public:
 		std::function<void(EntityID, MeshRenderer&, Transform&)> block =
 		[](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
 			// TODO: render each entity
-
+			mesh_rend.mesh->GetInstanceID();
+			mesh_rend.material->GetInstanceID();
 			if (!vao_map_.Contains()) {
 
 			}

@@ -9,6 +9,6 @@
 
 struct MeshRenderer : public Component<MeshRenderer>
 {
-	SharedHandle<Mesh> mesh;
-	SharedHandle<Material> material;
+	std::shared_ptr<Mesh> mesh;
+	std::shared_ptr<Material> material;
 };
