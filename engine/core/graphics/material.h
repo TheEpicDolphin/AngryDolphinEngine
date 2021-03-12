@@ -7,12 +7,18 @@
 
 #include "shader.h"
 
-class Material : Object<Material>
+class Material : public Object<Material>
 {
+public:
 	Material() 
 	{
 		// THIS IS TEMPORARY. Later, load shaders at startup only
 		program_id_ = LoadShaders("", "");
+	}
+
+	~Material() 
+	{
+
 	}
 
 private:

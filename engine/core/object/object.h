@@ -8,6 +8,7 @@ typedef TypeID InstanceID;
 template <typename T>
 class Object 
 {
+public:
 	Object() 
 	{
 		id_ = TypeIDGenerator<T>().CheckoutNewId();

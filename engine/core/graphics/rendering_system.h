@@ -1,7 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
+#include <vector>
+
 #include <core/ecs/system.h>
 #include <core/ecs/ecs.h>
 #include <core/transform/transform.h>
@@ -11,6 +13,21 @@
 
 class RenderingSystem : public System<RenderingSystem>
 {
+private:
+	struct MeshBatch {
+		GLuint vbo;
+		Mesh mesh;
+		std::vector<glm::mat4> trans_matrices;
+	};
+
+	struct MaterialBatch {
+		GLuint vao;
+		Material material;
+		std::unordered_map<InstanceID, MeshBatch> mesh_batch_map;
+	};
+
+	std::unordered_map<InstanceID, MaterialBatch> material_batch_map_;
+
 public:
 	RenderingSystem(ECS ecs) : System<RenderingSystem>(ecs) {
 
@@ -19,15 +36,42 @@ public:
 	void Update() 
 	{
 		std::function<void(EntityID, MeshRenderer&, Transform&)> block =
-		[](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
-			// TODO: render each entity
-			mesh_rend.mesh->GetInstanceID();
-			mesh_rend.material->GetInstanceID();
-			if (!vao_map_.Contains()) {
-
+		[this](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
+			// group together materials and meshes for faster rendering later
+			InstanceID materialID = mesh_rend.material->GetInstanceID();
+			InstanceID meshID = mesh_rend.mesh->GetInstanceID();
+			if (material_batch_map_.find(materialID) == material_batch_map_.end()) {
+				MaterialBatch material_batch = {0};
+				material_batch.material = *mesh_rend.material.get();
+				MeshBatch mesh_batch = {
+					0,
+					*mesh_rend.mesh.get(),
+					{ trans.matrix }
+				};
+				material_batch.mesh_batch_map[meshID] = mesh_batch;
+				material_batch_map_[materialID] = material_batch;
+				glGenVertexArrays(1, &material_batch_map_[materialID].vao);
+			}
+			else {
+				MaterialBatch *material_batch = &material_batch_map_[materialID];
+				if (material_batch->mesh_batch_map.find(meshID) == material_batch->mesh_batch_map.end()) {
+					MeshBatch mesh_batch = {
+						0,
+						*mesh_rend.mesh.get(),
+						{ trans.matrix }
+					};
+					material_batch->mesh_batch_map[meshID] = mesh_batch;
+					glBindVertexArray(material_batch->vao);
+					glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
+				}
+				else {
+					MeshBatch *mesh_batch = &material_batch->mesh_batch_map[meshID];
+					mesh_batch->trans_matrices.push_back(trans.matrix);
+				}
 			}
 		};
 		ecs_.EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
+
 
 		GLuint vertexArrayID;
 		glGenVertexArrays(1, &vertexArrayID);
@@ -60,7 +104,4 @@ public:
 	void CreateVAO() {
 
 	}
-
-private:
-	std::map<uint64_t, GLuint> vao_map_;
 };
