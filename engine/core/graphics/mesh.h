@@ -25,6 +25,15 @@ public:
 
 	void SetTriangles(std::vector<Triangle> tris);
 
+	std::vector<glm::vec3> GetVertices() 
+	{
+		return verts_;
+	}
+
+	std::vector<Triangle> GetTriangles() {
+		return tris_;
+	}
+
 private:
 	std::vector<glm::vec3> verts_;
 	std::vector<Triangle> tris_;

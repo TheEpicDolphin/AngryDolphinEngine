@@ -16,6 +16,7 @@ class RenderingSystem : public System<RenderingSystem>
 private:
 	struct MeshBatch {
 		GLuint vbo;
+		GLuint ibo;
 		Mesh mesh;
 		std::vector<glm::mat4> trans_matrices;
 	};
@@ -26,7 +27,7 @@ private:
 		std::unordered_map<InstanceID, MeshBatch> mesh_batch_map;
 	};
 
-	std::unordered_map<InstanceID, MaterialBatch> material_batch_map_;
+	
 
 public:
 	RenderingSystem(ECS ecs) : System<RenderingSystem>(ecs) {
@@ -35,25 +36,52 @@ public:
 
 	void Update() 
 	{
+		std::unordered_map<InstanceID, MaterialBatch> material_batch_map;
+
 		std::function<void(EntityID, MeshRenderer&, Transform&)> block =
-		[this](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
+		[&](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
 			// group together materials and meshes for faster rendering later
 			InstanceID materialID = mesh_rend.material->GetInstanceID();
 			InstanceID meshID = mesh_rend.mesh->GetInstanceID();
-			if (material_batch_map_.find(materialID) == material_batch_map_.end()) {
+			if (material_batch_map.find(materialID) == material_batch_map.end()) {
 				MaterialBatch material_batch = {0};
 				material_batch.material = *mesh_rend.material.get();
 				MeshBatch mesh_batch = {
+					0,
 					0,
 					*mesh_rend.mesh.get(),
 					{ trans.matrix }
 				};
 				material_batch.mesh_batch_map[meshID] = mesh_batch;
-				material_batch_map_[materialID] = material_batch;
-				glGenVertexArrays(1, &material_batch_map_[materialID].vao);
+				material_batch_map[materialID] = material_batch;
+
+				glGenVertexArrays(1, &material_batch_map[materialID].vao);
+				glBindVertexArray(material_batch.vao);
+
+				glUseProgram(material_batch.material.ProgramID());
+
+				glGenBuffers(1, &mesh_batch.vbo);
+				//glGenBuffers(1, &mesh_batch.ibo);
+				glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
+				//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_batch.ibo);
+
+				glBufferData(GL_ARRAY_BUFFER, 3, mesh_batch.mesh.GetVertices().data, GL_STATIC_DRAW);
+				
+				glEnableVertexAttribArray(material_batch.material.VertexAttribute());
+				
+				glVertexAttribPointer(
+					material_batch.material.VertexAttribute(), // The shader's attribute for vertex positions.
+					3,                  // size
+					GL_FLOAT,           // type
+					GL_FALSE,           // normalized?
+					0,                  // stride
+					(void*)0            // array buffer offset
+				);
+
+				glDisableVertexAttribArray(material_batch.material.VertexAttribute());
 			}
 			else {
-				MaterialBatch *material_batch = &material_batch_map_[materialID];
+				MaterialBatch *material_batch = &material_batch_map[materialID];
 				if (material_batch->mesh_batch_map.find(meshID) == material_batch->mesh_batch_map.end()) {
 					MeshBatch mesh_batch = {
 						0,
@@ -62,6 +90,7 @@ public:
 					};
 					material_batch->mesh_batch_map[meshID] = mesh_batch;
 					glBindVertexArray(material_batch->vao);
+					glGenBuffers(1, &mesh_batch.vbo);
 					glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
 				}
 				else {
@@ -72,36 +101,62 @@ public:
 		};
 		ecs_.EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
 
+		for (auto& it : material_batch_map)
+		{
+			MaterialBatch material_batch = it.second;
+			glBindVertexArray(material_batch.vao);
+			GLint mvp_location = glGetUniformLocation(material_batch.material.ProgramID(), "mvp");
+			for (auto& it : material_batch.mesh_batch_map) {
+				MeshBatch mesh_batch = it.second;
+				for (glm::mat4& trans_matrix : mesh_batch.trans_matrices) {
+					// Insert MVP matrix into shader
+					glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(trans_matrix));
+					// Draw
+					glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+				}
+				glDeleteBuffers(1, &mesh_batch.vbo);
+			}
+			glDeleteVertexArrays(1, &material_batch.vao);
+		}
 
-		GLuint vertexArrayID;
-		glGenVertexArrays(1, &vertexArrayID);
-		glBindVertexArray(vertexArrayID);
+		// TODO: Do above inside window context
+	}
 
-		// The following commands will talk about our 'vertexbuffer' buffer
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		// Give our vertices to OpenGL.
-		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	void SetupBufferObjectsForBatch(MaterialBatch& materialBatch) {
+		MaterialBatch material_batch = { 0 };
+		material_batch.material = *mesh_rend.material.get();
+		MeshBatch mesh_batch = {
+			0,
+			0,
+			*mesh_rend.mesh.get(),
+			{ trans.matrix }
+		};
+		material_batch.mesh_batch_map[meshID] = mesh_batch;
+		material_batch_map[materialID] = material_batch;
 
-		// Draw
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		glGenVertexArrays(1, &material_batch_map[materialID].vao);
+		glBindVertexArray(material_batch.vao);
+
+		glUseProgram(material_batch.material.ProgramID());
+
+		glGenBuffers(1, &mesh_batch.vbo);
+		//glGenBuffers(1, &mesh_batch.ibo);
+		glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_batch.ibo);
+
+		glBufferData(GL_ARRAY_BUFFER, 3, mesh_batch.mesh.GetVertices().data, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(material_batch.material.VertexAttribute());
+
 		glVertexAttribPointer(
-			0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+			material_batch.material.VertexAttribute(), // The shader's attribute for vertex positions.
 			3,                  // size
 			GL_FLOAT,           // type
 			GL_FALSE,           // normalized?
 			0,                  // stride
 			(void*)0            // array buffer offset
 		);
-		// Draw the triangle !
-		glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
-		glDisableVertexAttribArray(0);
 
-
-		// TODO: Do above inside window context
-	}
-
-	void CreateVAO() {
-
+		glDisableVertexAttribArray(material_batch.material.VertexAttribute());
 	}
 };

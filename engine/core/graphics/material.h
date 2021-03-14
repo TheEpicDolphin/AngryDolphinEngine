@@ -21,6 +21,16 @@ public:
 
 	}
 
+	GLuint ProgramID() 
+	{
+		return program_id_;
+	}
+
+	GLuint VertexAttribute() {
+		return vertex_attribute_;
+	}
+
 private:
 	GLuint program_id_;
+	GLuint vertex_attribute_ = 0;
 };
