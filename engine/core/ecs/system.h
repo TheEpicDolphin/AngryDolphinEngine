@@ -11,10 +11,10 @@ template<typename T>
 class System : SystemBase
 {
 public:
-	System(ECS ecs) {
+	System(ECS *ecs) {
 		ecs_ = ecs;
 	}
 
 protected:
-	ECS ecs_;
+	ECS *ecs_;
 };

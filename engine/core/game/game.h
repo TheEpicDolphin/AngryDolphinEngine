@@ -11,13 +11,10 @@ using namespace std::chrono;
 class Game {
 
 public:
-	Game() {
-		rendering_system_ = RenderingSystem(ecs_);
-	}
-
-	void Initialize() 
+	Game() 
 	{
-		
+		rendering_system_ = RenderingSystem(&ecs_);
+		physics_system_ = PhysicsSystem(&ecs_);
 	}
 
 	void StartMainLoop() {

@@ -11,7 +11,9 @@ static const glm::vec3 gravity(0.0f, -9.8f, 0.0f);
 class PhysicsSystem : public System<PhysicsSystem>
 {
 public:
-	PhysicsSystem(ECS ecs) : System<PhysicsSystem>(ecs) {
+	PhysicsSystem() = default;
+
+	PhysicsSystem(ECS *ecs) : System<PhysicsSystem>(ecs) {
 
 	}
 
@@ -23,6 +25,6 @@ public:
 			rb.previous_position = rb.position;
 			rb.position += rb.velocity * fixedDeltaTime;
 		};
-		ecs_.EnumerateComponentsWithBlock<Rigidbody>(block);
+		ecs_->EnumerateComponentsWithBlock<Rigidbody>(block);
 	}
 };

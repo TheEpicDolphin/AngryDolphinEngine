@@ -12,7 +12,7 @@ using namespace transform_utils;
 class PhysicsInterpolationSystem : public System<PhysicsInterpolationSystem>
 {
 public:
-	PhysicsInterpolationSystem(ECS ecs) : System<PhysicsInterpolationSystem>(ecs) {
+	PhysicsInterpolationSystem(ECS *ecs) : System<PhysicsInterpolationSystem>(ecs) {
 
 	}
 
@@ -27,6 +27,6 @@ public:
 				SetPosition(trans, rb.position);
 			}
 		};
-		ecs_.EnumerateComponentsWithBlock<Rigidbody, Transform>(block);
+		ecs_->EnumerateComponentsWithBlock<Rigidbody, Transform>(block);
 	}
 };

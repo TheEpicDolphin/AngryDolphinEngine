@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include "typeid_generator.h"
+#include <core/ecs/typeid_generator.h>
 
 typedef TypeID InstanceID;
 
@@ -21,7 +21,7 @@ public:
 		id_ = 0;
 	}
 
-	public InstanceID GetInstanceID() {
+	InstanceID GetInstanceID() {
 		return id_;
 	}
 
