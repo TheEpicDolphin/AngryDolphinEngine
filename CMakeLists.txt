@@ -26,7 +26,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/glew-cmake/include)
 
 # GLM
 set(glm_DIR 3rd_party/glm/cmake/glm) # if necessary
-find_package(glm REQUIRED)
+#find_package(glm REQUIRED)
 add_subdirectory(3rd_party/glm)
 
 add_subdirectory(engine)
