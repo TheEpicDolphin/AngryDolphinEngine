@@ -74,8 +74,8 @@ public:
 	{
 		ComponentTypeID component_type = Component<T>::GetTypeId();
 		// TODO: Perform binary search to look for component array given component_type
-		for (std::size_t c_idx = 0; c_idx < componentTypes.size; ++c_idx) {
-			if (component_type == componentTypes[c_idx]) {
+		for (std::size_t c_idx = 0; c_idx < component_types.size; ++c_idx) {
+			if (component_type == component_types[c_idx]) {
 				return static_cast<T*>(component_arrays[c_idx]);
 			}
 		}
