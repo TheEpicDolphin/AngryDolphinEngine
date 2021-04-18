@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <functional>
 
+#include <core/utils/set_trie.h>
+
 #include "entity.h"
 #include "component.h"
 #include "archetype.h"
@@ -93,7 +95,7 @@ public:
 			previous_archetype->entity_ids.pop_back();
 			if (previous_archetype->entity_ids.size == 0) {
 				// previous archetype no longer has any entities. Delete it.
-				archetypes_.erase(previous_archetype);
+				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->component_types);
 				delete previous_archetype;
 			}
 			else {
@@ -135,7 +137,7 @@ public:
 				new_component_array->Append(T(args));
 				new_archetype->component_arrays = { new_component_array };
 				new_archetype->entity_ids = { entity_id };
-				archetypes_.push_back(new_archetype);
+				archetype_set_trie_.InsertValueForKeySet(new_archetype, new_archetype->component_types);
 				Record newRecord =
 				{
 					newArchetype,
@@ -212,7 +214,7 @@ public:
 
 			previous_archetype->entityIds.pop_back();
 			if (previous_archetype->entityIds.size == 0) {
-				archetypes_.erase(previous_archetype);
+				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->component_types);
 			}
 			else {
 				EntityID moved_entity = previous_archetype->entityIds[record.index];
@@ -279,6 +281,8 @@ private:
 		std::size_t index;
 	};
 
+	SetTrie<ComponentTypeID, Archetype *> archetype_set_trie_;
+
 	std::vector<Archetype *> archetypes_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
 
@@ -296,6 +300,7 @@ private:
 	std::vector<Archetype *> GetArchetypesWithComponents() 
 	{
 		std::vector<ComponentTypeID> component_types = { (Component<Ts>::ClaimTypeId())... };
+		return archetype_set_trie_.FindSuperSets(component_types);
 	}
 
 	template<typename T>

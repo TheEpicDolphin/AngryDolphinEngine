@@ -1,6 +1,6 @@
-file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
+file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
-add_library (ecs ${libsrc})
+add_library (ecs ${SOURCES})
 
 set_target_properties(ecs PROPERTIES
     CXX_STANDARD 14

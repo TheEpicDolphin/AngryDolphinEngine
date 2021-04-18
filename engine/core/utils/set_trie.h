@@ -1,9 +1,8 @@
 #pragma once
 
-#include <iostream>
 #include <map>
-#include <vector>
 #include <stack>
+#include <vector>
 
 template<typename TKey, typename TValue>
 struct SetTrieNode {
@@ -12,10 +11,24 @@ struct SetTrieNode {
 	std::map<TKey, SetTrieNode<TKey, TValue>> children;
 };
 
-template<typename TKey, typename TValue, class Compare = std::less<TKey>>
+template<typename TKey, typename TValue>
 class SetTrie {
 private:
 	SetTrieNode<TKey, TValue> root_node_;
+
+	SetTrieNode<TKey, TValue> FindNodeForKeySet(std::vector<TKey> key_set) {
+		SetTrieNode<TKey, TValue>& current_node = root_node_;
+		std::size_t index = 0;
+		while (index < key_set.size()) {
+			std::map<TKey, SetTrieNode<TKey, TValue>>::iterator children_iter = current_node.children.find(key_set[index]);
+			if (children_iter == current_node.children.end()) {
+				return NULL;
+			}
+			index++;
+			current_node = iter->second;
+		}
+		return current_node;
+	}
 
 public:
 	SetTrie() {
@@ -54,11 +67,11 @@ public:
 	}
 
 	void InsertValueForKeySet(TValue value, std::vector<TKey> key_set) {
-		SetTrieNode<TKey, TValue> current_node = root_node_;
+		SetTrieNode<TKey, TValue>& current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
-			std::map<TKey, SetTrieNode<TKey, TValue>>::iterator iter = current_node.children.find(key_set[index]);
-			if (iter == current_node.children.end()) {
+			std::map<TKey, SetTrieNode<TKey, TValue>>::iterator children_iter = current_node.children.find(key_set[index]);
+			if (children_iter == current_node.children.end()) {
 				break;
 			}
 			index++;
@@ -80,24 +93,42 @@ public:
 	}
 
 	void RemoveValueForKeySet(std::vector<TKey> key_set) {
-		SetTrieNode<TKey, TValue> current_node = root_node_;
 		std::size_t index = 0;
-		std::stack<SetTrieNode<TKey, TValue>::iterator> stack;
+		std::stack<SetTrieNode<TKey, TValue>*> stack;
+		stack.push(&root_node_);
 		while (index < key_set.size()) {
-			std::map<TKey, SetTrieNode<TKey, TValue>>::iterator iter = current_node.children.find(key_set[index]);
-			if (iter == current_node.children.end()) {
+			std::map<TKey, SetTrieNode<TKey, TValue>>::iterator children_iter = stack.top()->children.find(key_set[index]);
+			if (children_iter == stack.top()->children.end()) {
 				throw std::runtime_error("Keyset cannot be found in Set Trie");
 				return;
 			}
 			index++;
-			current_node = iter->second;
-			stack.push(current_node);
+			stack.push(&children_iter->second);
 		}
 
-		current_node.value = NULL;
-		// Remove value-less nodes
-		while (stack.top().value == NULL) {
-			current_node.children.erase();
+		stack.top()->value = NULL;
+
+		// If top node has no children, then we should traverse ancestors to delete any unnecessary nodes
+		while (stack.top()->value == NULL && stack.top()->children.empty()) {
+			SetTrieNode<TKey, TValue> child_node = stack.top();
+			stack.pop();
+			stack.top()->children.erase(child_node.key);
 		}
 	}
+
+	TValue FindValueForKeySet(std::vector<TKey> key_set) {
+		SetTrieNode<TKey, TValue>& current_node = root_node_;
+		std::size_t index = 0;
+		while (index < key_set.size()) {
+			std::map<TKey, SetTrieNode<TKey, TValue>>::iterator children_iter = current_node.children.find(key_set[index]);
+			if (children_iter == current_node.children.end()) {
+				return NULL;
+			}
+			index++;
+			current_node = iter->second;
+		}
+		return current_node.value;
+	}
+
+
 };

@@ -1,6 +1,6 @@
-file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
+file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
-add_library (transform ${libsrc})
+add_library (transform ${SOURCES})
 
 target_link_libraries(transform PUBLIC libglew_static)
 target_link_libraries(transform glm::glm)

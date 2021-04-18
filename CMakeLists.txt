@@ -29,6 +29,9 @@ set(glm_DIR 3rd_party/glm/cmake/glm) # if necessary
 #find_package(glm REQUIRED)
 add_subdirectory(3rd_party/glm)
 
+# Google test
+add_subdirectory(3rd_party/googletest)
+
 add_subdirectory(engine)
 add_subdirectory(test_game)
 

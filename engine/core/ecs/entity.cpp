@@ -6,7 +6,7 @@ void Entity::destroy() {
 	//manager_.destroy(id_);
 }
 
-EntityId Entity::id() 
+EntityID Entity::id() 
 {
 	return id_;
 }

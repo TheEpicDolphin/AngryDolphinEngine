@@ -1,6 +1,10 @@
-file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
+file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
-add_library (utils ${libsrc})
+add_library (utils ${SOURCES})
+
+target_link_libraries(utils PUBLIC gtest)
+
+add_executable(utils/tests ${SOURCES})
 
 set_target_properties(utils PROPERTIES
     CXX_STANDARD 14
