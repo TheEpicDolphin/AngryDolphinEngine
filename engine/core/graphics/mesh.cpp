@@ -3,13 +3,12 @@
 
 Mesh::Mesh()
 {
-	id_ = UIDGenerator<Mesh>().CheckoutNewId();
+
 }
 
 Mesh::~Mesh()
 {
-	UIDGenerator<Mesh>().ReturnId(id_);
-	id_ = 0;
+
 }
 
 Mesh Mesh::CreateCube(float side_length) {

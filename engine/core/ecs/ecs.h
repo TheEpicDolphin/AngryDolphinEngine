@@ -282,18 +282,11 @@ private:
 	};
 
 	SetTrie<ComponentTypeID, Archetype *> archetype_set_trie_;
-
-	std::vector<Archetype *> archetypes_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
 
 	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{
-		for (std::vector<Archetype>::iterator it = archetypes_.begin(); it != archetypes_.end(); ++it) {
-			if (archtype_Id == it->component_types) {
-				return &(*it);
-			}
-		}
-		return nullptr;
+		return archetype_set_trie_.FindValueForKeySet(archtype_Id);
 	}
 
 	template<class... Ts>
