@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <queue>
 
 typedef std::uint64_t TypeID;
@@ -20,7 +19,7 @@ public:
 			return id;
 		}
 		else {
-			return id_count++;
+			return id_count_++;
 		}
 	}
 
@@ -32,6 +31,5 @@ public:
 private:
 	std::queue<TypeID> unused_ids_;
 
-	/* id of 0 indicates invalid id */
-	static const TypeID id_count_ = 1;
+	static TypeID id_count_;
 };

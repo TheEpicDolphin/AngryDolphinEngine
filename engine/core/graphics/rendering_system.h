@@ -44,8 +44,8 @@ private:
 		//glGenBuffers(1, &mesh_batch.ibo);
 		glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
 		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_batch.ibo);
-		glBufferData(GL_ARRAY_BUFFER, 3, mesh.GetVertices().data, GL_STATIC_DRAW);
-
+		glBufferData(GL_ARRAY_BUFFER, 3, mesh.GetVertices().data(), GL_STATIC_DRAW);
+		
 		glEnableVertexAttribArray(material.VertexAttribute());
 		glVertexAttribPointer(
 			material.VertexAttribute(), // The shader's attribute for vertex positions.
@@ -102,9 +102,9 @@ public:
 		};
 		ecs_->EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
 
-		ecs_->GetComponent<Camera>();
+		//ecs_->GetComponent<Camera>();
 
-		const glm::mat4 vp_matrix = ;
+		const glm::mat4 vp_matrix = glm::mat4(1.0f);
 
 		for (auto& it : material_batch_map)
 		{

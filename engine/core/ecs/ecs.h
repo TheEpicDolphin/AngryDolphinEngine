@@ -148,6 +148,13 @@ public:
 		}
 
 		Component<T>::count += 1;
+		if () {
+			component_count_map[added_component_type] += 1;
+		}
+		else {
+			component_count_map.push_back(1);
+		}
+		
 	}
 
 	template<typename T>
@@ -283,6 +290,7 @@ private:
 
 	SetTrie<ComponentTypeID, Archetype *> archetype_set_trie_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
+	std::vector<TypeID, uint64_t> component_count_map_;
 
 	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{

@@ -1,8 +1,6 @@
 #pragma once
 
-#include <iostream>
-
-#include "typeid_generator.h"
+#include <core/utils/typeid_generator.h>
 
 typedef TypeID EntityID;
 

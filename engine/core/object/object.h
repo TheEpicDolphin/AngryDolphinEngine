@@ -1,7 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <core/ecs/typeid_generator.h>
+#include <core/utils/typeid_generator.h>
 
 typedef TypeID InstanceID;
 
@@ -12,7 +11,6 @@ public:
 	Object()
 	{
 		id_ = TypeIDGenerator<T>().CheckoutNewId();
-		return id_;
 	}
 
 	~Object()
@@ -27,4 +25,4 @@ public:
 
 private:
 	InstanceID id_;
-}; #pragma once
+};

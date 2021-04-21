@@ -1,19 +1,20 @@
 #pragma once
 
-#include <iostream>
-#include <glm/vec3.hpp>
 #include <vector>
-#include <core/ecs/typeid_generator.h>
+
+#include <core/utils/typeid_generator.h>
 #include <core/object/object.h>
+#include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
 
 class Mesh : public Object<Mesh>
 {
 public:
 	// Structure describing data for a single triangle in the mesh.
-	struct Triangle
+	typedef struct Triangle
 	{
 		size_t indices[3] = { 0, 0, 0 };
-	};
+	} Triangle;
 
 	Mesh();
 
@@ -30,7 +31,8 @@ public:
 		return verts_;
 	}
 
-	std::vector<Triangle> GetTriangles() {
+	std::vector<Triangle> GetTriangles() 
+	{
 		return tris_;
 	}
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include "typeid_generator.h"
+#include <core/utils/typeid_generator.h>
 
 typedef TypeID ComponentTypeID;
 
@@ -38,5 +38,5 @@ public:
 	}
 
 private:
-	static ComponentTypeID type_id_ = 0;
+	static ComponentTypeID type_id_;
 };
