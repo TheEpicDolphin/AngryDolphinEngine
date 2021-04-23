@@ -1,8 +1,8 @@
 #pragma once
 
-#include <core/utils/typeid_generator.h>
+#include <core/utils/uid_generator.h>
 
-typedef TypeID InstanceID;
+typedef UID InstanceID;
 
 template <typename T>
 class Object
@@ -10,12 +10,12 @@ class Object
 public:
 	Object()
 	{
-		id_ = TypeIDGenerator<T>().CheckoutNewId();
+		id_ = uid_generator.CheckoutNewId();
 	}
 
 	~Object()
 	{
-		TypeIDGenerator<T>().ReturnId(id_);
+		uid_generator.ReturnId(id_);
 		id_ = 0;
 	}
 
@@ -25,4 +25,6 @@ public:
 
 private:
 	InstanceID id_;
+
+	static UIDGenerator uid_generator;
 };

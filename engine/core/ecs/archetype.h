@@ -22,7 +22,7 @@ class ComponentArray : public ComponentArrayBase
 {
 public:
 	void Append(ComponentBase component) {
-		T casted_component = static_cast<T>(component)
+		T casted_component = static_cast<T>(component);
 		components_.push_back(casted_component);
 	}
 

@@ -1,21 +1,20 @@
 #pragma once
 
-#include <core/utils/typeid_generator.h>
+#include <core/utils/uid_generator.h>
 
-typedef TypeID EntityID;
+typedef UID EntityID;
 
 class Entity {
 	
 public:
 
-	Entity() 
+	Entity(EntityID id) 
 	{
-		id_ = TypeIDGenerator<Entity>().CheckoutNewId();
+		id_ = id;
 	}
 
 	~Entity() 
 	{
-		TypeIDGenerator<Entity>().ReturnId(id_);
 		id_ = 0;
 	}
 

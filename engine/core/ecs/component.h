@@ -1,9 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include <core/utils/typeid_generator.h>
+#include <core/utils/uid_generator.h>
 
-typedef TypeID ComponentTypeID;
+typedef UID ComponentTypeID;
 
 struct ComponentBase {
 
@@ -13,28 +13,15 @@ template <typename T>
 struct Component : public ComponentBase {
 
 public:
-	static uint64_t count = 0;
+
+	Component(ComponentTypeID type_id) {
+		if (!type_id_) {
+			type_id_ = type_id;
+		}
+	}
 
 	static ComponentTypeID GetTypeId() {
 		return type_id_;
-	}
-
-	static ComponentTypeID ClaimTypeId() {
-		if (type_id_) {
-			throw std::runtime_error("Attempting to claim new ComponentTypeID when component already has one.");
-			return type_id_;
-		}
-		type_id_ = TypeIDGenerator<ComponentBase>().CheckoutNewId();
-		return type_id_;
-	}
-
-	static void ClearTypeId() {
-		if (!type_id_) {
-			throw std::runtime_error("Attempting to relinquish ComponentTypeID when component doesn't have a valid one yet.");
-			return;
-		}
-		TypeIDGenerator<ComponentBase>().ReturnId(type_id_);
-		type_id_ = 0;
 	}
 
 private:

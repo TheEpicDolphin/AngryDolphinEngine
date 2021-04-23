@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include <core/utils/typeid_generator.h>
+#include <core/utils/uid_generator.h>
 #include <core/object/object.h>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>

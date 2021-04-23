@@ -20,7 +20,7 @@ public:
 		static_assert(std::is_base_of<Component<T>, T>::value,
 			"Component to add must derive from base class 'Component<T>'" > );
 
-		ComponentTypeID added_component_type = Component<T>::GetTypeId();
+		ComponentTypeID added_component_type = Component<T>::GetTypeId();		 
 		if (!added_component_type) {
 			// We are adding a component of this type for the first time. Register it.
 			added_component_type = RegisterComponent<T>();
@@ -80,7 +80,7 @@ public:
 			// the existing one and insert new component data.
 			for (std::size_t c_idx = 0; c_idx < existing_archetype->component_types.size; ++c_idx) {
 				if (existing_archetype->component_types[c_idx] == added_component_type) {
-					existing_archetype->component_arrays[c_idx]->Append(T(args));
+					existing_archetype->component_arrays[c_idx]->Append(T(args, added_component_type));
 				}
 				else if (existing_archetype->component_types[c_idx] > added_component_type) {
 					ComponentBase comp = previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
@@ -118,7 +118,7 @@ public:
 			Archetype *existing_archetype = GetMatchingArchetype({ added_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
-				existing_archetype->component_arrays[0]->Append(T(args));
+				existing_archetype->component_arrays[0]->Append(T(args, added_component_type));
 				
 				std::size_t entity_count = existing_archetype->entity_ids.size;
 				Record new_record =
@@ -134,7 +134,7 @@ public:
 				Archetype *new_archetype = new Archetype();
 				new_archetype->component_types = { added_component_type };
 				ComponentArray<T> new_component_array = new ComponentArray<T>();
-				new_component_array->Append(T(args));
+				new_component_array->Append(T(args, added_component_type));
 				new_archetype->component_arrays = { new_component_array };
 				new_archetype->entity_ids = { entity_id };
 				archetype_set_trie_.InsertValueForKeySet(new_archetype, new_archetype->component_types);
@@ -147,14 +147,12 @@ public:
 			}
 		}
 
-		Component<T>::count += 1;
-		if () {
+		if (component_count_map.find(added_component_type) != component_count_map_.end()) {
 			component_count_map[added_component_type] += 1;
 		}
 		else {
 			component_count_map.push_back(1);
 		}
-		
 	}
 
 	template<typename T>
@@ -290,7 +288,9 @@ private:
 
 	SetTrie<ComponentTypeID, Archetype *> archetype_set_trie_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
-	std::vector<TypeID, uint64_t> component_count_map_;
+	std::vector<ComponentTypeID, uint64_t> component_count_map_;
+	UIDGenerator component_uid_generator_;
+	UIDGenerator entity_uid_generator_;
 
 	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{
@@ -307,14 +307,14 @@ private:
 	template<typename T>
 	ComponentTypeID RegisterComponent()
 	{
-		ComponentTypeID claimed_type_id = Component<T>::ClaimTypeId();
+		ComponentTypeID claimed_type_id = component_uid_generator.CheckoutNewId();
 		return claimed_type_id;
 	}
 
 	template<typename T>
 	void UnregisterComponent() 
 	{
-		Component<T>::ClearTypeId();
+		component_uid_generator_.ReturnId(Component<T>::ClearTypeId());
 	}
 
 };
