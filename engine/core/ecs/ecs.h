@@ -11,8 +11,9 @@
 #include "component.h"
 #include "archetype.h"
 
-class ECS {
-	
+class ECS 
+{
+
 public:
 	template<typename T, typename... Args>
 	void AddComponent(EntityID entity_id, Args&&...args)
@@ -23,6 +24,9 @@ public:
 		ComponentTypeID added_component_type = Component<T>::GetTypeId();		 
 		if (!added_component_type) {
 			// We are adding a component of this type for the first time. Register it.
+			
+			// ALSO, if we are registering this component, then it is not possible for 
+			// this entity to already have this component type.
 			added_component_type = RegisterComponent<T>();
 		}
 
@@ -81,7 +85,7 @@ public:
 			for (std::size_t c_idx = 0; c_idx < existing_archetype->component_types.size; ++c_idx) {
 				if (existing_archetype->component_types[c_idx] == added_component_type) {
 					ComponentArray<T> *casted_existing_component_array = static_cast<ComponentArray<T> *>(existing_archetype->component_arrays[c_idx]);
-					casted_existing_component_array->Append(T(args, added_component_type);
+					casted_existing_component_array->Append(T(args, added_component_type));
 				}
 				else if (existing_archetype->component_types[c_idx] > added_component_type) {
 					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx - 1], record.index);
@@ -134,7 +138,7 @@ public:
 				// Create new archetype for entity.
 				Archetype *new_archetype = new Archetype();
 				new_archetype->component_types = { added_component_type };
-				ComponentArray<T> new_component_array = new ComponentArray<T>();
+				ComponentArray<T> *new_component_array = new ComponentArray<T>();
 				new_component_array->Append(T(args, added_component_type));
 				new_archetype->component_arrays = { new_component_array };
 				new_archetype->entity_ids = { entity_id };
@@ -148,12 +152,7 @@ public:
 			}
 		}
 
-		if (component_count_map.find(added_component_type) != component_count_map_.end()) {
-			component_count_map[added_component_type] += 1;
-		}
-		else {
-			component_count_map.push_back(1);
-		}
+		component_count_map_[added_component_type] += 1;
 	}
 
 	template<typename T>
@@ -241,13 +240,10 @@ public:
 			return;
 		}
 		
-		if (Component<T>::count > 0) {
-			Component<T>::count -= 1;
-			if (Component<T>::count == 0) 
-			{
-				// No entity owns a component of this type anymore. Unregister it.
-				UnregisterComponent<T>();
-			}
+		component_count_map_[removed_component_type] -= 1;
+		if (component_count_map_[removed_component_type] == 0) {
+			// No entity owns a component of this type anymore. Unregister it.
+			UnregisterComponent<T>();
 		}
 	}
 
@@ -255,7 +251,7 @@ public:
 	bool GetComponent(EntityID entity_id, std::function<void(const T&)> read_block)
 	{
 		Record record = entity_archetype_record_map_[entity_id];
-		std::size_t component_count = record.archtype->component_types.size;
+		std::size_t component_count = record.archtype->component_types.size();
 		ComponentArray<T> *component_array = record.archtype->GetComponentArray<T>();
 		if (component_array) {
 			const T& component = component_array[record.index];
@@ -289,7 +285,7 @@ private:
 
 	SetTrie<ComponentTypeID, Archetype *> archetype_set_trie_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
-	std::vector<ComponentTypeID, uint64_t> component_count_map_;
+	std::unordered_map<ComponentTypeID, uint64_t> component_count_map_;
 	UIDGenerator component_uid_generator_;
 	UIDGenerator entity_uid_generator_;
 
@@ -308,14 +304,17 @@ private:
 	template<typename T>
 	ComponentTypeID RegisterComponent()
 	{
-		ComponentTypeID claimed_type_id = component_uid_generator.CheckoutNewId();
+		ComponentTypeID claimed_type_id = component_uid_generator_.CheckoutNewId();
+		component_count_map_.insert({ claimed_type_id, 0 });
 		return claimed_type_id;
 	}
 
 	template<typename T>
 	void UnregisterComponent() 
 	{
-		component_uid_generator_.ReturnId(Component<T>::ClearTypeId());
+		ComponentTypeId component_type_id = Component<T>::GetTypeId();
+		component_count_map_.erase(component_type_id);
+		component_uid_generator_.ReturnId(component_type_id);
 	}
 
 };

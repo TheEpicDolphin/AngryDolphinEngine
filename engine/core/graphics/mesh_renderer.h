@@ -1,8 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
-
 #include <core/ecs/component.h>
 #include "mesh.h"
 #include "material.h"

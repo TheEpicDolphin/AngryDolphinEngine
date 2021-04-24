@@ -66,6 +66,7 @@ public:
 
 	std::vector<EntityID> entity_ids;
 
+	// TODO: Consider replacing this with simple array. std::vector is unnecessary.
 	std::vector<ComponentArrayBase*> component_arrays;
 
 	template<class T>

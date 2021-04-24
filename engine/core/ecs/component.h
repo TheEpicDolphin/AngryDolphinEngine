@@ -1,16 +1,11 @@
 #pragma once
 
-#include <iostream>
 #include <core/utils/uid_generator.h>
 
 typedef UID ComponentTypeID;
 
-struct ComponentBase {
-
-};
-
 template <typename T>
-struct Component : public ComponentBase {
+struct Component {
 
 public:
 
