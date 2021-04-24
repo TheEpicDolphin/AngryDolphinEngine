@@ -80,15 +80,16 @@ public:
 			// the existing one and insert new component data.
 			for (std::size_t c_idx = 0; c_idx < existing_archetype->component_types.size; ++c_idx) {
 				if (existing_archetype->component_types[c_idx] == added_component_type) {
-					existing_archetype->component_arrays[c_idx]->Append(T(args, added_component_type));
+					ComponentArray<T> *casted_existing_component_array = static_cast<ComponentArray<T> *>(existing_archetype->component_arrays[c_idx]);
+					casted_existing_component_array->Append(T(args, added_component_type);
 				}
 				else if (existing_archetype->component_types[c_idx] > added_component_type) {
-					ComponentBase comp = previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
-					existing_archetype->component_arrays[c_idx]->Append(comp);
+					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx - 1], record.index);
+					previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
 				}
 				else {
-					ComponentBase comp = previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
-					existing_archetype->component_arrays[c_idx]->Append(comp);
+					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx], record.index);
+					previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
 			}
 
@@ -208,12 +209,12 @@ public:
 					existing_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
 				else if (previous_archetype->component_types[c_idx] > removed_component_type) {
-					ComponentBase comp = previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
-					existing_archetype->component_arrays[c_idx - 1]->Append(comp);
+					existing_archetype->component_arrays[c_idx - 1]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx], record.index);
+					previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
 				else {
-					ComponentBase comp = previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
-					existing_archetype->component_arrays[c_idx]->Append(comp);
+					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx], record.index);
+					previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
 			}
 
@@ -257,7 +258,7 @@ public:
 		std::size_t component_count = record.archtype->component_types.size;
 		ComponentArray<T> *component_array = record.archtype->GetComponentArray<T>();
 		if (component_array) {
-			const T& component = Component_array->ComponentAtIndex(record.index);
+			const T& component = component_array[record.index];
 			read_block(component);
 			return true;
 		}
@@ -274,7 +275,7 @@ public:
 			[block](std::vector<EntityID>& entity_ids, ComponentArray<Ts>* ...component_arrays) {
 				std::size_t entity_count = entity_ids.size();
 				for (std::size_t e_idx = 0; e_idx < entity_count; ++e_idx) {
-					block(entity_ids[e_idx], component_arrays->ComponentAtIndex(e_idx)...);
+					block(entity_ids[e_idx], component_arrays[e_idx]...);
 				}
 			}(archetype->entity_ids, archetype->GetComponentArray<Ts>()...);
 		}

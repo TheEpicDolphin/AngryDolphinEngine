@@ -10,23 +10,29 @@
 class ComponentArrayBase
 {
 public:
-	virtual void Append(ComponentBase component) {}
+	virtual void AppendComponentFromArrayAtIndex(ComponentArrayBase* source_component_array, std::size_t index) {}
 
-	virtual ComponentBase RemoveWithSwapAtIndex(std::size_t index) {}
+	virtual void RemoveWithSwapAtIndex(std::size_t index) {}
 
 	virtual ComponentArrayBase* Empty() {}
 };
 
 template<class T>
-class ComponentArray : public ComponentArrayBase 
+class ComponentArray : public ComponentArrayBase
 {
 public:
-	void Append(ComponentBase component) {
-		T casted_component = static_cast<T>(component);
-		components_.push_back(casted_component);
+	void Append(T component) 
+	{
+		components_.push_back(component);
 	}
 
-	ComponentBase RemoveWithSwapAtIndex(std::size_t index)
+	void AppendComponentFromArrayAtIndex(ComponentArrayBase* source_component_array, std::size_t index)
+	{
+		ComponentArray<T>* casted_source_component_array = static_cast<ComponentArray<T> *>(source_component_array);
+		Append(casted_source_component_array[index]);
+	}
+
+	void RemoveWithSwapAtIndex(std::size_t index)
 	{
 		if (index >= components_.size) {
 			throw std::runtime_error("ComponentArray index out of range.");
@@ -36,21 +42,14 @@ public:
 			components_[index] = components_.end();
 		}
 		components_.pop_back();
-		return (ComponentBase)component;
 	}
 
 	ComponentArrayBase* Empty() {
 		return new ComponentArray<T>();
 	}
 
-	T& ComponentAtIndex(std::size_t index)
-	{
-		if (index >= components_.size) {
-			throw std::runtime_error("ComponentArray index out of range.");
-		}
-		else {
-			return components_[index];
-		}
+	T& operator[](std::size_t index) {
+		return components_[index];
 	}
 
 private:
