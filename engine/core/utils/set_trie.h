@@ -38,7 +38,7 @@ public:
 	std::vector<TValue> FindSuperSets(std::vector<TKey> key_set) {
 		std::vector<TValue> supersets;
 		std::size_t index = 0;
-		std::stack<std::pair<SetTrieNode<TKey, TValue>, std::map<TKey, SetTrie<TKey, TValue>>::iterator>> stack;
+		std::stack<std::pair<SetTrieNode<TKey, TValue>, std::map<TKey, SetTrieNode<TKey, TValue>>::iterator>> stack;
 		stack.push(std::make_pair(root_node_, root_node_.children.begin()));
 		while (!stack.empty()) {
 			SetTrieNode<TKey, TValue> current_node = stack.top().first;
@@ -59,7 +59,7 @@ public:
 					supersets.push_back(next_node.value);
 				}
 
-				std::advance(stack.top().second);
+				std::advance(stack.top().second, 1);
 			}
 		}
 
@@ -125,7 +125,7 @@ public:
 				return NULL;
 			}
 			index++;
-			current_node = iter->second;
+			current_node = children_iter->second;
 		}
 		return current_node.value;
 	}

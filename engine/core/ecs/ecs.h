@@ -266,12 +266,13 @@ public:
 	template<class... Ts>
 	void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block)
 	{
-		std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts>();
+		std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts...>();
 		for (Archetype *archetype : archetypes) {
 			[block](std::vector<EntityID>& entity_ids, ComponentArray<Ts>* ...component_arrays) {
 				std::size_t entity_count = entity_ids.size();
 				for (std::size_t e_idx = 0; e_idx < entity_count; ++e_idx) {
-					block(entity_ids[e_idx], component_arrays[e_idx]...);
+					//block(entity_ids[e_idx], component_arrays[e_idx]...);
+					block(entity_ids[e_idx], component_arrays->ComponentAtIndex(e_idx)...);
 				}
 			}(archetype->entity_ids, archetype->GetComponentArray<Ts>()...);
 		}
@@ -297,7 +298,7 @@ private:
 	template<class... Ts>
 	std::vector<Archetype *> GetArchetypesWithComponents() 
 	{
-		std::vector<ComponentTypeID> component_types = { (Component<Ts>::ClaimTypeId())... };
+		std::vector<ComponentTypeID> component_types = { (Component<Ts>::GetTypeId())... };
 		return archetype_set_trie_.FindSuperSets(component_types);
 	}
 

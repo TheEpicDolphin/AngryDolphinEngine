@@ -29,17 +29,17 @@ public:
 	void AppendComponentFromArrayAtIndex(ComponentArrayBase* source_component_array, std::size_t index)
 	{
 		ComponentArray<T>* casted_source_component_array = static_cast<ComponentArray<T> *>(source_component_array);
-		Append(casted_source_component_array[index]);
+		Append(casted_source_component_array->ComponentAtIndex(index));
 	}
 
 	void RemoveWithSwapAtIndex(std::size_t index)
 	{
-		if (index >= components_.size) {
+		if (index >= components_.size()) {
 			throw std::runtime_error("ComponentArray index out of range.");
 		}
 		T component = components_[index];
-		if (index < components_.size - 1) {
-			components_[index] = components_.end();
+		if (index < components_.size() - 1) {
+			components_[index] = components_.back();
 		}
 		components_.pop_back();
 	}
@@ -48,7 +48,7 @@ public:
 		return new ComponentArray<T>();
 	}
 
-	T& operator[](std::size_t index) {
+	T& ComponentAtIndex(std::size_t index) {
 		return components_[index];
 	}
 
@@ -74,9 +74,9 @@ public:
 	{
 		ComponentTypeID component_type = Component<T>::GetTypeId();
 		// TODO: Perform binary search to look for component array given component_type
-		for (std::size_t c_idx = 0; c_idx < component_types.size; ++c_idx) {
+		for (std::size_t c_idx = 0; c_idx < component_types.size(); ++c_idx) {
 			if (component_type == component_types[c_idx]) {
-				return static_cast<T*>(component_arrays[c_idx]);
+				return static_cast<ComponentArray<T> *>(component_arrays[c_idx]);
 			}
 		}
 		return nullptr;
