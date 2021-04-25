@@ -1,4 +1,4 @@
-Build Instructions (Athena with Makefile)
+Build Instructions
 ==================
 $ mkdir build
 $ cd build

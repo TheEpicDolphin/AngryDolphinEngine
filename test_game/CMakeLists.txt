@@ -1,10 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
-
-set(CMAKE_CXX_FLAGS "-std=c++14")
-
-file(GLOB_RECURSE SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_executable(test_game ${SOURCES})
 

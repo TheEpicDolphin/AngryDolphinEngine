@@ -11,11 +11,6 @@ GLFWwindow* window;
 
 int main(void)
 {
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
-
-	GLuint vertexArrayID;
-	glGenVertexArrays(1, &vertexArrayID);
-	
 	/*
 	// Initialise GLFW
 	if (!glfwInit())

@@ -1,6 +1,6 @@
-file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
+file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
-add_library(game ${libsrc})
+add_library(game ${SOURCES})
 
 target_link_libraries(game LINK_PUBLIC ecs)
 

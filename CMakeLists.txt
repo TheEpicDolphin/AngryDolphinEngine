@@ -17,20 +17,19 @@ add_subdirectory(3rd_party/glfw)
 find_package(OpenGL REQUIRED)
 
 # GLEW
-#add_definitions(-DGLEW_STATIC)
-#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/glew/glew-2.1.0/build/cmake)
-#target_include_directories(glew ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/glew/glew-2.1.0/include)
-#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/glew/glew-2.1.0/include)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/glew-cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/glew-cmake/include)
 
 # GLM
 set(glm_DIR 3rd_party/glm/cmake/glm) # if necessary
-#find_package(glm REQUIRED)
 add_subdirectory(3rd_party/glm)
 
 # Google test
+enable_testing()
+# This prevents "error LNK2038: mismatch detected for 'RuntimeLibrary': value 'MTd_StaticDebug' doesn't match value 'MDd_DynamicDebug' in main.obj"
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory(3rd_party/googletest)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/googletest/googletest/include)
 
 add_subdirectory(engine)
 add_subdirectory(test_game)

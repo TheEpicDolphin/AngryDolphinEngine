@@ -1,6 +1,6 @@
-file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
+file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
-add_library (graphics ${libsrc})
+add_library (graphics ${SOURCES})
 
 target_link_libraries(graphics PUBLIC libglew_static)
 target_link_libraries(graphics glm::glm)
