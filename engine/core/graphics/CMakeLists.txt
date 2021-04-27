@@ -3,7 +3,7 @@ file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 add_library (graphics ${SOURCES})
 
 target_link_libraries(graphics PUBLIC libglew_static)
-target_link_libraries(graphics glm::glm)
+target_link_libraries(graphics PUBLIC glm::glm)
 target_link_libraries(graphics LINK_PUBLIC ecs)
 
 set_target_properties(graphics PROPERTIES

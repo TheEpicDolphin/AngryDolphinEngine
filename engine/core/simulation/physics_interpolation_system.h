@@ -12,6 +12,8 @@ using namespace transform_utils;
 class PhysicsInterpolationSystem : public System<PhysicsInterpolationSystem>
 {
 public:
+	PhysicsInterpolationSystem() = default;
+
 	PhysicsInterpolationSystem(ECS *ecs) : System<PhysicsInterpolationSystem>(ecs) {
 
 	}
