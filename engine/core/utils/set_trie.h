@@ -3,14 +3,15 @@
 #include <map>
 #include <stack>
 #include <vector>
+#include <iostream>
 
 template<typename TKey, typename TValue>
 class SetTrie {
 private:
 	struct SetTrieNode {
 		TKey key;
-		std::unique_ptr<TValue> value_ptr;
-		//std::shared_ptr<TValue> value_ptr;
+		TValue value;
+		bool has_value;
 		std::map<TKey, SetTrieNode> children;
 	};
 
@@ -19,16 +20,16 @@ private:
 public:
 	SetTrie() {
 		root_node_.key = 0;
-		root_node_.value_ptr.reset();
+		root_node_.has_value = false;
 	}
 
 	std::vector<TValue> FindSuperSets(std::vector<TKey> key_set) {
 		std::vector<TValue> supersets;
 		std::size_t index = 0;
-		std::stack<std::pair<SetTrieNode, std::map<TKey, SetTrieNode>::iterator>> stack;
-		stack.push(std::make_pair(root_node_, root_node_.children.begin()));
+		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
+		stack.push(std::make_pair(&root_node_, root_node_.children.begin()));
 		while (!stack.empty()) {
-			SetTrieNode current_node = stack.top().first;
+			SetTrieNode& current_node = *stack.top().first;
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top().second;
 			if (current_node.key < key_set[index] || children_iter == current_node.children.end()) {
 				stack.pop();
@@ -37,13 +38,13 @@ public:
 				}
 			}
 			else {
-				SetTrieNode next_node = children_iter->second;
-				stack.push(std::make_pair(next_node, next_node.children.begin()));
-				if (index < key_set.size() && next_node.key == key_set[index]) {
+				SetTrieNode *next_node = &children_iter->second;
+				stack.push(std::make_pair(next_node, next_node->children.begin()));
+				if (index < key_set.size() && next_node->key == key_set[index]) {
 					index++;
 				}
-				if (index == key_set.size() && next_node.value_ptr) {
-					supersets.push_back(*next_node.value_ptr.get());
+				if (index == key_set.size() && next_node->has_value) {
+					supersets.push_back(next_node->value);
 				}
 
 				std::advance(stack.top().second, 1);
@@ -54,18 +55,18 @@ public:
 	}
 
 	void InsertValueForKeySet(TValue value, std::vector<TKey> key_set) {
-		SetTrieNode *current_node = &root_node_;
+		SetTrieNode& current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
-			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
-			if (children_iter == current_node->children.end()) {
+			std::map<TKey, SetTrieNode>::iterator children_iter = current_node.children.find(key_set[index]);
+			if (children_iter == current_node.children.end()) {
 				break;
 			}
 			index++;
-			current_node = &children_iter->second;
+			current_node = children_iter->second;
 		}
 
-		if (index == key_set.size() && current_node->value_ptr) {
+		if (index == key_set.size() && current_node.has_value) {
 			throw std::runtime_error("Trying to insert value for keyset that is already in Set Trie");
 			return;
 		}
@@ -73,17 +74,26 @@ public:
 		while (index < key_set.size()) {
 			SetTrieNode new_node;
 			new_node.key = key_set[index];
-			new_node.value_ptr = std::make_unique<TValue>(value);
-			//new_node.value_ptr = std::make_shared<TValue>(value);
-			std::pair<std::map<TKey, SetTrieNode>::iterator, bool> result = current_node->children.insert(std::make_pair(new_node.key, new_node));
-			current_node = &result.first->second;
+			new_node.has_value = false;
+			std::pair<std::map<TKey, SetTrieNode>::iterator, bool> result = current_node.children.insert(std::make_pair(new_node.key, new_node));
+			std::cout << result.first->second.key << std::endl;
+			std::cout << current_node.key << std::endl;
+			std::cout << "butt1" << std::endl;
+			current_node = result.first->second;
+			std::cout << "butt" << std::endl;
 			index++;
+			
 		}
+
+		std::cout << "done" << std::endl;
+
+		current_node.value = value;
+		current_node.has_value = true;
 	}
 
 	void RemoveValueForKeySet(std::vector<TKey> key_set) {
 		std::size_t index = 0;
-		std::stack<SetTrieNode*> stack;
+		std::stack<SetTrieNode *> stack;
 		stack.push(&root_node_);
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top()->children.find(key_set[index]);
@@ -95,27 +105,30 @@ public:
 			stack.push(&children_iter->second);
 		}
 
-		stack.top()->value_ptr.reset();
+		stack.top()->has_value = false;
 
 		// If top node has no children, then we should traverse ancestors to delete any unnecessary nodes
-		while (!stack.top()->value_ptr && stack.top()->children.empty()) {
+		while (!stack.top()->has_value && stack.top()->children.empty()) {
 			TKey childKey = stack.top()->key;
 			stack.pop();
 			stack.top()->children.erase(childKey);
 		}
 	}
 
-	TValue FindValueForKeySet(std::vector<TKey> key_set) {
-		SetTrieNode *current_node = &root_node_;
+	TValue& ValueForKeySet(std::vector<TKey> key_set) {
+		SetTrieNode& current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
-			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
-			if (children_iter == current_node->children.end()) {
-				return NULL;
+			std::map<TKey, SetTrieNode>::iterator children_iter = current_node.children.find(key_set[index]);
+			if (children_iter == current_node.children.end()) {
+				throw std::runtime_error("out_of_range: keyset cannot be found in Set Trie");
 			}
 			index++;
-			current_node = &children_iter->second;
+			current_node = children_iter->second;
 		}
-		return *current_node->value_ptr.get();
+		if (!current_node.has_value) {
+			throw std::runtime_error("value at keyset is not set");
+		}
+		return current_node.value;
 	}
 };

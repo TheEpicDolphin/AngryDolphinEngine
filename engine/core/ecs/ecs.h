@@ -292,7 +292,7 @@ private:
 
 	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
 	{
-		return archetype_set_trie_.FindValueForKeySet(archtype_Id);
+		return archetype_set_trie_.ValueForKeySet(archtype_Id);
 	}
 
 	template<class... Ts>
