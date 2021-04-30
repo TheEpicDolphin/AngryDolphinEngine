@@ -299,7 +299,7 @@ private:
 	std::vector<Archetype *> GetArchetypesWithComponents() 
 	{
 		std::vector<ComponentTypeID> component_types = { (Component<Ts>::GetTypeId())... };
-		return archetype_set_trie_.FindSuperSets(component_types);
+		return archetype_set_trie_.FindSuperKeySetValues(component_types);
 	}
 
 	template<typename T>

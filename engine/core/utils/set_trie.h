@@ -23,17 +23,34 @@ public:
 		root_node_.has_value = false;
 	}
 
-	std::vector<TValue> FindSuperSets(std::vector<TKey> key_set) {
+	std::vector<TValue> GetValuesInOrder()
+	{
+		return FindSuperKeySetValues({});
+	}
+
+	/*
+		  0
+		 / \
+		1   3
+	   / \
+	  2   3
+
+	*/
+
+	std::vector<TValue> FindSuperKeySetValues(std::vector<TKey> key_set) {
 		std::vector<TValue> supersets;
 		std::size_t index = 0;
 		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
 		stack.push(std::make_pair(&root_node_, root_node_.children.begin()));
+		std::cout << "what" << std::endl;
 		while (!stack.empty()) {
-			SetTrieNode& current_node = *stack.top().first;
+			SetTrieNode *current_node = stack.top().first;
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top().second;
-			if (current_node.key < key_set[index] || children_iter == current_node.children.end()) {
+			// Check if there are no more children OR if the next child's key is larger than the next key we are looking for.
+			// In both cases, we should stop traversing the children of current_node.
+			if (children_iter == current_node->children.end() || children_iter->second.key > key_set[index]) {
 				stack.pop();
-				if (index > 0 && current_node.key == key_set[index - 1]) {
+				if (index > 0 && current_node->key == key_set[index - 1]) {
 					index--;
 				}
 			}
@@ -46,27 +63,26 @@ public:
 				if (index == key_set.size() && next_node->has_value) {
 					supersets.push_back(next_node->value);
 				}
-
 				std::advance(stack.top().second, 1);
 			}
 		}
-
+		std::cout << "what2" << std::endl;
 		return supersets;
 	}
 
 	void InsertValueForKeySet(TValue value, std::vector<TKey> key_set) {
-		SetTrieNode& current_node = root_node_;
+		SetTrieNode *current_node = &root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
-			std::map<TKey, SetTrieNode>::iterator children_iter = current_node.children.find(key_set[index]);
-			if (children_iter == current_node.children.end()) {
+			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
+			if (children_iter == current_node->children.end()) {
 				break;
 			}
 			index++;
-			current_node = children_iter->second;
+			current_node = &children_iter->second;
 		}
 
-		if (index == key_set.size() && current_node.has_value) {
+		if (index == key_set.size() && current_node->has_value) {
 			throw std::runtime_error("Trying to insert value for keyset that is already in Set Trie");
 			return;
 		}
@@ -75,20 +91,13 @@ public:
 			SetTrieNode new_node;
 			new_node.key = key_set[index];
 			new_node.has_value = false;
-			std::pair<std::map<TKey, SetTrieNode>::iterator, bool> result = current_node.children.insert(std::make_pair(new_node.key, new_node));
-			std::cout << result.first->second.key << std::endl;
-			std::cout << current_node.key << std::endl;
-			std::cout << "butt1" << std::endl;
-			current_node = result.first->second;
-			std::cout << "butt" << std::endl;
+			std::pair<std::map<TKey, SetTrieNode>::iterator, bool> result = current_node->children.insert(std::make_pair(new_node.key, new_node));
+			current_node = &result.first->second;
 			index++;
 			
 		}
-
-		std::cout << "done" << std::endl;
-
-		current_node.value = value;
-		current_node.has_value = true;
+		current_node->value = value;
+		current_node->has_value = true;
 	}
 
 	void RemoveValueForKeySet(std::vector<TKey> key_set) {
@@ -116,19 +125,19 @@ public:
 	}
 
 	TValue& ValueForKeySet(std::vector<TKey> key_set) {
-		SetTrieNode& current_node = root_node_;
+		SetTrieNode *current_node = &root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
-			std::map<TKey, SetTrieNode>::iterator children_iter = current_node.children.find(key_set[index]);
-			if (children_iter == current_node.children.end()) {
+			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
+			if (children_iter == current_node->children.end()) {
 				throw std::runtime_error("out_of_range: keyset cannot be found in Set Trie");
 			}
 			index++;
-			current_node = children_iter->second;
+			current_node = &children_iter->second;
 		}
-		if (!current_node.has_value) {
+		if (!current_node->has_value) {
 			throw std::runtime_error("value at keyset is not set");
 		}
-		return current_node.value;
+		return current_node->value;
 	}
 };
