@@ -42,13 +42,12 @@ public:
 		std::size_t index = 0;
 		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
 		stack.push(std::make_pair(&root_node_, root_node_.children.begin()));
-		std::cout << "what" << std::endl;
 		while (!stack.empty()) {
 			SetTrieNode *current_node = stack.top().first;
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top().second;
 			// Check if there are no more children OR if the next child's key is larger than the next key we are looking for.
 			// In both cases, we should stop traversing the children of current_node.
-			if (children_iter == current_node->children.end() || children_iter->second.key > key_set[index]) {
+			if (children_iter == current_node->children.end() || (index < key_set.size() && children_iter->second.key > key_set[index])) {
 				stack.pop();
 				if (index > 0 && current_node->key == key_set[index - 1]) {
 					index--;
@@ -56,17 +55,16 @@ public:
 			}
 			else {
 				SetTrieNode *next_node = &children_iter->second;
+				std::advance(stack.top().second, 1);
 				stack.push(std::make_pair(next_node, next_node->children.begin()));
 				if (index < key_set.size() && next_node->key == key_set[index]) {
 					index++;
 				}
 				if (index == key_set.size() && next_node->has_value) {
 					supersets.push_back(next_node->value);
-				}
-				std::advance(stack.top().second, 1);
+				}	
 			}
 		}
-		std::cout << "what2" << std::endl;
 		return supersets;
 	}
 
