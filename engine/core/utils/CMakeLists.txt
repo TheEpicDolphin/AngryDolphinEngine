@@ -2,7 +2,7 @@ file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
 add_library (utils ${SOURCES})
 
-#target_link_libraries(utils PUBLIC gtest)
+target_link_libraries(utils PUBLIC gtest)
 
 #add_executable(utils/tests ${SOURCES})
 

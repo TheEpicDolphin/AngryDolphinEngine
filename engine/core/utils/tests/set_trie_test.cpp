@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "../set_trie.h"
+#include "../gtest_helpers.h"
 
 TEST(set_trie_test_suite, insert_test)
 {
@@ -15,18 +16,14 @@ TEST(set_trie_test_suite, insert_test)
     test_set_trie.InsertValueForKeySet(node_1, { 3, 5, 6 } );
     test_set_trie.InsertValueForKeySet(node_2, { 3, 4, 7 } );
     std::string node_value = test_set_trie.ValueForKeySet({ 3, 5, 6 });
-    EXPECT_EQ(node_value, node_1);
+    ASSERT_EQ(node_value, node_1);
 
     test_set_trie.InsertValueForKeySet(node_3, { 5, 9 });
     node_value = test_set_trie.ValueForKeySet({3, 4, 7});
-    EXPECT_EQ(node_value, node_2);
+    ASSERT_EQ(node_value, node_2);
 
     const std::vector<std::string> ordered_nodes = test_set_trie.GetValuesInOrder();
     const std::vector<std::string> expected_ordered_nodes = { node_2, node_1, node_3 };
-    EXPECT_EQ(ordered_nodes.size(), expected_ordered_nodes.size());
-    std::cout << ordered_nodes.size() << std::endl;
-    for (std::size_t i = 0; i < ordered_nodes.size(); i++) {
-        EXPECT_EQ(ordered_nodes[i], expected_ordered_nodes[i]);
-        std::cout << ordered_nodes[i] << std::endl;
-    }
+
+    ASSERT_CONTAINERS_EQ(ordered_nodes, ordered_nodes.size(), expected_ordered_nodes, expected_ordered_nodes.size());
 }
