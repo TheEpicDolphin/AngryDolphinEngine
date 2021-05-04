@@ -23,7 +23,7 @@ public:
 		root_node_.has_value = false;
 	}
 
-	std::vector<TValue> GetValuesInOrder()
+	std::vector<TValue *> GetValuesInOrder()
 	{
 		return FindSuperKeySetValues({});
 	}
@@ -37,8 +37,8 @@ public:
 
 	*/
 
-	std::vector<TValue> FindSuperKeySetValues(std::vector<TKey> key_set) {
-		std::vector<TValue> supersets;
+	std::vector<TValue *> FindSuperKeySetValues(std::vector<TKey> key_set) {
+		std::vector<TValue *> supersets;
 		std::size_t index = 0;
 		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
 		stack.push(std::make_pair(&root_node_, root_node_.children.begin()));
@@ -61,7 +61,7 @@ public:
 					index++;
 				}
 				if (index == key_set.size() && next_node->has_value) {
-					supersets.push_back(next_node->value);
+					supersets.push_back(&next_node->value);
 				}	
 			}
 		}
@@ -122,20 +122,22 @@ public:
 		}
 	}
 
-	TValue& ValueForKeySet(std::vector<TKey> key_set) {
+	TValue* ValueForKeySet(std::vector<TKey> key_set) {
 		SetTrieNode *current_node = &root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
 			if (children_iter == current_node->children.end()) {
-				throw std::runtime_error("out_of_range: keyset cannot be found in Set Trie");
+				// keyset was not found in set trie.
+				return nullptr;
 			}
 			index++;
 			current_node = &children_iter->second;
 		}
 		if (!current_node->has_value) {
-			throw std::runtime_error("value at keyset is not set");
+			// keyset exists in set trie but the corresponding value is not set.
+			return nullptr;
 		}
-		return current_node->value;
+		return &current_node->value;
 	}
 };

@@ -58,8 +58,8 @@ public:
 			if (!has_added_new_component) {
 				new_component_types.push_back(component_type);
 			}
-
-			Archetype *existing_archetype = GetMatchingArchetype(new_component_types);
+			
+			Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet(new_component_types);
 			if (!existing_archetype) {
 				// No archetype exists for the entity's new set of component types. Create
 				// new archetype.
@@ -120,7 +120,7 @@ public:
 		else {
 			// This entity will be added to an archetype for the first time. This also
 			// means that the component to be added will be this entity's first component.
-			Archetype *existing_archetype = GetMatchingArchetype({ added_component_type });
+			Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet({ added_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
 				existing_archetype->component_arrays[0]->Append(T(args, added_component_type));
@@ -186,8 +186,8 @@ public:
 					new_component_types.push_back(component_type);
 				}
 			}
-
-			Archetype *existing_archetype = GetMatchingArchetype(new_component_types);
+			
+			Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet(new_component_types);
 			if (!existing_archetype) {
 				// No archetype exists for the entity's new set of component types. Create
 				// new archetype.
@@ -284,16 +284,11 @@ private:
 		std::size_t index;
 	};
 
-	SetTrie<ComponentTypeID, Archetype *> archetype_set_trie_;
+	SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
 	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
 	std::unordered_map<ComponentTypeID, uint64_t> component_count_map_;
 	UIDGenerator component_uid_generator_;
 	UIDGenerator entity_uid_generator_;
-
-	Archetype* FindMatchingArchetype(ArchetypeId archtype_Id)
-	{
-		return archetype_set_trie_.ValueForKeySet(archtype_Id);
-	}
 
 	template<class... Ts>
 	std::vector<Archetype *> GetArchetypesWithComponents() 
