@@ -36,9 +36,9 @@ public:
 			// referred to as the "previous_archetype"
 			Record record = entity_archetype_record_map_[entity_id];
 			Archetype *previous_archetype = record.archtype;
-			if (std::find(previous_archetype->component_types.begin(),
-				previous_archetype->component_types.end(),
-				added_component_type) != previous_archetype->component_types.end())
+			if (std::find(previous_archetype->ComponentTypes().begin(),
+				previous_archetype->ComponentTypes().end(),
+				added_component_type) != previous_archetype->ComponentTypes().end())
 			{
 				throw std::runtime_error("Cannot have multiple components of same type on entity");
 				return;
@@ -47,8 +47,8 @@ public:
 			// Determine the entity's new archetype id.
 			std::vector<ComponentTypeID> new_component_types;
 			bool has_added_new_component = false;
-			for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
-				ComponentTypeID component_type = previous_archetype->component_types[c_idx];
+			for (std::size_t c_idx = 0; c_idx < previous_archetype->ComponentTypes().size; ++c_idx) {
+				ComponentTypeID component_type = previous_archetype->ComponentTypes()[c_idx];
 				if (added_component_type < component_type && !has_added_new_component) {
 					new_component_types.push_back(added_component_type);
 					has_added_new_component = true;
@@ -63,31 +63,28 @@ public:
 			if (!existing_archetype) {
 				// No archetype exists for the entity's new set of component types. Create
 				// new archetype.
-				existing_archetype = new Archetype();
-				existing_archetype->component_types = new_component_types;
+				existing_archetype = archetype_set_trie_.InsertValueForKeySet(Archetype(new_component_types), new_component_types);
 				for (std::size_t c_idx = 0; c_idx < new_component_types.size; ++c_idx) {
 					if (new_component_types[c_idx] == added_component_type) {
-						existing_archetype->component_arrays.push_back(new ComponentArray<T>());
+						existing_archetype->component_arrays[c_idx] = new ComponentArray<T>();
 					}
 					else if (new_component_types[c_idx] > added_component_type) {
-						ComponentArrayBase *empty = previous_archetype->component_arrays[c_idx - 1]->Empty();
-						existing_archetype->component_arrays.push_back(empty);
+						existing_archetype->component_arrays[c_idx] = previous_archetype->component_arrays[c_idx - 1]->Empty();
 					}
 					else {
-						ComponentArrayBase *empty = previous_archetype->component_arrays[c_idx]->Empty();
-						existing_archetype->component_arrays.push_back(empty);
+						existing_archetype->component_arrays[c_idx] = previous_archetype->component_arrays[c_idx]->Empty()
 					}
 				}
 			}
 
 			// Move over the entity's component data from the previous archetype to
 			// the existing one and insert new component data.
-			for (std::size_t c_idx = 0; c_idx < existing_archetype->component_types.size; ++c_idx) {
-				if (existing_archetype->component_types[c_idx] == added_component_type) {
+			for (std::size_t c_idx = 0; c_idx < existing_archetype->ComponentTypes().size; ++c_idx) {
+				if (existing_archetype->ComponentTypes()[c_idx] == added_component_type) {
 					ComponentArray<T> *casted_existing_component_array = static_cast<ComponentArray<T> *>(existing_archetype->component_arrays[c_idx]);
 					casted_existing_component_array->Append(T(args, added_component_type));
 				}
-				else if (existing_archetype->component_types[c_idx] > added_component_type) {
+				else if (existing_archetype->ComponentTypes()[c_idx] > added_component_type) {
 					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx - 1], record.index);
 					previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
 				}
@@ -100,7 +97,7 @@ public:
 			previous_archetype->entity_ids.pop_back();
 			if (previous_archetype->entity_ids.size == 0) {
 				// previous archetype no longer has any entities. Delete it.
-				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->component_types);
+				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
 				delete previous_archetype;
 			}
 			else {
@@ -136,16 +133,14 @@ public:
 			}
 			else {
 				// Create new archetype for entity.
-				Archetype *new_archetype = new Archetype();
-				new_archetype->component_types = { added_component_type };
-				ComponentArray<T> *new_component_array = new ComponentArray<T>();
+				Archetype *new_archetype = archetype_set_trie_.InsertValueForKeySet(Archetype({ added_component_type }), { added_component_type });
+				ComponentArray<T> *const new_component_array = new ComponentArray<T>();
 				new_component_array->Append(T(args, added_component_type));
 				new_archetype->component_arrays = { new_component_array };
 				new_archetype->entity_ids = { entity_id };
-				archetype_set_trie_.InsertValueForKeySet(new_archetype, new_archetype->component_types);
 				Record newRecord =
 				{
-					newArchetype,
+					new_archetype,
 					0
 				};
 				entity_archetype_record_map_.insert({ entity_id, newRecord });
@@ -170,9 +165,9 @@ public:
 			// referred to as the "previous_archetype"
 			Record record = entity_archetype_record_map_[entity_id];
 			Archetype *previous_archetype = record.archtype;
-			if (std::find(previous_archetype->component_types.begin(),
-				previous_archetype->component_types.end(),
-				removed_component_type) == previous_archetype->component_types.end())
+			if (std::find(previous_archetype->ComponentTypes().begin(),
+				previous_archetype->ComponentTypes().end(),
+				removed_component_type) == previous_archetype->ComponentTypes().end())
 			{
 				throw std::runtime_error("Attempting to remove component that cannot be found on entity.");
 				return;
@@ -180,8 +175,8 @@ public:
 
 			// Determine the entity's new archetype id.
 			std::vector<ComponentTypeID> new_component_types;
-			for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
-				ComponentTypeID component_type = previous_archetype->component_types[c_idx];
+			for (std::size_t c_idx = 0; c_idx < previous_archetype->ComponentTypes().size; ++c_idx) {
+				ComponentTypeID component_type = previous_archetype->ComponentTypes()[c_idx];
 				if (component_type != removed_component_type) {
 					new_component_types.push_back(component_type);
 				}
@@ -191,10 +186,9 @@ public:
 			if (!existing_archetype) {
 				// No archetype exists for the entity's new set of component types. Create
 				// new archetype.
-				existing_archetype = new Archetype();
-				existing_archetype->component_types = new_component_types;
-				for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
-					if (previous_archetype->component_types[c_idx] != removed_component_type) {
+				existing_archetype = archetype_set_trie_.InsertValueForKeySet(Archetype(new_component_types), new_component_types);
+				for (std::size_t c_idx = 0; c_idx < previous_archetype->ComponentTypes().size; ++c_idx) {
+					if (previous_archetype->ComponentTypes()[c_idx] != removed_component_type) {
 						ComponentArrayBase *empty = previous_archetype->component_arrays[c_idx]->Empty();
 						existing_archetype->component_arrays.push_back(empty);
 					}
@@ -203,11 +197,11 @@ public:
 
 			// Move over the entity's component data from the previous archetype to
 			// the existing one, except that of the component to be removed.
-			for (std::size_t c_idx = 0; c_idx < previous_archetype->component_types.size; ++c_idx) {
-				if (previous_archetype->component_types[c_idx] == removed_component_type) {
+			for (std::size_t c_idx = 0; c_idx < previous_archetype->ComponentTypes().size; ++c_idx) {
+				if (previous_archetype->ComponentTypes()[c_idx] == removed_component_type) {
 					existing_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
-				else if (previous_archetype->component_types[c_idx] > removed_component_type) {
+				else if (previous_archetype->ComponentTypes()[c_idx] > removed_component_type) {
 					existing_archetype->component_arrays[c_idx - 1]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx], record.index);
 					previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
 				}
@@ -219,7 +213,7 @@ public:
 
 			previous_archetype->entityIds.pop_back();
 			if (previous_archetype->entityIds.size == 0) {
-				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->component_types);
+				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
 			}
 			else {
 				EntityID moved_entity = previous_archetype->entityIds[record.index];
@@ -251,7 +245,7 @@ public:
 	bool GetComponent(EntityID entity_id, std::function<void(const T&)> read_block)
 	{
 		Record record = entity_archetype_record_map_[entity_id];
-		std::size_t component_count = record.archtype->component_types.size();
+		std::size_t component_count = record.archtype->ComponentTypes().size();
 		ComponentArray<T> *component_array = record.archtype->GetComponentArray<T>();
 		if (component_array) {
 			const T& component = component_array[record.index];

@@ -61,22 +61,41 @@ typedef std::vector<ComponentTypeID> ArchetypeId;
 
 class Archetype 
 {
+private:
+	ArchetypeId component_types_;
+
+	std::vector<ComponentArrayBase*> component_arrays_;
+
 public:
-	ArchetypeId component_types;
+
+	Archetype(ArchetypeId component_types) {
+		component_types_ = component_types;
+		component_arrays_.resize(component_types.size());
+	}
+
+	~Archetype() {
+		for (ComponentArrayBase *component_array : component_arrays) {
+			delete component_array;
+		}
+	}
 
 	std::vector<EntityID> entity_ids;
 
 	// TODO: Consider replacing this with simple array. std::vector is unnecessary.
 	std::vector<ComponentArrayBase*> component_arrays;
 
+	ArchetypeId ComponentTypes() {
+		return component_types_;
+	}
+
 	template<class T>
 	ComponentArray<T>* GetComponentArray() 
 	{
 		ComponentTypeID component_type = Component<T>::GetTypeId();
 		// TODO: Perform binary search to look for component array given component_type
-		for (std::size_t c_idx = 0; c_idx < component_types.size(); ++c_idx) {
-			if (component_type == component_types[c_idx]) {
-				return static_cast<ComponentArray<T> *>(component_arrays[c_idx]);
+		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
+			if (component_type == component_types_[c_idx]) {
+				return static_cast<ComponentArray<T> *>(component_arrays_[c_idx]);
 			}
 		}
 		return nullptr;
