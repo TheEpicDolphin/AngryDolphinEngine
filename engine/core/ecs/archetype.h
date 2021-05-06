@@ -64,6 +64,7 @@ class Archetype
 private:
 	ArchetypeId component_types_;
 
+	// TODO: Consider replacing this with simple array
 	std::vector<ComponentArrayBase*> component_arrays_;
 
 public:
@@ -74,15 +75,57 @@ public:
 	}
 
 	~Archetype() {
-		for (ComponentArrayBase *component_array : component_arrays) {
+		for (ComponentArrayBase *component_array : component_arrays_) {
 			delete component_array;
 		}
 	}
 
-	std::vector<EntityID> entity_ids;
+	template<class T>
+	void MoveEntityAtIndexToSuperArchetype(std::size_t index, Archetype& super_archetype, T added_component) 
+	{
+		ComponentTypeID added_component_type = Component<T>::GetTypeId();
+		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
+			if (super_archetype.component_arrays_[c_idx] == added_component_type) {
+				ComponentArray<T>* casted_existing_component_array = static_cast<ComponentArray<T> *>(super_archetype.component_arrays_[c_idx]);
+				casted_existing_component_array->Append(added_component);
+			}
+			else if (existing_archetype.component_types_[c_idx] > added_component_type) {
+				super_archetype.component_arrays_[c_idx]->AppendComponentFromArrayAtIndex(component_arrays_[c_idx - 1], index);
+				component_arrays_[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
+			}
+			else {
+				super_archetype.component_arrays_[c_idx]->AppendComponentFromArrayAtIndex(component_arrays_[c_idx], index);
+				component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
+			}
+		}
+		super_archetype.entity_ids.push_back(entity_ids[index]);
+		entity_ids[index] = entity_ids.back();
+		entity_ids.pop_back();
+	}
 
-	// TODO: Consider replacing this with simple array. std::vector is unnecessary.
-	std::vector<ComponentArrayBase*> component_arrays;
+	template<class T>
+	void MoveEntityAtIndexToSubArchetype(std::size_t index, Archetype& sub_archetype)
+	{
+		ComponentTypeID removed_component_type = Component<T>::GetTypeId();
+		for (std::size_t c_idx = 0; c_idx < component_arrays_.size(); ++c_idx) {
+			if (component_types_[c_idx] == removed_component_type) {
+				component_arrays_[c_idx]->RemoveWithSwapAtIndex(record.index);
+			}
+			else if (component_types_[c_idx] > removed_component_type) {
+				existing_archetype->component_arrays[c_idx - 1]->AppendComponentFromArrayAtIndex(component_arrays_[c_idx], index);
+				previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(index);
+			}
+			else {
+				sub_archetype.component_arrays_[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx], index);
+				component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
+			}
+		}
+		super_archetype.entity_ids.push_back(entity_ids[index]);
+		entity_ids[index] = entity_ids.back();
+		entity_ids.pop_back();
+	}
+
+	std::vector<EntityID> entity_ids;
 
 	ArchetypeId ComponentTypes() {
 		return component_types_;
