@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iostream>
+#include <stdexcept>
 #include <vector>
 #include <functional>
 
@@ -71,6 +71,25 @@ private:
 
 	std::unordered_map<EntityID, std::size_t> entity_index_map_;
 
+	template<class T>
+	ComponentArray<T>* FindComponentArray()
+	{
+		ComponentTypeID component_type = Component<T>::GetTypeId();
+		// TODO: Perform binary search to look for component array given component_type
+		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
+			if (component_type == component_types_[c_idx]) {
+				return static_cast<ComponentArray<T> *>(component_arrays_[c_idx]);
+			}
+		}
+		return nullptr;
+	}
+
+	template<class T>
+	ComponentArray<T>* GetComponentArrayAtIndex(std::size_t index) 
+	{
+
+	}
+
 public:
 
 	Archetype(ArchetypeId component_types) {
@@ -85,9 +104,22 @@ public:
 	}
 
 	template<class T>
-	static Archetype UnitArchetypeWithEntity(EntityID entity_id) 
+	Archetype EmptyWithAddedComponentType() 
 	{
-		
+		ComponentTypeID added_component_type = Component<T>::GetTypeId();
+		Archetype new_archetype = Archetype();
+		for (std::size_t c_idx = 0; c_idx < new_component_types.size; ++c_idx) {
+			if (new_component_types[c_idx] == added_component_type) {
+				existing_archetype->component_arrays[c_idx] = new ComponentArray<T>();
+			}
+			else if (new_component_types[c_idx] > added_component_type) {
+				existing_archetype->component_arrays[c_idx] = previous_archetype->component_arrays[c_idx - 1]->Empty();
+			}
+			else {
+				existing_archetype->component_arrays[c_idx] = previous_archetype->component_arrays[c_idx]->Empty()
+			}
+		}
+		return new_archetype;
 	}
 
 	template<class T>
@@ -109,7 +141,7 @@ public:
 				component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
 			}
 		}
-		super_archetype.entity_ids_.push_back(entity_ids[index]);
+		super_archetype.entity_ids_.push_back(entity_ids_[index]);
 		entity_ids_.pop_back();
 		entity_index_map_.erase(entity_id);
 		if (entity_ids_.size() > 0) {
@@ -136,13 +168,32 @@ public:
 				component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
 			}
 		}
-		sub_archetype.entity_ids.push_back(entity_ids_[index]);
+		sub_archetype.entity_ids_.push_back(entity_ids_[index]);
 		entity_ids_.pop_back();
 		entity_index_map_.erase(entity_id);
 		if (entity_ids_.size() > 0) {
 			entity_index_map_[entity_ids_.back()] = index;
 			entity_ids_[index] = entity_ids_.back();
 		}
+	}
+
+	// This might be a bad idea
+	template<class... Ts>
+	void AddEntity(EntityID entity_id, Ts ...components) 
+	{
+		if (sizeof...(components) != component_types_.size()) {
+			throw std::runtime_error("Number of components must match Archetype size");
+		}
+
+		[this](ComponentArray<Ts>* ...queried_component_arrays) {
+			for (std::size_t e_idx = 0; e_idx < entity_ids.size(); ++e_idx) {
+				block(entity_ids[e_idx], queried_component_arrays->ComponentAtIndex(e_idx)...);
+			}
+			queried_component_arrays->Append()
+		}(FindComponentArray<Ts>()...);
+
+		entity_ids_.push_back(entity_id);
+		entity_index_map_.insert(std::make_pair(entity_id, entity_ids_.size()));
 	}
 
 	ArchetypeId ComponentTypes() {
@@ -154,15 +205,20 @@ public:
 	}
 
 	template<class T>
-	ComponentArray<T>* GetComponentArray() 
+	T& GetComponentForEntity(EntityID entity_id) 
 	{
-		ComponentTypeID component_type = Component<T>::GetTypeId();
-		// TODO: Perform binary search to look for component array given component_type
-		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
-			if (component_type == component_types_[c_idx]) {
-				return static_cast<ComponentArray<T> *>(component_arrays_[c_idx]);
+		ComponentArray<T> *const component_array = GetComponentArray<T>();
+		const std::size_t index = entity_index_map_[entity_id];
+		return component_array->ComponentAtIndex(index);
+	}
+
+	template<class... Ts>
+	void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block) 
+	{
+		[block](std::vector<EntityID>& entity_ids, ComponentArray<Ts>* ...queried_component_arrays) {
+			for (std::size_t e_idx = 0; e_idx < entity_ids.size(); ++e_idx) {
+				block(entity_ids[e_idx], queried_component_arrays->ComponentAtIndex(e_idx)...);
 			}
-		}
-		return nullptr;
+		}(entity_ids_, FindComponentArray<Ts>()...);
 	}
 };
