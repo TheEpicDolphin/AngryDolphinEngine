@@ -89,12 +89,6 @@ public:
 			Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet({ added_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
-				existing_archetype->component_arrays[0]->Append(T(args, added_component_type));
-				
-				std::size_t entity_count = existing_archetype->entity_ids.size;
-				existing_archetype->entity_ids.push_back(entity_id);
-				entity_archetype_record_map_.insert({ entity_id, existing_archetype });
-
 				existing_archetype->AddEntity<T>(entity_id, T(args, added_component_type));
 				entity_archetype_record_map.insert(std::make_pair(entity_id, existing_archetype));
 			}

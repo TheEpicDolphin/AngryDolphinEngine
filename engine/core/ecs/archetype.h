@@ -177,19 +177,17 @@ public:
 		}
 	}
 
-	// This might be a bad idea
 	template<class... Ts>
 	void AddEntity(EntityID entity_id, Ts ...components) 
 	{
-		if (sizeof...(components) != component_types_.size()) {
-			throw std::runtime_error("Number of components must match Archetype size");
+		const std::vector<ComponentTypeID> added_component_types = { (Component<Ts>::GetTypeId())... };
+		// TODO: consider sorting the components so that client does not have to specify components in correct order.
+		if (added_component_types != component_types_) {
+			throw std::runtime_error("Number and order of specified components must match that of Archetype.");
 		}
 
 		[this](ComponentArray<Ts>* ...queried_component_arrays) {
-			for (std::size_t e_idx = 0; e_idx < entity_ids.size(); ++e_idx) {
-				block(entity_ids[e_idx], queried_component_arrays->ComponentAtIndex(e_idx)...);
-			}
-			queried_component_arrays->Append()
+			queried_component_arrays->Append(components)...;
 		}(FindComponentArray<Ts>()...);
 
 		entity_ids_.push_back(entity_id);
