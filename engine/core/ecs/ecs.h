@@ -79,40 +79,12 @@ public:
 
 			// Move over the entity's component data from the previous archetype to
 			// the existing one and insert new component data.
-			for (std::size_t c_idx = 0; c_idx < existing_archetype->ComponentTypes().size; ++c_idx) {
-				if (existing_archetype->ComponentTypes()[c_idx] == added_component_type) {
-					ComponentArray<T> *casted_existing_component_array = static_cast<ComponentArray<T> *>(existing_archetype->component_arrays[c_idx]);
-					casted_existing_component_array->Append(T(args, added_component_type));
-				}
-				else if (existing_archetype->ComponentTypes()[c_idx] > added_component_type) {
-					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx - 1], record.index);
-					previous_archetype->component_arrays[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
-				}
-				else {
-					existing_archetype->component_arrays[c_idx]->AppendComponentFromArrayAtIndex(previous_archetype->component_arrays[c_idx], record.index);
-					previous_archetype->component_arrays[c_idx]->RemoveWithSwapAtIndex(record.index);
-				}
-			}
-
-			previous_archetype->entity_ids.pop_back();
-			if (previous_archetype->entity_ids.size == 0) {
+			previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *existing_archetype, T(args, added_component_type));
+			if (previous_archetype->Entities().size == 0) {
 				// previous archetype no longer has any entities. Delete it.
 				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
-				delete previous_archetype;
 			}
-			else {
-				EntityID moved_entity = previous_archetype->entity_ids[record.index];
-				entity_archetype_record_map_[moved_entity] = { previous_archetype, record.index };
-			}
-
-			std::size_t entity_count = existing_archetype->entity_ids.size;
-			Record new_record =
-			{
-				existing_archetype,
-				entity_count
-			};
-			existing_archetype->entity_ids.push_back(entity_id);
-			entity_archetype_record_map_[entity_id] = new_record;
+			entity_archetype_map_[entity_id] = existing_archetype;
 		}
 		else {
 			// This entity will be added to an archetype for the first time. This also
@@ -123,13 +95,8 @@ public:
 				existing_archetype->component_arrays[0]->Append(T(args, added_component_type));
 				
 				std::size_t entity_count = existing_archetype->entity_ids.size;
-				Record new_record =
-				{
-					existing_archetype,
-					entity_count
-				};
 				existing_archetype->entity_ids.push_back(entity_id);
-				entity_archetype_record_map_.insert({ entity_id, new_record });
+				entity_archetype_record_map_.insert({ entity_id, existing_archetype });
 			}
 			else {
 				// Create new archetype for entity.
@@ -138,12 +105,7 @@ public:
 				new_component_array->Append(T(args, added_component_type));
 				new_archetype->component_arrays = { new_component_array };
 				new_archetype->entity_ids = { entity_id };
-				Record newRecord =
-				{
-					new_archetype,
-					0
-				};
-				entity_archetype_record_map_.insert({ entity_id, newRecord });
+				entity_archetype_record_map_.insert({ entity_id, new_archetype });
 			}
 		}
 
@@ -273,13 +235,8 @@ public:
 	}
 
 private:
-	struct Record {
-		Archetype *archtype;
-		std::size_t index;
-	};
-
 	SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
-	std::unordered_map<EntityID, Record> entity_archetype_record_map_;
+	std::unordered_map<EntityID, Archetype *> entity_archetype_map_;
 	std::unordered_map<ComponentTypeID, uint64_t> component_count_map_;
 	UIDGenerator component_uid_generator_;
 	UIDGenerator entity_uid_generator_;
