@@ -84,17 +84,10 @@ private:
 		return nullptr;
 	}
 
-	template<class T>
-	ComponentArray<T>* GetComponentArrayAtIndex(std::size_t index) 
-	{
-
-	}
-
 public:
 
-	Archetype(ArchetypeId component_types) {
-		component_types_ = component_types;
-		component_arrays_.resize(component_types.size());
+	Archetype() {
+		
 	}
 
 	~Archetype() {
@@ -104,19 +97,49 @@ public:
 	}
 
 	template<class T>
+	static Archetype UnitArchetypeWithEntity(T component, EntityID entity_id) 
+	{
+		Archetype unit_archetype;
+		unit_archetype.component_types_ = { Component<T>::GetTypeId() };
+		ComponentArray<T> *const component_array = new ComponentArray<T>();
+		component_array->Append(component);
+		unit_archetype.component_arrays_ = { component_array };
+		unit_archetype.entity_ids_ = { entity_id };
+		return unit_archetype;
+	}
+
+	template<class T>
 	Archetype EmptyWithAddedComponentType() 
 	{
-		ComponentTypeID added_component_type = Component<T>::GetTypeId();
+		const ComponentTypeID added_component_type = Component<T>::GetTypeId();
 		Archetype new_archetype = Archetype();
-		for (std::size_t c_idx = 0; c_idx < new_component_types.size; ++c_idx) {
-			if (new_component_types[c_idx] == added_component_type) {
-				existing_archetype->component_arrays[c_idx] = new ComponentArray<T>();
+		new_archetype.component_types_.reserve(component_types_.size() + 1);
+		new_archetype.component_arrays_.reserve(component_arrays_.size() + 1);
+		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
+			if (added_component_type < component_types_[c_idx]) {
+				new_archetype.component_types_.push_back(added_component_type);
+				new_archetype.component_arrays_.push_back(new ComponentArray<T>());
 			}
-			else if (new_component_types[c_idx] > added_component_type) {
-				existing_archetype->component_arrays[c_idx] = previous_archetype->component_arrays[c_idx - 1]->Empty();
-			}
-			else {
-				existing_archetype->component_arrays[c_idx] = previous_archetype->component_arrays[c_idx]->Empty()
+			new_archetype.component_types_.push_back(component_types_[c_idx]);
+			new_archetype.component_arrays_.push_back(component_arrays_[c_idx]->Empty());
+		}
+		if (new_archetype.component_types_.size() == component_types_.size()) {
+			new_archetype.component_types_.push_back(added_component_type);
+			new_archetype.component_arrays_.push_back(new ComponentArray<T>());
+		}
+		return new_archetype;
+	}
+
+	template<class T>
+	Archetype EmptyWithRemovedComponentType()
+	{
+		const ComponentTypeID removed_component_type = Component<T>::GetTypeId();
+		Archetype new_archetype = Archetype();
+		new_archetype.component_types_.reserve(component_types_.size() - 1);
+		new_archetype.component_arrays_.reserve(component_arrays_.size() - 1);
+		for (std::size_t c_idx = 0; c_idx < component_types_.size; ++c_idx) {
+			if (component_types_[c_idx] != removed_component_type) {
+				new_archetype.component_arrays_.push_back(component_arrays_[c_idx]->Empty());
 			}
 		}
 		return new_archetype;
@@ -142,12 +165,12 @@ public:
 			}
 		}
 		super_archetype.entity_ids_.push_back(entity_ids_[index]);
-		entity_ids_.pop_back();
 		entity_index_map_.erase(entity_id);
-		if (entity_ids_.size() > 0) {
+		if (index < entity_ids_.size() - 1) {
 			entity_index_map_[entity_ids_.back()] = index;
 			entity_ids_[index] = entity_ids_.back();
 		}
+		entity_ids_.pop_back();
 	}
 
 	template<class T>
@@ -169,12 +192,12 @@ public:
 			}
 		}
 		sub_archetype.entity_ids_.push_back(entity_ids_[index]);
-		entity_ids_.pop_back();
 		entity_index_map_.erase(entity_id);
-		if (entity_ids_.size() > 0) {
+		if (index < entity_ids_.size() - 1) {
 			entity_index_map_[entity_ids_.back()] = index;
 			entity_ids_[index] = entity_ids_.back();
 		}
+		entity_ids_.pop_back();
 	}
 
 	template<class... Ts>
@@ -192,6 +215,20 @@ public:
 
 		entity_ids_.push_back(entity_id);
 		entity_index_map_.insert(std::make_pair(entity_id, entity_ids_.size()));
+	}
+
+	void RemoveEntity(EntityID entity_id)
+	{
+		const std::size_t index = entity_index_map_[entity_id];
+		for (std::size_t c_idx = 0; c_idx < component_arrays_.size(); ++c_idx) {
+			component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
+		}
+		entity_index_map_.erase(entity_id);
+		if (index < entity_ids_.size() - 1) {
+			entity_index_map_[entity_ids_.back()] = index;
+			entity_ids_[index] = entity_ids_.back();
+		}
+		entity_ids_.pop_back();
 	}
 
 	ArchetypeId ComponentTypes() {
