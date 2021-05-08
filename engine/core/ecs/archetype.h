@@ -250,6 +250,18 @@ public:
 		return &component_array->ComponentAtIndex(index);
 	}
 
+	template<class T>
+	void GetComponentForEntityWithSafeBlock(EntityID entity_id, std::function<void(const T&)> success_block, std::function<void()> failure_block)
+	{
+		ComponentArray<T>* const component_array = FindComponentArray<T>();
+		if (!component_array) {
+			failure_block();
+			return;
+		}
+		const std::size_t index = entity_index_map_[entity_id];
+		success_block(component_array->ComponentAtIndex(index));
+	}
+
 	template<class... Ts>
 	void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block) 
 	{

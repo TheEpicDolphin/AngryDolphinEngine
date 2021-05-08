@@ -67,7 +67,7 @@ public:
 			// Move over the entity's component data from the previous archetype to
 			// the existing one and insert new component data.
 			previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *existing_archetype, T(args, added_component_type));
-			if (previous_archetype->Entities().size == 0) {
+			if (previous_archetype->Entities().size() == 0) {
 				// previous archetype no longer has any entities. Delete it.
 				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
 			}
@@ -126,6 +126,9 @@ public:
 
 			if (new_component_types.size() == 0) {
 				previous_archetype->RemoveEntity(entity_id);
+				if (previous_archetype->Entities().size() == 0) {
+					archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
+				}
 				entity_archetype_map_.erase(entity_id);
 				return;
 			}
@@ -141,7 +144,7 @@ public:
 			// Move over the entity's component data from the previous archetype to
 			// the existing one, except that of the component to be removed.
 			previous_archetype->MoveEntityToSubArchetype<T>(entity_id, *existing_archetype);
-			if (previous_archetype->Entities() == 0) {
+			if (previous_archetype->Entities().size() == 0) {
 				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
 			}
 			entity_archetype_map_[entity_id] = existing_archetype;
@@ -166,18 +169,10 @@ public:
 	}
 
 	template<typename T>
-	void GetComponentSafe(EntityID entity_id, std::function<void(const T&)> success_block, std::function<void()> failure_block)
+	void GetComponentWithSafeBlock(EntityID entity_id, std::function<void(const T&)> success_block, std::function<void()> failure_block)
 	{
 		Archetype* archetype = entity_archetype_map_[entity_id];
-		ComponentArray<T>* component_array = archetype->GetComponentArray<T>();
-		if (component_array) {
-			const T& component = component_array[record.index];
-			success_block(component);
-			return true;
-		}
-		else {
-			return false;
-		}
+		archetype->GetComponentForEntityWithSafeBlock<T>(entity_id, success_block, failure_block);
 	}
 
 	template<class... Ts>
@@ -187,6 +182,25 @@ public:
 		for (Archetype *archetype : archetypes) {
 			archetype->EnumerateComponentsWithBlock<Ts>(block);
 		}
+	}
+
+	EntityID CreateEntity() 
+	{
+		return entity_uid_generator_.CheckoutNewId();
+	}
+
+	void DestroyEntity(EntityID entity_id) 
+	{
+		std::unordered_map<EntityID, Archetype*>::iterator iter = entity_archetype_map_.find(entity_id);
+		if (iter != entity_archetype_map_.end()) {
+			Archetype* archetype = iter->second;
+			archetype->RemoveEntity(entity_id);
+			if (archetype->Entities().size() == 0) {
+				archetype_set_trie_.RemoveValueForKeySet(archetype->ComponentTypes());
+			}
+			entity_archetype_map_.erase(entity_id);
+		}
+		entity_uid_generator_.ReturnId(entity_id);
 	}
 
 private:
