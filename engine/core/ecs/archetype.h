@@ -240,11 +240,14 @@ public:
 	}
 
 	template<class T>
-	T& GetComponentForEntity(EntityID entity_id) 
+	T* GetComponentForEntity(EntityID entity_id)
 	{
-		ComponentArray<T> *const component_array = GetComponentArray<T>();
+		ComponentArray<T> *const component_array = FindComponentArray<T>();
+		if (!component_array) {
+			return nullptr;
+		}
 		const std::size_t index = entity_index_map_[entity_id];
-		return component_array->ComponentAtIndex(index);
+		return &component_array->ComponentAtIndex(index);
 	}
 
 	template<class... Ts>

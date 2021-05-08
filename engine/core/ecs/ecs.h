@@ -30,7 +30,7 @@ public:
 			added_component_type = RegisterComponent<T>();
 		}
 
-		if (entity_archetype_record_map_.find(entity_id) != entity_archetype_record_map_.end())
+		if (entity_archetype_map_.find(entity_id) != entity_archetype_map_.end())
 		{
 			// The entity currently belongs to an archetype. This archetype will be
 			// referred to as the "previous_archetype"
@@ -80,13 +80,13 @@ public:
 			if (existing_archetype) {
 				// Add entity to existing archetype
 				existing_archetype->AddEntity<T>(entity_id, T(args, added_component_type));
-				entity_archetype_record_map.insert(std::make_pair(entity_id, existing_archetype));
+				entity_archetype_map.insert(std::make_pair(entity_id, existing_archetype));
 			}
 			else {
 				// Create new archetype for entity.
 				Archetype unit_archetype = Archetype::UnitArchetypeWithEntity<T>(T(args, added_component_type), entity_id);
 				Archetype *const new_archetype = archetype_set_trie_.InsertValueForKeySet(unit_archetype, unit_archetype.ComponentTypes());
-				entity_archetype_map_.insert({ entity_id, new_archetype });
+				entity_archetype_map_.insert(std::make_pair(entity_id, new_archetype));
 			}
 		}
 
@@ -102,11 +102,11 @@ public:
 			return;
 		}
 
-		if (entity_archetype_record_map_.find(entity_id) != entity_archetype_record_map_.end())
+		if (entity_archetype_map_.find(entity_id) != entity_archetype_map_.end())
 		{
 			// The entity currently belongs to an archetype. This archetype will be
 			// referred to as the "previous_archetype"
-			Archetype *previous_archetype = entity_archetype_record_map_[entity_id];
+			Archetype *previous_archetype = entity_archetype_map_[entity_id];
 			if (std::find(previous_archetype->ComponentTypes().begin(),
 				previous_archetype->ComponentTypes().end(),
 				removed_component_type) == previous_archetype->ComponentTypes().end())
@@ -144,7 +144,7 @@ public:
 			if (previous_archetype->Entities() == 0) {
 				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
 			}
-			entity_archetype_record_map_[entity_id] = existing_archetype;
+			entity_archetype_map_[entity_id] = existing_archetype;
 		}
 		else {
 			throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
@@ -159,13 +159,20 @@ public:
 	}
 
 	template<typename T>
-	bool GetComponent(EntityID entity_id, std::function<void(const T&)> read_block)
+	T* GetComponent(EntityID entity_id)
 	{
 		Archetype *archetype = entity_archetype_map_[entity_id];
-		ComponentArray<T> *component_array = archetype->GetComponentArray<T>();
+		return archetype->GetComponentForEntity<T>(entity_id);
+	}
+
+	template<typename T>
+	void GetComponentSafe(EntityID entity_id, std::function<void(const T&)> success_block, std::function<void()> failure_block)
+	{
+		Archetype* archetype = entity_archetype_map_[entity_id];
+		ComponentArray<T>* component_array = archetype->GetComponentArray<T>();
 		if (component_array) {
 			const T& component = component_array[record.index];
-			read_block(component);
+			success_block(component);
 			return true;
 		}
 		else {
