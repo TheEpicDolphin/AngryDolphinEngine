@@ -9,14 +9,18 @@ struct Component {
 
 public:
 
-	Component(ComponentTypeID type_id) {
-		if (!type_id_) {
-			type_id_ = type_id;
-		}
-	}
+	Component() {}
 
 	static ComponentTypeID GetTypeId() {
 		return type_id_;
+	}
+
+	static void SetTypeId(ComponentTypeID type_id) {
+		type_id_ = type_id;
+	}
+
+	static void ClearTypeId() {
+		type_id_ = 0;
 	}
 
 private:

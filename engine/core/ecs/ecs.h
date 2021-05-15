@@ -66,7 +66,7 @@ public:
 
 			// Move over the entity's component data from the previous archetype to
 			// the existing one and insert new component data.
-			previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *existing_archetype, T(args, added_component_type));
+			previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *existing_archetype, T(args));
 			if (previous_archetype->Entities().size() == 0) {
 				// previous archetype no longer has any entities. Delete it.
 				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
@@ -79,12 +79,12 @@ public:
 			Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet({ added_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
-				existing_archetype->AddEntity<T>(entity_id, T(args, added_component_type));
-				entity_archetype_map.insert(std::make_pair(entity_id, existing_archetype));
+				existing_archetype->AddEntity<T>(entity_id, T(args));
+				entity_archetype_map_.insert(std::make_pair(entity_id, existing_archetype));
 			}
 			else {
 				// Create new archetype for entity.
-				Archetype unit_archetype = Archetype::UnitArchetypeWithEntity<T>(T(args, added_component_type), entity_id);
+				Archetype unit_archetype = Archetype::UnitArchetypeWithEntity<T>(entity_id, T(args));
 				Archetype *const new_archetype = archetype_set_trie_.InsertValueForKeySet(unit_archetype, unit_archetype.ComponentTypes());
 				entity_archetype_map_.insert(std::make_pair(entity_id, new_archetype));
 			}
@@ -221,6 +221,7 @@ private:
 	ComponentTypeID RegisterComponent()
 	{
 		ComponentTypeID claimed_type_id = component_uid_generator_.CheckoutNewId();
+		Component<T>::SetTypeId(claimed_type_id);
 		component_count_map_.insert({ claimed_type_id, 0 });
 		return claimed_type_id;
 	}
@@ -229,6 +230,7 @@ private:
 	void UnregisterComponent() 
 	{
 		ComponentTypeId component_type_id = Component<T>::GetTypeId();
+		Component<T>::ClearTypeId();
 		component_count_map_.erase(component_type_id);
 		component_uid_generator_.ReturnId(component_type_id);
 	}

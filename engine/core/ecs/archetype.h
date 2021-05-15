@@ -97,7 +97,7 @@ public:
 	}
 
 	template<class T>
-	static Archetype UnitArchetypeWithEntity(T component, EntityID entity_id) 
+	static Archetype UnitArchetypeWithEntity(EntityID entity_id, T component)
 	{
 		Archetype unit_archetype;
 		unit_archetype.component_types_ = { Component<T>::GetTypeId() };
