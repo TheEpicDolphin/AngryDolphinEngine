@@ -84,7 +84,8 @@ public:
 			}
 			else {
 				// Create new archetype for entity.
-				Archetype unit_archetype = Archetype::UnitArchetypeWithEntity<T>(entity_id, T(args));
+				Archetype unit_archetype = Archetype::ArchetypeWithComponentTypes<T>();
+				unit_archetype.AddEntity<T>(entity_id, T(args));
 				Archetype *const new_archetype = archetype_set_trie_.InsertValueForKeySet(unit_archetype, unit_archetype.ComponentTypes());
 				entity_archetype_map_.insert(std::make_pair(entity_id, new_archetype));
 			}
