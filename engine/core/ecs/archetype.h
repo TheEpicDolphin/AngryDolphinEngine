@@ -84,16 +84,13 @@ private:
 		return static_cast<ComponentArray<T> *>(component_arrays_[component_array_index_iter->second]);
 	}
 
-	template<class T>
-	void AddComponent(T component) {
-		ComponentArray<T>* component_array = FindComponentArray<T>();
-		component_array->Append(component);
-	}
+	void AddComponents() {}
 
 	template<class T, class... Ts>
 	void AddComponents(T component, Ts... components) {
-		AddComponent<T>(component);
-		AddComponents<Ts>(components);
+		ComponentArray<T>* component_array = FindComponentArray<T>();
+		component_array->Append(component);
+		AddComponents<Ts...>(components...);
 	}
 
 public:
@@ -242,7 +239,7 @@ public:
 			throw std::runtime_error("Number and order of specified components must match that of Archetype.");
 		}
 
-		AddComponents<Ts>(components);
+		AddComponents<Ts...>(components...);
 		entity_ids_.push_back(entity_id);
 		entity_index_map_.insert(std::make_pair(entity_id, entity_ids_.size()));
 	}
