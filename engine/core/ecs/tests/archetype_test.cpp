@@ -8,17 +8,17 @@
 #include <core/utils/gtest_helpers.h>
 #include "../archetype.h"
 
-struct A : public Component<A>
+struct A
 {
     std::string name;
 };
 
-struct B : public Component<B>
+struct B
 {
     std::string name;
 };
 
-struct C : public Component<C>
+struct C
 {
     std::string name;
 };
@@ -31,11 +31,12 @@ std::vector<T> _ConvertFrom(std::vector<T *>& input)
     return output;
 }
 
-TEST(archetype_test_suite, init_test)
+TEST(archetype_test_suite, adding_entity_test)
 {
-    A::SetTypeId(1);
-    B::SetTypeId(2);
-    C::SetTypeId(3);
+    Component<A>::SetTypeId(1);
+    Component<B>::SetTypeId(1);
+    Component<C>::SetTypeId(1);
     Archetype archetype = Archetype::ArchetypeWithComponentTypes<A, B, C>();
-    ASSERT_CONTAINERS_EQ(ordered_nodes, ordered_nodes.size(), expected_ordered_nodes, expected_ordered_nodes.size());
+    archetype.AddEntity<B, C, A>(1, {"I'm B"}, {"I am C"}, {"My name is A"});
+    
 }

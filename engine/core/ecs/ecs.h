@@ -18,8 +18,7 @@ public:
 	template<typename T, typename... Args>
 	void AddComponent(EntityID entity_id, Args&&...args)
 	{
-		static_assert(std::is_base_of<Component<T>, T>::value,
-			"Component to add must derive from base class 'Component<T>'" > );
+		static_assert(std::is_pod<T>, "Component must be Plain Old Data");
 
 		ComponentTypeID added_component_type = Component<T>::GetTypeId();		 
 		if (!added_component_type) {
@@ -181,7 +180,7 @@ public:
 	{
 		std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts...>();
 		for (Archetype *archetype : archetypes) {
-			archetype->EnumerateComponentsWithBlock<Ts>(block);
+			archetype->EnumerateComponentsWithBlock<Ts...>(block);
 		}
 	}
 

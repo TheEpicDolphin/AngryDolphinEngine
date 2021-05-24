@@ -9,8 +9,6 @@ struct Component {
 
 public:
 
-	Component() {}
-
 	static ComponentTypeID GetTypeId() {
 		return type_id_;
 	}

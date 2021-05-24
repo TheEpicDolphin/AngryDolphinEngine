@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <vector>
+#include <unordered_map>
 #include <functional>
 
 #include "component.h"
@@ -52,10 +53,6 @@ public:
 		return components_[index];
 	}
 
-	ComponentTypeID ComponentTypeId() {
-		return Component<T>::GetTypeId();
-	}
-
 private:
 	std::vector<T> components_;
 };
@@ -68,7 +65,6 @@ class Archetype
 private:
 	ArchetypeId component_types_;
 
-	// TODO: Consider replacing this with simple array
 	std::vector<ComponentArrayBase*> component_arrays_;
 
 	std::vector<EntityID> entity_ids_;
@@ -85,7 +81,19 @@ private:
 		if (component_array_index_iter == component_type_index_map_.end()) {
 			return nullptr;
 		}
-		return static_cast<ComponentArray<T> *>(component_arrays_[*component_array_index_iter->second]);
+		return static_cast<ComponentArray<T> *>(component_arrays_[component_array_index_iter->second]);
+	}
+
+	template<class T>
+	void AddComponent(T component) {
+		ComponentArray<T>* component_array = FindComponentArray<T>();
+		component_array->Append(component);
+	}
+
+	template<class T, class... Ts>
+	void AddComponents(T component, Ts... components) {
+		AddComponent<T>(component);
+		AddComponents<Ts>(components);
 	}
 
 public:
@@ -103,19 +111,23 @@ public:
 	template<class... Ts>
 	static Archetype ArchetypeWithComponentTypes()
 	{
-		Archetype new_archetype;
-		new_archetype.component_types_ = { (Component<Ts>::GetTypeId())... };
-		std::sort(new_archetype.component_types_.begin(), new_archetype.component_types_.end());
-		for (std::size_t index = 0; index < new_archetype.component_types_.size(); ++index) {
-			new_archetype.component_type_index_map_.insert(std::make_pair(new_archetype.component_types_[index], index));
+		std::vector<ComponentTypeID> unsorted_component_types = { (Component<Ts>::GetTypeId())... };
+		std::vector<ComponentArrayBase*> unsorted_component_arrays = { (new ComponentArray<Ts>())... };
+		std::vector<std::pair<ComponentTypeID, ComponentArrayBase*>> sorted_component_type_array_pairs;
+		sorted_component_type_array_pairs.reserve(unsorted_component_types.size());
+		for (std::size_t index = 0; index < unsorted_component_types.size(); ++index) {
+			sorted_component_type_array_pairs.push_back(std::make_pair(unsorted_component_types[index], unsorted_component_arrays[index]));
 		}
+		std::sort(sorted_component_type_array_pairs.begin(), sorted_component_type_array_pairs.end());
 
-		new_archetype.component_arrays_.resize(new_archetype.component_types_.size());
-		[new_archetype](ComponentArray<Ts>* ...new_component_arrays) {
-			const std::size_t index = new_archetype.component_type_index_map_[new_component_arrays->ComponentTypeId()...];
-			new_archetype.component_arrays_[index] = new_component_arrays...;
-		}(new ComponentArray<Ts>()...);
-
+		Archetype new_archetype;
+		new_archetype.component_types_.reserve(sorted_component_type_array_pairs.size());
+		new_archetype.component_arrays_.reserve(sorted_component_type_array_pairs.size());
+		for (std::size_t index = 0; index < sorted_component_type_array_pairs.size(); ++index) {
+			new_archetype.component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
+			new_archetype.component_types_.push_back(sorted_component_type_array_pairs[index].first);
+			new_archetype.component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
+		}
 		return new_archetype;
 	}
 
@@ -225,15 +237,12 @@ public:
 	void AddEntity(EntityID entity_id, Ts ...components) 
 	{
 		const std::vector<ComponentTypeID> added_component_types = { (Component<Ts>::GetTypeId())... };
-		// TODO: consider sorting the components so that client does not have to specify components in correct order.
+		std::sort(added_component_types.begin(), added_component_types.end());
 		if (added_component_types != component_types_) {
 			throw std::runtime_error("Number and order of specified components must match that of Archetype.");
 		}
 
-		[this](ComponentArray<Ts>* ...queried_component_arrays) {
-			queried_component_arrays->Append(components)...;
-		}(FindComponentArray<Ts>()...);
-
+		AddComponents<Ts>(components);
 		entity_ids_.push_back(entity_id);
 		entity_index_map_.insert(std::make_pair(entity_id, entity_ids_.size()));
 	}
