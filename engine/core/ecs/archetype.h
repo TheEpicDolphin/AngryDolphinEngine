@@ -84,6 +84,10 @@ private:
 		return static_cast<ComponentArray<T> *>(component_arrays_[component_array_index_iter->second]);
 	}
 
+	template<class... Ts>
+	void AddComponents(Ts... components);
+
+	template<>
 	void AddComponents() {}
 
 	template<class T, class... Ts>
@@ -299,3 +303,8 @@ public:
 		}(entity_ids_, FindComponentArray<Ts>()...);
 	}
 };
+
+template<class ...Ts>
+inline void Archetype::AddComponents(Ts ...components)
+{
+}
