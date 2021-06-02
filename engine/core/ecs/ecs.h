@@ -15,8 +15,8 @@ class ECS
 {
 
 public:
-	template<typename T, typename... Args>
-	void AddComponent(EntityID entity_id, Args&&...args)
+	template<typename T>
+	void AddComponent(EntityID entity_id, T component)
 	{
 		static_assert(std::is_pod<T>, "Component must be Plain Old Data");
 
@@ -78,13 +78,13 @@ public:
 			Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet({ added_component_type });
 			if (existing_archetype) {
 				// Add entity to existing archetype
-				existing_archetype->AddEntity<T>(entity_id, T(args));
+				existing_archetype->AddEntity<T>(entity_id, component);
 				entity_archetype_map_.insert(std::make_pair(entity_id, existing_archetype));
 			}
 			else {
 				// Create new archetype for entity.
 				Archetype unit_archetype = Archetype::ArchetypeWithComponentTypes<T>();
-				unit_archetype.AddEntity<T>(entity_id, T(args));
+				unit_archetype.AddEntity<T>(entity_id, component);
 				Archetype *const new_archetype = archetype_set_trie_.InsertValueForKeySet(unit_archetype, unit_archetype.ComponentTypes());
 				entity_archetype_map_.insert(std::make_pair(entity_id, new_archetype));
 			}

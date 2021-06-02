@@ -15,25 +15,30 @@ public:
 
 	virtual void RemoveWithSwapAtIndex(std::size_t index) {}
 
-	virtual ComponentArrayBase* Empty() {}
+	virtual ComponentArrayBase* Empty() 
+	{
+		return nullptr;
+	}
 };
 
 template<class T>
 class ComponentArray : public ComponentArrayBase
 {
 public:
-	void Append(T component) 
+	ComponentArray() {}
+
+	void Append(T component)
 	{
 		components_.push_back(component);
 	}
 
-	void AppendComponentFromArrayAtIndex(ComponentArrayBase* source_component_array, std::size_t index)
+	void AppendComponentFromArrayAtIndex(ComponentArrayBase* source_component_array, std::size_t index) override
 	{
 		ComponentArray<T>* casted_source_component_array = static_cast<ComponentArray<T> *>(source_component_array);
 		Append(casted_source_component_array->ComponentAtIndex(index));
 	}
 
-	void RemoveWithSwapAtIndex(std::size_t index)
+	void RemoveWithSwapAtIndex(std::size_t index) override
 	{
 		if (index >= components_.size()) {
 			throw std::runtime_error("ComponentArray index out of range.");
@@ -45,7 +50,7 @@ public:
 		components_.pop_back();
 	}
 
-	ComponentArrayBase* Empty() {
+	ComponentArrayBase* Empty() override {
 		return new ComponentArray<T>();
 	}
 
@@ -110,7 +115,7 @@ public:
 	}
 
 	template<class... Ts>
-	static Archetype ArchetypeWithComponentTypes()
+	static Archetype* ArchetypeWithComponentTypes()
 	{
 		std::vector<ComponentTypeID> unsorted_component_types = { (Component<Ts>::GetTypeId())... };
 		std::vector<ComponentArrayBase*> unsorted_component_arrays = { (new ComponentArray<Ts>())... };
@@ -121,13 +126,13 @@ public:
 		}
 		std::sort(sorted_component_type_array_pairs.begin(), sorted_component_type_array_pairs.end());
 
-		Archetype new_archetype;
-		new_archetype.component_types_.reserve(sorted_component_type_array_pairs.size());
-		new_archetype.component_arrays_.reserve(sorted_component_type_array_pairs.size());
+		Archetype *new_archetype = new Archetype();
+		new_archetype->component_types_.reserve(sorted_component_type_array_pairs.size());
+		new_archetype->component_arrays_.reserve(sorted_component_type_array_pairs.size());
 		for (std::size_t index = 0; index < sorted_component_type_array_pairs.size(); ++index) {
-			new_archetype.component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
-			new_archetype.component_types_.push_back(sorted_component_type_array_pairs[index].first);
-			new_archetype.component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
+			new_archetype->component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
+			new_archetype->component_types_.push_back(sorted_component_type_array_pairs[index].first);
+			new_archetype->component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
 		}
 		return new_archetype;
 	}
@@ -237,15 +242,15 @@ public:
 	template<class... Ts>
 	void AddEntity(EntityID entity_id, Ts ...components) 
 	{
-		const std::vector<ComponentTypeID> added_component_types = { (Component<Ts>::GetTypeId())... };
+		std::vector<ComponentTypeID> added_component_types = { (Component<Ts>::GetTypeId())... };
 		std::sort(added_component_types.begin(), added_component_types.end());
 		if (added_component_types != component_types_) {
 			throw std::runtime_error("Number and order of specified components must match that of Archetype.");
 		}
 
 		AddComponents<Ts...>(components...);
-		entity_ids_.push_back(entity_id);
 		entity_index_map_.insert(std::make_pair(entity_id, entity_ids_.size()));
+		entity_ids_.push_back(entity_id);
 	}
 
 	void RemoveEntity(EntityID entity_id)
@@ -303,8 +308,3 @@ public:
 		}(entity_ids_, FindComponentArray<Ts>()...);
 	}
 };
-
-template<class ...Ts>
-inline void Archetype::AddComponents(Ts ...components)
-{
-}
