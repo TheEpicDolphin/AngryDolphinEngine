@@ -157,7 +157,7 @@ public:
 				insert_component_array(new ComponentArray<T>(), added_component_type);
 				has_inserted_added_component = true;
 			}
-			insert_component_array(component_arrays_[c_idx]->Empty(), component_types[c_idx]);
+			insert_component_array(component_arrays_[c_idx]->Empty(), component_types_[c_idx]);
 		}
 		if (!has_inserted_added_component) {
 			insert_component_array(new ComponentArray<T>(), added_component_type);
@@ -172,7 +172,7 @@ public:
 		Archetype *new_archetype = new Archetype();
 		new_archetype->component_types_.reserve(component_types_.size() - 1);
 		new_archetype->component_arrays_.reserve(component_arrays_.size() - 1);
-		for (std::size_t c_idx = 0; c_idx < component_types_.size; ++c_idx) {
+		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
 			if (component_types_[c_idx] != removed_component_type) {
 				new_archetype->component_type_index_map_.insert(std::make_pair(component_types_[c_idx], new_archetype->component_types_.size()));
 				new_archetype->component_types_.push_back(component_types_[c_idx]);

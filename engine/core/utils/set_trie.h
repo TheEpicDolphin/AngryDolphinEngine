@@ -37,7 +37,7 @@ public:
 
 	*/
 
-	std::vector<TValue *> FindSuperKeySetValues(std::vector<TKey> key_set) {
+	std::vector<TValue *> FindSuperKeySetValues(const std::vector<TKey>& key_set) {
 		std::vector<TValue *> supersets;
 		std::size_t index = 0;
 		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
@@ -68,7 +68,7 @@ public:
 		return supersets;
 	}
 
-	TValue* InsertValueForKeySet(TValue value, std::vector<TKey> key_set) {
+	void InsertValueForKeySet(const TValue& value, const std::vector<TKey>& key_set) {
 		SetTrieNode *current_node = &root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
@@ -82,7 +82,6 @@ public:
 
 		if (index == key_set.size() && current_node->has_value) {
 			throw std::runtime_error("Trying to insert value for keyset that is already in Set Trie");
-			return nullptr;
 		}
 
 		while (index < key_set.size()) {
@@ -96,10 +95,9 @@ public:
 		}
 		current_node->value = value;
 		current_node->has_value = true;
-		return &current_node->value;
 	}
 
-	void RemoveValueForKeySet(std::vector<TKey> key_set) {
+	void RemoveValueForKeySet(const std::vector<TKey>& key_set) {
 		std::size_t index = 0;
 		std::stack<SetTrieNode *> stack;
 		stack.push(&root_node_);
@@ -123,7 +121,7 @@ public:
 		}
 	}
 
-	TValue* ValueForKeySet(std::vector<TKey> key_set) {
+	TValue* ValueForKeySet(const std::vector<TKey>& key_set) {
 		SetTrieNode *current_node = &root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {

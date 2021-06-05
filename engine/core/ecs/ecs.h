@@ -59,8 +59,8 @@ public:
 			if (!existing_archetype) {
 				// No archetype exists for the entity's new set of component types. Create
 				// new archetype.
-				Archetype new_empty_archetype = previous_archetype->EmptyWithAddedComponentType<T>();
-				existing_archetype = archetype_set_trie_.InsertValueForKeySet(new_empty_archetype, new_empty_archetype.ComponentTypes());
+				existing_archetype = previous_archetype->EmptyWithAddedComponentType<T>();
+				archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
 			}
 
 			// Move over the entity's component data from the previous archetype to
@@ -69,6 +69,7 @@ public:
 			if (previous_archetype->Entities().size() == 0) {
 				// previous archetype no longer has any entities. Delete it.
 				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
+				delete previous_archetype;
 			}
 			entity_archetype_map_[entity_id] = existing_archetype;
 		}
@@ -83,9 +84,9 @@ public:
 			}
 			else {
 				// Create new archetype for entity.
-				Archetype unit_archetype = Archetype::ArchetypeWithComponentTypes<T>();
-				unit_archetype.AddEntity<T>(entity_id, component);
-				Archetype *const new_archetype = archetype_set_trie_.InsertValueForKeySet(unit_archetype, unit_archetype.ComponentTypes());
+				Archetype* new_archetype = Archetype::ArchetypeWithComponentTypes<T>();
+				new_archetype->AddEntity<T>(entity_id, component);
+				archetype_set_trie_.InsertValueForKeySet(*new_archetype, new_archetype->ComponentTypes());
 				entity_archetype_map_.insert(std::make_pair(entity_id, new_archetype));
 			}
 		}
@@ -137,8 +138,8 @@ public:
 			if (!existing_archetype) {
 				// No archetype exists for the entity's new set of component types. Create
 				// new archetype.
-				Archetype new_empty_archetype = existing_archetype->EmptyWithRemovedComponentType<T>();
-				existing_archetype = archetype_set_trie_.InsertValueForKeySet(new_empty_archetype, new_empty_archetype.ComponentTypes());
+				existing_archetype = previous_archetype->EmptyWithRemovedComponentType<T>();
+				archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
 			}
 
 			// Move over the entity's component data from the previous archetype to
