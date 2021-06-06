@@ -18,8 +18,6 @@ public:
 	template<typename T>
 	void AddComponent(EntityID entity_id, T component)
 	{
-		static_assert(std::is_pod<T>, "Component must be Plain Old Data");
-
 		ComponentTypeID added_component_type = Component<T>::GetTypeId();		 
 		if (!added_component_type) {
 			// We are adding a component of this type for the first time. Register it.
@@ -43,7 +41,7 @@ public:
 			}
 
 			// Determine the entity's new archetype id.
-			const std::vector<ComponentTypeID> previous_component_types = previous_archetype->ComponentTypes();
+			const std::vector<ComponentTypeID>& previous_component_types = previous_archetype->ComponentTypes();
 			std::vector<ComponentTypeID> new_component_types;
 			for (std::size_t c_idx = 0; c_idx < previous_component_types.size(); ++c_idx) {
 				if (added_component_type < previous_component_types[c_idx]) {
@@ -65,11 +63,10 @@ public:
 
 			// Move over the entity's component data from the previous archetype to
 			// the existing one and insert new component data.
-			previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *existing_archetype, T(args));
+			previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *existing_archetype, component);
 			if (previous_archetype->Entities().size() == 0) {
 				// previous archetype no longer has any entities. Delete it.
-				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
-				delete previous_archetype;
+				DestroyArchetype(previous_archetype);
 			}
 			entity_archetype_map_[entity_id] = existing_archetype;
 		}
@@ -126,9 +123,10 @@ public:
 			}
 
 			if (new_component_types.size() == 0) {
+				// The entity will now have no components. It is no longer assigned to an archetype.
 				previous_archetype->RemoveEntity(entity_id);
 				if (previous_archetype->Entities().size() == 0) {
-					archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
+					DestroyArchetype(previous_archetype);
 				}
 				entity_archetype_map_.erase(entity_id);
 				return;
@@ -146,7 +144,7 @@ public:
 			// the existing one, except that of the component to be removed.
 			previous_archetype->MoveEntityToSubArchetype<T>(entity_id, *existing_archetype);
 			if (previous_archetype->Entities().size() == 0) {
-				archetype_set_trie_.RemoveValueForKeySet(previous_archetype->ComponentTypes());
+				DestroyArchetype(previous_archetype);
 			}
 			entity_archetype_map_[entity_id] = existing_archetype;
 		}
@@ -197,7 +195,7 @@ public:
 			Archetype* archetype = iter->second;
 			archetype->RemoveEntity(entity_id);
 			if (archetype->Entities().size() == 0) {
-				archetype_set_trie_.RemoveValueForKeySet(archetype->ComponentTypes());
+				DestroyArchetype(archetype);
 			}
 			entity_archetype_map_.erase(entity_id);
 		}
@@ -234,6 +232,12 @@ private:
 		Component<T>::ClearTypeId();
 		component_count_map_.erase(component_type_id);
 		component_uid_generator_.ReturnId(component_type_id);
+	}
+
+	void DestroyArchetype(Archetype* archetype) 
+	{
+		archetype_set_trie_.RemoveValueForKeySet(archetype->ComponentTypes());
+		delete archetype;
 	}
 
 };

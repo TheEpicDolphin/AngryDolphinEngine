@@ -187,7 +187,7 @@ public:
 	{
 		std::size_t index = entity_index_map_[entity_id];
 		ComponentTypeID added_component_type = Component<T>::GetTypeId();
-		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
+		for (std::size_t c_idx = 0; c_idx < super_archetype.component_types_.size(); ++c_idx) {
 			if (super_archetype.component_types_[c_idx] == added_component_type) {
 				ComponentArray<T>* casted_existing_component_array = static_cast<ComponentArray<T> *>(super_archetype.component_arrays_[c_idx]);
 				casted_existing_component_array->Append(added_component);
