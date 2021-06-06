@@ -188,20 +188,21 @@ public:
 		std::size_t index = entity_index_map_[entity_id];
 		ComponentTypeID added_component_type = Component<T>::GetTypeId();
 		for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
-			if (super_archetype.component_arrays_[c_idx] == added_component_type) {
+			if (super_archetype.component_types_[c_idx] == added_component_type) {
 				ComponentArray<T>* casted_existing_component_array = static_cast<ComponentArray<T> *>(super_archetype.component_arrays_[c_idx]);
 				casted_existing_component_array->Append(added_component);
 			}
-			else if (existing_archetype.component_types_[c_idx] > added_component_type) {
+			else if (super_archetype.component_types_[c_idx] > added_component_type) {
 				super_archetype.component_arrays_[c_idx]->AppendComponentFromArrayAtIndex(component_arrays_[c_idx - 1], index);
-				component_arrays_[c_idx - 1]->RemoveWithSwapAtIndex(record.index);
+				component_arrays_[c_idx - 1]->RemoveWithSwapAtIndex(index);
 			}
 			else {
 				super_archetype.component_arrays_[c_idx]->AppendComponentFromArrayAtIndex(component_arrays_[c_idx], index);
 				component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
 			}
 		}
-		super_archetype.entity_ids_.push_back(entity_ids_[index]);
+		super_archetype.entity_index_map_.insert(std::make_pair(entity_id, super_archetype.entity_ids_.size()));
+		super_archetype.entity_ids_.push_back(entity_id);
 		entity_index_map_.erase(entity_id);
 		if (index < entity_ids_.size() - 1) {
 			entity_index_map_[entity_ids_.back()] = index;
