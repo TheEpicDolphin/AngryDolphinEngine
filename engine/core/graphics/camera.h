@@ -6,4 +6,5 @@ struct Camera {
 	bool enabled;
 	Rect viewport_rect;
 	bool is_orthographic;
+	float fov;
 };

@@ -12,11 +12,12 @@
 
 #include "camera.h"
 #include "mesh_renderer.h"
+#include "render_context.h"
 
 class RenderingSystem : public System<RenderingSystem>
 {
 private:
-	IRenderWindow _render_window;
+	IRenderContext render_context_;
 
 	struct MeshBatch {
 		GLuint vbo;
@@ -65,7 +66,7 @@ public:
 	RenderingSystem() = default;
 
 	RenderingSystem(ECS *ecs) : System<RenderingSystem>(ecs) {
-
+		
 	}
 
 	void Update() 
@@ -104,6 +105,10 @@ public:
 		};
 		ecs_->EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
 
+		int window_width, window_height;
+		render_context_.FrameBufferSize(&window_width, &window_height);
+		glViewport(0, 0, window_width, window_height);
+		glClear(GL_COLOR_BUFFER_BIT);
 		std::function<void(EntityID, Camera&, Transform&)> rendering_block =
 			[&](EntityID entity_id, Camera& camera, Transform& transform) {
 			if (!camera.enabled) {
@@ -112,17 +117,14 @@ public:
 			}
 
 			const glm::mat4 view_matrix = transform.matrix;
-
 			glm::mat4 projection_matrix;
 			if (camera.is_orthographic) {
 				// Orthographic projection matrix
-				projection_matrix = glm::mat4(glm::vec4(1, 0, 0, 0), 
-											  glm::vec4(0, 1, 0, 0), 
-											  glm::vec4(0, 0, 0, 0), 
-											  glm::vec4(0, 0, 0, 1));
+				projection_matrix = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.0f, 100.0f);
 			} else {
 				// Perspective projection matrix
-				projection_matrix = ;
+				// Projection matrix : 45° Field of View, width:height ratio, display range : 0.1 unit (z near) <-> 100 units (z far)
+				projection_matrix = glm::perspective(glm::radians(45.0f), (float)window_width / (float)window_height, 0.1f, 100.0f);
 			}
 
 			for (auto& it : material_batch_map)
