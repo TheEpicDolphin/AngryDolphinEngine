@@ -10,11 +10,14 @@
 #include <core/transform/transform.h>
 #include <GL/glew.h>
 
+#include "camera.h"
 #include "mesh_renderer.h"
 
 class RenderingSystem : public System<RenderingSystem>
 {
 private:
+	IRenderWindow _render_window;
+
 	struct MeshBatch {
 		GLuint vbo;
 		GLuint ibo;
@@ -101,29 +104,49 @@ public:
 		};
 		ecs_->EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
 
-		//ecs_->GetComponent<Camera>();
-
-		const glm::mat4 vp_matrix = glm::mat4(1.0f);
-
-		for (auto& it : material_batch_map)
-		{
-			MaterialBatch material_batch = it.second;
-			glBindVertexArray(material_batch.vao);
-			GLint mvp_location = glGetUniformLocation(material_batch.material.ProgramID(), "mvp");
-			for (auto& it : material_batch.mesh_batch_map) {
-				MeshBatch mesh_batch = it.second;
-				for (glm::mat4& model_matrix : mesh_batch.model_matrices) {
-					const glm::mat4 mvp = model_matrix * vp_matrix;
-					// Insert MVP matrix into shader
-					glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
-					// Draw
-					glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
-				}
-				glDeleteBuffers(1, &mesh_batch.vbo);
+		std::function<void(EntityID, Camera&, Transform&)> rendering_block =
+			[&](EntityID entity_id, Camera& camera, Transform& transform) {
+			if (!camera.enabled) {
+				// Camera is disabled, don't render
+				return;
 			}
-			glDeleteVertexArrays(1, &material_batch.vao);
-		}
 
-		// TODO: Do above inside window context
+			const glm::mat4 view_matrix = transform.matrix;
+
+			glm::mat4 projection_matrix;
+			if (camera.is_orthographic) {
+				// Orthographic projection matrix
+				projection_matrix = glm::mat4(glm::vec4(1, 0, 0, 0), 
+											  glm::vec4(0, 1, 0, 0), 
+											  glm::vec4(0, 0, 0, 0), 
+											  glm::vec4(0, 0, 0, 1));
+			} else {
+				// Perspective projection matrix
+				projection_matrix = ;
+			}
+
+			for (auto& it : material_batch_map)
+			{
+				MaterialBatch material_batch = it.second;
+				glBindVertexArray(material_batch.vao);
+				GLint mvp_location = glGetUniformLocation(material_batch.material.ProgramID(), "mvp");
+				for (auto& it : material_batch.mesh_batch_map) {
+					MeshBatch mesh_batch = it.second;
+					for (glm::mat4& model_matrix : mesh_batch.model_matrices) {
+						const glm::mat4 mvp = model_matrix * view_matrix * projection_matrix;
+						// Insert MVP matrix into shader
+						glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
+						// Draw
+						glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+					}
+					glDeleteBuffers(1, &mesh_batch.vbo);
+				}
+				glDeleteVertexArrays(1, &material_batch.vao);
+			}
+			// TODO: Do above inside window context
+			// TODO: Keep track of areas in viewport that haven't been rendered yet. 
+			// Once the entire viewport has been rendered, stop the enumeration.
+		};
+		ecs_->EnumerateComponentsWithBlock<Camera, Transform>(rendering_block);
 	}
 };
