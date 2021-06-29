@@ -11,24 +11,24 @@
 #include <GL/glew.h>
 
 #include "camera.h"
-#include "mesh_renderer.h"
-#include "render_context.h"
+#include "mesh_renderable.h"
+#include "renderer.h"
 
 class RenderingSystem : public System<RenderingSystem>
 {
 private:
-	IRenderContext render_context_;
+	IRenderer renderer_;
 
 	struct MeshBatch {
+		Mesh mesh;
 		GLuint vbo;
 		GLuint ibo;
-		Mesh mesh;
 		std::vector<glm::mat4> model_matrices;
 	};
 
 	struct MaterialBatch {
-		GLuint vao;
 		Material material;
+		GLuint vao;
 		std::unordered_map<InstanceID, MeshBatch> mesh_batch_map;
 	};
 
@@ -73,37 +73,11 @@ public:
 	{
 		std::unordered_map<InstanceID, MaterialBatch> material_batch_map;
 
-		std::function<void(EntityID, MeshRenderer&, Transform&)> block =
-		[&](EntityID entity_id, MeshRenderer& mesh_rend, Transform& trans) {
-			// group together materials and meshes for faster rendering later
-			InstanceID materialID = mesh_rend.material->GetInstanceID();
-			InstanceID meshID = mesh_rend.mesh->GetInstanceID();
-			if (material_batch_map.find(materialID) == material_batch_map.end()) {
-				MaterialBatch material_batch = {0};
-				material_batch.material = *mesh_rend.material.get();
-
-				glGenVertexArrays(1, &material_batch.vao);
-				MeshBatch mesh_batch = CreateMeshBatch(material_batch.vao, *mesh_rend.material.get(), *mesh_rend.mesh.get());
-				mesh_batch.model_matrices.push_back(trans.matrix);
-
-				material_batch.mesh_batch_map[meshID] = mesh_batch;
-				material_batch_map[materialID] = material_batch;
-			}
-			else {
-				MaterialBatch *material_batch = &material_batch_map[materialID];
-				if (material_batch->mesh_batch_map.find(meshID) == material_batch->mesh_batch_map.end()) {
-					MeshBatch mesh_batch = CreateMeshBatch(material_batch->vao, *mesh_rend.material.get(), *mesh_rend.mesh.get());
-					mesh_batch.model_matrices.push_back(trans.matrix);
-
-					material_batch->mesh_batch_map[meshID] = mesh_batch;
-				}
-				else {
-					MeshBatch *mesh_batch = &material_batch->mesh_batch_map[meshID];
-					mesh_batch->model_matrices.push_back(trans.matrix);
-				}
-			}
+		std::function<void(EntityID, MeshRenderable&, Transform&)> block =
+		[&](EntityID entity_id, MeshRenderable& mesh_rend, Transform& trans) {
+			renderer_.SetRenderableObject(entity_id, { mesh_rend.material, mesh_rend.mesh, trans.matrix });
 		};
-		ecs_->EnumerateComponentsWithBlock<MeshRenderer, Transform>(block);
+		ecs_->EnumerateComponentsWithBlock<MeshRenderable, Transform>(block);
 
 		int window_width, window_height;
 		render_context_.FrameBufferSize(&window_width, &window_height);

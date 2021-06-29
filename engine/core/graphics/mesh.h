@@ -26,12 +26,12 @@ public:
 
 	void SetTriangles(std::vector<Triangle> tris);
 
-	std::vector<glm::vec3> GetVertices() 
+	const std::vector<glm::vec3>& GetVertices() 
 	{
 		return verts_;
 	}
 
-	std::vector<Triangle> GetTriangles() 
+	const std::vector<Triangle>& GetTriangles() 
 	{
 		return tris_;
 	}

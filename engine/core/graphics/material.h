@@ -30,6 +30,11 @@ public:
 		return vertex_attribute_;
 	}
 
+	bool IsEqual(Material& otherMaterial) 
+	{
+		return program_id_ == otherMaterial.program_id_;
+	}
+
 private:
 	GLuint program_id_;
 	GLuint vertex_attribute_ = 0;
