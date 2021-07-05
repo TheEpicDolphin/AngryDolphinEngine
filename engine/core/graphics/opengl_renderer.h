@@ -7,9 +7,6 @@
 
 #include "renderer.h"
 
-typedef UID MaterialID;
-typedef UID MeshID;
-
 class OpenGLRenderer : IRenderer
 {
 public:

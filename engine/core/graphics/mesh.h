@@ -3,11 +3,12 @@
 #include <vector>
 
 #include <core/utils/uid_generator.h>
-#include <core/object/object.h>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 
-class Mesh : public Object<Mesh>
+typedef UID MeshID;
+
+class Mesh
 {
 public:
 	// Structure describing data for a single triangle in the mesh.
@@ -16,7 +17,7 @@ public:
 		size_t indices[3] = { 0, 0, 0 };
 	} Triangle;
 
-	Mesh();
+	Mesh(MeshID id);
 
 	~Mesh();
 
@@ -36,7 +37,13 @@ public:
 		return tris_;
 	}
 
+	MaterialID GetInstanceID()
+	{
+		return id_;
+	}
+
 private:
+	MeshID id_;
 	std::vector<glm::vec3> verts_;
 	std::vector<Triangle> tris_;
 	std::vector<glm::vec3> normals_;
