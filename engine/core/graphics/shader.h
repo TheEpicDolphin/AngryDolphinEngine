@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GL/glew.h>
+#include <vector>
 
 enum ShaderType { 
 	ShaderTypeVertex, 
@@ -9,11 +10,16 @@ enum ShaderType {
 	ShaderTypeCompute
 };
 
+enum ShaderLanguage {
+	ShaderLanguageGLSL,
+	ShaderLanguageSPIRV
+};
+
 struct Shader 
 {
+	ShaderLanguage language;
 	ShaderType type;
-	bool is_spirv;
-	char* code;
+	std::vector<char> code;
 };
 
 GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path);

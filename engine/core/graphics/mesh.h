@@ -37,7 +37,7 @@ public:
 		return tris_;
 	}
 
-	MaterialID GetInstanceID()
+	const MeshID& GetInstanceID()
 	{
 		return id_;
 	}

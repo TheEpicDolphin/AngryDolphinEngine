@@ -5,7 +5,7 @@
 
 #include "material.h"
 
-class MaterialManager 
+class MaterialManager : public MaterialDelegate
 {
 public:
 	// Searches the Resources folder for any .materialspec files and creates Material objects from them.
@@ -16,8 +16,10 @@ public:
 
 	std::shared_ptr<Material> MaterialForMaterialSpecHash(int hash);
 
+	void MaterialDidDestruct(Material *material) override;
+
 private:
-	std::unordered_map<int, Material> spec_generated_materials_;
+	std::unordered_map<int, std::shared_ptr<Material>> spec_generated_materials_;
 	UIDGenerator material_id_generator_;
 	ShaderManager *shader_manager_;
 };

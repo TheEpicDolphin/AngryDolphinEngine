@@ -31,6 +31,10 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory(3rd_party/googletest)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/googletest/googletest/include)
 
+# RapidJSON
+add_subdirectory(3rd_party/rapidjson)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/rapidjson/include)
+
 add_subdirectory(engine)
 add_subdirectory(test_game)
 

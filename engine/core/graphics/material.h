@@ -8,20 +8,30 @@
 
 typedef UID MaterialID;
 
+struct MaterialDelegate 
+{
+	virtual void MaterialDidDestruct(Material* material) = 0;
+};
+
 class Material
 {
 public:
-	Material(MaterialID id, Shader vertex_shader, Shader fragment_shader, std::unordered_map<std::string, char*> property_map)
+	Material(MaterialID id, std::shared_ptr<Shader> vertex_shader, std::shared_ptr<Shader> fragment_shader, MaterialDelegate *delegate)
 	{
 		id_ = id;
-		property_map_ = property_map;
+		vertex_shader_ = vertex_shader;
+		fragment_shader_ = fragment_shader;
+		delegate_ = std::make_shared<MaterialDelegate>(delegate);
 		// THIS IS TEMPORARY. Later, load shaders at startup only
 		program_id_ = LoadShaders("", "");
 	}
 
 	~Material() 
 	{
-
+		std::shared_ptr<MaterialDelegate> delegate = delegate_.lock();
+		if (delegate) {
+			delegate->MaterialDidDestruct(this);
+		}
 	}
 
 	GLuint ProgramID() 
@@ -38,9 +48,34 @@ public:
 		return program_id_ == otherMaterial.program_id_;
 	}
 
-	MaterialID GetInstanceID() 
+	const MaterialID& GetInstanceID() 
 	{
 		return id_;
+	}
+
+	void SetProperty(std::string property_name, bool value)
+	{
+		bool_property_map[property_name] = value;
+	}
+
+	void SetProperty(std::string property_name, int value)
+	{
+		int_property_map[property_name] = value;
+	}
+
+	void SetProperty(std::string property_name, uint32_t value)
+	{
+		uint_property_map[property_name] = value;
+	}
+
+	void SetProperty(std::string property_name, float value)
+	{
+		float_property_map[property_name] = value;
+	}
+
+	void SetProperty(std::string property_name, double value)
+	{
+		double_property_map[property_name] = value;
 	}
 
 private:
@@ -48,7 +83,14 @@ private:
 	GLuint vertex_attribute_ = 0;
 
 	MaterialID id_;
-	Shader vertex_shader_;
-	Shader fragment_shader_;
-	std::unordered_map<std::string, char*> property_map_;
+	std::shared_ptr<Shader> vertex_shader_;
+	std::shared_ptr<Shader> fragment_shader_;
+	
+	std::unordered_map<std::string, bool> bool_property_map;
+	std::unordered_map<std::string, int> int_property_map;
+	std::unordered_map<std::string, uint32_t> uint_property_map;
+	std::unordered_map<std::string, float> float_property_map;
+	std::unordered_map<std::string, double> double_property_map;
+
+	std::weak_ptr<MaterialDelegate> delegate_;
 };
