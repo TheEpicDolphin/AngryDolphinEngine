@@ -10,14 +10,8 @@ enum ShaderType {
 	ShaderTypeCompute
 };
 
-enum ShaderLanguage {
-	ShaderLanguageGLSL,
-	ShaderLanguageSPIRV
-};
-
 struct Shader 
 {
-	ShaderLanguage language;
 	ShaderType type;
 	std::vector<char> code;
 };

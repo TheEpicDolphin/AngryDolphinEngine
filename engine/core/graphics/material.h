@@ -4,7 +4,8 @@
 #include <glm/vec3.hpp>
 #include <vector>
 
-#include "shader.h"
+#include "shader/shader.h"
+#include "shader/uniform.h"
 
 typedef UID MaterialID;
 
@@ -53,29 +54,40 @@ public:
 		return id_;
 	}
 
-	void SetProperty(std::string property_name, bool value)
+	template<typename T>
+	void SetUniform(std::string name, T value) 
 	{
-		bool_property_map[property_name] = value;
+		std::unordered_map<std::string, Uniform>::iterator iter = uniform_map_.find(name);
+		if (iter == uniform_map_.end()) {
+			// TODO: print warning that uniform with name %name% does not exist on this material
+			return;
+		}
+		const Uniform& uniform = iter->second;
+		if (uniform.shader_var.type != ShaderVar<T>::type) {
+			// TODO: print warning "you are attempting to set uniform with name %name% of type %uniform.shader_var.type% to value of type %ShaderVar<T>::type%"
+			return;
+		}
+
+		const ShaderVar<T> *shader_var = static_cast<ShaderVar<T> *>(&uniform.shader_var);
+		shader_var->SetValue(value);
 	}
 
-	void SetProperty(std::string property_name, int value)
+	template<typename T>
+	T GetUniform(std::string name)
 	{
-		int_property_map[property_name] = value;
-	}
+		std::unordered_map<std::string, Uniform>::iterator iter = uniform_map_.find(name);
+		if (iter == uniform_map_.end()) {
+			// TODO: print warning that uniform with name %name% does not exist on this material
+			return;
+		}
+		const Uniform& uniform = iter->second;
+		if (uniform.shader_var.type != ShaderVar<T>::type) {
+			// TODO: print warning "you are attempting to set uniform with name %name% of type %uniform.shader_var.type% to value of type %ShaderVar<T>::type%"
+			return;
+		}
 
-	void SetProperty(std::string property_name, uint32_t value)
-	{
-		uint_property_map[property_name] = value;
-	}
-
-	void SetProperty(std::string property_name, float value)
-	{
-		float_property_map[property_name] = value;
-	}
-
-	void SetProperty(std::string property_name, double value)
-	{
-		double_property_map[property_name] = value;
+		const ShaderVar<T>* shader_var = static_cast<ShaderVar<T> *>(&uniform.shader_var);
+		return shader_var->GetValue();
 	}
 
 private:
@@ -86,11 +98,7 @@ private:
 	std::shared_ptr<Shader> vertex_shader_;
 	std::shared_ptr<Shader> fragment_shader_;
 	
-	std::unordered_map<std::string, bool> bool_property_map;
-	std::unordered_map<std::string, int> int_property_map;
-	std::unordered_map<std::string, uint32_t> uint_property_map;
-	std::unordered_map<std::string, float> float_property_map;
-	std::unordered_map<std::string, double> double_property_map;
+	std::unordered_map<std::string, Uniform> uniform_map_;
 
 	std::weak_ptr<MaterialDelegate> delegate_;
 };
