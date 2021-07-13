@@ -19,19 +19,10 @@ public:
 		return type_;
 	}
 
-	void SetValue(T value) 
-	{
-		value_ = value;
-	}
+	virtual void SetValue(T value) = 0;
 
-	T GetValue() 
-	{
-		return value_;
-	}
+	virtual T GetValue() = 0;
 
 private:
 	static ShaderDataType type_;
-
-protected:
-	T value_;
 };

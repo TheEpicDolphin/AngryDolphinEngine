@@ -6,4 +6,5 @@
 class ShaderDataTypeAssigner 
 {
 	ShaderVar<float>::type_ = ShaderDataTypeFloat;
+	ShaderVar<CustomStruct>::type_ = ShaderDataTypeCustomStruct;
 };
