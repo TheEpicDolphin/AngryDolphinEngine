@@ -5,6 +5,7 @@
 
 class ShaderVarBase
 {
+public:
 	virtual void* GetData();
 };
 

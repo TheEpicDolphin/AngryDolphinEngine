@@ -4,8 +4,17 @@
 
 #include "shader_var.h"
 
-struct Uniform
+class Uniform
 {
-	ShaderVarBase shader_var;
-	std::string name;
+
+public:
+	Uniform(std::string name, ShaderVarBase shader_var);
+
+	const std::string& GetName();
+
+	const ShaderVarBase& GetShaderVar();
+
+private:
+	std::string name_;
+	ShaderVarBase shader_var_;
 };

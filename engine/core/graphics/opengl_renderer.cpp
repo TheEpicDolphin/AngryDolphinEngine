@@ -40,6 +40,11 @@ static void DestroyWindow() {
 
 void OpenGLRenderer::Initialize(int width, int height) 
 {
+	material_manager.delegate = this;
+	pipeline_manager.delegate = this;
+	material_manager_.LoadMaterialSpecs();
+	pipeline_manager_.LoadPipelineSpecs();
+
     glfwSetErrorCallback(error_callback);
 
     if (!glfwInit()) {

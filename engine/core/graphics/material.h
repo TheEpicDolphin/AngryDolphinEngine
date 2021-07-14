@@ -6,6 +6,7 @@
 
 #include "shader/shader.h"
 #include "shader/uniform.h"
+#include "rendering_pipeline.h"
 
 typedef UID MaterialID;
 
@@ -17,11 +18,10 @@ struct MaterialDelegate
 class Material
 {
 public:
-	Material(MaterialID id, std::shared_ptr<Shader> vertex_shader, std::shared_ptr<Shader> fragment_shader, MaterialDelegate *delegate)
+	Material(MaterialID id, RenderingPipeline rendering_pipeline, MaterialDelegate *delegate)
 	{
 		id_ = id;
-		vertex_shader_ = vertex_shader;
-		fragment_shader_ = fragment_shader;
+		rendering_pipeline_ = rendering_pipeline;
 		delegate_ = std::make_shared<MaterialDelegate>(delegate);
 		// THIS IS TEMPORARY. Later, load shaders at startup only
 		program_id_ = LoadShaders("", "");
@@ -95,9 +95,8 @@ private:
 	GLuint vertex_attribute_ = 0;
 
 	MaterialID id_;
-	std::shared_ptr<Shader> vertex_shader_;
-	std::shared_ptr<Shader> fragment_shader_;
-	
+
+	RenderingPipeline rendering_pipeline_;
 	std::unordered_map<std::string, Uniform> uniform_map_;
 
 	std::weak_ptr<MaterialDelegate> delegate_;

@@ -21,5 +21,5 @@ public:
 private:
 	std::unordered_map<int, std::shared_ptr<Material>> spec_generated_materials_;
 	UIDGenerator material_id_generator_;
-	ShaderManager *shader_manager_;
+	PipelineManager* pipeline_manager_;
 };

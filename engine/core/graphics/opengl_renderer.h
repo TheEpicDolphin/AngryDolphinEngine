@@ -43,6 +43,9 @@ private:
 	std::unordered_map<MaterialID, MaterialBatch> material_batch_map_;
 	std::unordered_map<UID, RenderableID> renderable_object_map_;
 
+	MaterialManager material_manager_;
+	RenderingPipelineManager pipeline_manager_;
+
 	static void DestroyWindow();
 
 	static MeshBatch CreateMeshBatch(GLuint& vao, Material& material, Mesh& mesh);

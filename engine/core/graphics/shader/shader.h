@@ -7,11 +7,11 @@
 
 #include "uniform.h"
 
-enum ShaderType { 
-	ShaderTypeVertex, 
-	ShaderTypeFragment,
-	ShaderTypeGeometry,
-	ShaderTypeCompute
+enum ShaderStage { 
+	ShaderStageVertex = 0, 
+	ShaderStageGeometry,
+	ShaderStageFragment,
+	ShaderStageCompute
 };
 
 class Shader 
@@ -21,7 +21,7 @@ public:
 
 	const Uniform& UniformForName(std::string name);
 private:
-	ShaderType type_;
+	ShaderStage stage_;
 	std::vector<char> code_;
 	std::unordered_map<std::string, Uniform> uniform_map_;
 };
