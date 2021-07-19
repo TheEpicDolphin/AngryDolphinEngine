@@ -4,8 +4,6 @@
 #include <glm/vec3.hpp>
 #include <vector>
 
-#include "shader/shader.h"
-#include "shader/uniform.h"
 #include "rendering_pipeline.h"
 
 typedef UID MaterialID;
@@ -18,13 +16,11 @@ struct MaterialDelegate
 class Material
 {
 public:
-	Material(MaterialID id, RenderingPipeline rendering_pipeline, MaterialDelegate *delegate)
+	Material(MaterialID id, std::shared_ptr<RenderingPipeline> rendering_pipeline, MaterialDelegate *delegate)
 	{
 		id_ = id;
 		rendering_pipeline_ = rendering_pipeline;
 		delegate_ = std::make_shared<MaterialDelegate>(delegate);
-		// THIS IS TEMPORARY. Later, load shaders at startup only
-		program_id_ = LoadShaders("", "");
 	}
 
 	~Material() 
@@ -35,18 +31,13 @@ public:
 		}
 	}
 
-	GLuint ProgramID() 
-	{
-		return program_id_;
-	}
-
 	GLuint VertexAttribute() {
 		return vertex_attribute_;
 	}
 
 	bool IsEqual(Material& otherMaterial) 
 	{
-		return program_id_ == otherMaterial.program_id_;
+		return id_ == otherMaterial.id_;
 	}
 
 	const MaterialID& GetInstanceID() 
@@ -57,47 +48,20 @@ public:
 	template<typename T>
 	void SetUniform(std::string name, T value) 
 	{
-		std::unordered_map<std::string, Uniform>::iterator iter = uniform_map_.find(name);
-		if (iter == uniform_map_.end()) {
-			// TODO: print warning that uniform with name %name% does not exist on this material
-			return;
-		}
-		const Uniform& uniform = iter->second;
-		if (uniform.shader_var.type != ShaderVar<T>::type) {
-			// TODO: print warning "you are attempting to set uniform with name %name% of type %uniform.shader_var.type% to value of type %ShaderVar<T>::type%"
-			return;
-		}
-
-		const ShaderVar<T> *shader_var = static_cast<ShaderVar<T> *>(&uniform.shader_var);
-		shader_var->SetValue(value);
+		rendering_pipeline_->SetUniformValue<T>(name, value);
 	}
 
 	template<typename T>
 	T GetUniform(std::string name)
 	{
-		std::unordered_map<std::string, Uniform>::iterator iter = uniform_map_.find(name);
-		if (iter == uniform_map_.end()) {
-			// TODO: print warning that uniform with name %name% does not exist on this material
-			return;
-		}
-		const Uniform& uniform = iter->second;
-		if (uniform.shader_var.type != ShaderVar<T>::type) {
-			// TODO: print warning "you are attempting to set uniform with name %name% of type %uniform.shader_var.type% to value of type %ShaderVar<T>::type%"
-			return;
-		}
-
-		const ShaderVar<T>* shader_var = static_cast<ShaderVar<T> *>(&uniform.shader_var);
-		return shader_var->GetValue();
+		return rendering_pipeline_->GetUniformValue<T>(name);
 	}
 
 private:
-	GLuint program_id_;
 	GLuint vertex_attribute_ = 0;
 
 	MaterialID id_;
 
-	RenderingPipeline rendering_pipeline_;
-	std::unordered_map<std::string, Uniform> uniform_map_;
-
+	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 	std::weak_ptr<MaterialDelegate> delegate_;
 };

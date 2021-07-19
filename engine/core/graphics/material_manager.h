@@ -4,6 +4,7 @@
 #include <core/utils/uid_generator.h>
 
 #include "material.h"
+#include "rendering_pipeline_manager.h"
 
 class MaterialManager : public MaterialDelegate
 {
@@ -21,5 +22,5 @@ public:
 private:
 	std::unordered_map<int, std::shared_ptr<Material>> spec_generated_materials_;
 	UIDGenerator material_id_generator_;
-	PipelineManager* pipeline_manager_;
+	RenderingPipelineManager* pipeline_manager_;
 };

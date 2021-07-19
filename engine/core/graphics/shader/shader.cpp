@@ -11,9 +11,10 @@
 
 #include "shader.h"
 
-const Uniform& Uniform::UniformForName() 
-{
 
+Shader::Shader(std::vector<char> code) 
+{
+	code_ = code;
 }
 
 GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path) {

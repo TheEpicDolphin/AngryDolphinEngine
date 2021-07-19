@@ -4,21 +4,26 @@
 #include <unordered_map>
 #include "shader/shader.h"
 
+typedef UID PipelineID;
+
+struct RenderingPipelineDelegate
+{
+	virtual void PipelineDidDestruct(RenderingPipeline* pipeline) = 0;
+};
+
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
 class RenderingPipeline 
 {
 public:
 	RenderingPipeline();
 
-	RenderingPipeline(std::vector<Shader> shader_stages);
+	RenderingPipeline(PipelineID pipeline_id, std::vector<Shader> shader_stages);
+
+	const PipelineID& GetInstanceID();
 
 	template<typename T>
-	void SetUniformValue(std::string name, ShaderStage shader_type, T& value) 
+	void SetUniformValue(std::string name, T& value) 
 	{
-		const std::size_t index = shader_stage_map_[shader_type];
-		const Shader shader = shader_stages_[index];
-
-
 		std::unordered_map<std::string, Uniform>::iterator iter = uniform_map_.find(name);
 		if (iter == uniform_map_.end()) {
 			// TODO: print warning that uniform with name %name% does not exist on this material
@@ -35,11 +40,8 @@ public:
 	}
 
 	template<typename T>
-	const T& GetUniformValue(std::string name, ShaderStage shader_type) 
+	const T& GetUniformValue(std::string name) 
 	{
-		const std::size_t index = shader_stage_map_[shader_type];
-		const Shader shader = shader_stages_[index];
-
 		std::unordered_map<std::string, Uniform>::iterator iter = uniform_map_.find(name);
 		if (iter == uniform_map_.end()) {
 			// TODO: print warning that uniform with name %name% does not exist on this material
@@ -56,6 +58,8 @@ public:
 	}
 
 private:
+	PipelineID id_;
+	std::unordered_map<std::string, Uniform> uniform_map_;
 	std::vector<Shader> shader_stages_;
 	std::unordered_map<ShaderStage, std::size_t> shader_stage_map_;
 };
