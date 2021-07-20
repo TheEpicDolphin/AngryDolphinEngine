@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "renderer.h"
+#include "rendering_pipeline.h"
+#include "material_manager.h"
 
 class OpenGLRenderer : IRenderer
 {
@@ -20,6 +22,10 @@ public:
 
 	void Cleanup();
 
+	std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
+
+	std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
+
 private:
 	struct MeshBatch {
 		std::shared_ptr<Mesh> mesh;
@@ -28,10 +34,16 @@ private:
 		std::unordered_map<UID, glm::mat4> model_matrix_map;
 	};
 
+	struct PipelineBatch {
+		std::shared_ptr<RenderingPipeline> pipeline;
+		GLuint program_id;
+		std::unordered_map<MeshID, MeshBatch> mesh_batch_map;
+	};
+
 	struct MaterialBatch {
 		std::shared_ptr<Material> material;
 		GLuint vao;
-		std::unordered_map<MeshID, MeshBatch> mesh_batch_map;
+		std::unordered_map<PipelineID, PipelineBatch> pipeline_batch_map;
 	};
 
 	typedef struct RenderableID {
@@ -44,7 +56,6 @@ private:
 	std::unordered_map<UID, RenderableID> renderable_object_map_;
 
 	MaterialManager material_manager_;
-	RenderingPipelineManager pipeline_manager_;
 
 	static void DestroyWindow();
 
