@@ -14,9 +14,13 @@ class OpenGLRenderer : IRenderer
 public:
 	void Initialize(int width, int height);
 
-	void SetRenderableObject(UID id, RenderableObjectInfo info);
+	void AddRenderableObject(UID id, RenderableObjectInfo info);
 
-	void UnsetRenderableObject(UID id);
+	void RemoveRenderableObject(UID id);
+
+	void SetRenderTarget(UID id, RenderTargetInfo info);
+
+	void UnsetRenderTarget(UID id);
 
 	bool RenderFrame();
 

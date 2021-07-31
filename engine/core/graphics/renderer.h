@@ -12,6 +12,12 @@ struct RenderableObjectInfo
 	glm::mat4 model_matrix;
 };
 
+struct RenderTargetInfo 
+{
+	Rect viewport_rect;
+	CameraParams camParams;
+};
+
 struct RenderingPipelineInfo 
 {
 
@@ -26,11 +32,15 @@ class IRenderer {
 public:
 	virtual void Initialize(int width, int height) = 0;
 
-	virtual void SetRenderableObject(UID id, RenderableObjectInfo info) = 0;
+	virtual void AddRenderableObject(UID id, RenderableObjectInfo info) = 0;
 
-	virtual void UnsetRenderableObject(UID id) = 0;
+	virtual void RemoveRenderableObject(UID id) = 0;
+
+	virtual void SetRenderTarget(UID id, RenderTargetInfo info) = 0;
+
+	virtual void UnsetRenderTarget(UID id) = 0;
 	
-	virtual bool RenderFrame(CameraParams camParams) = 0;
+	virtual bool RenderFrame() = 0;
 
 	virtual void Cleanup() = 0;
 

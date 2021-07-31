@@ -157,7 +157,7 @@ void OpenGLRenderer::Initialize(int width, int height)
     }
 }
 
-void OpenGLRenderer::SetRenderableObject(UID id, RenderableObjectInfo info)
+void OpenGLRenderer::AddRenderableObject(UID id, RenderableObjectInfo info)
 {
 	if (renderable_object_map_.find(id) != renderable_object_map_.end()) {
 		const RenderableID& renderableID = renderable_object_map_[id];
@@ -262,7 +262,7 @@ void OpenGLRenderer::SetRenderableObject(UID id, RenderableObjectInfo info)
 	renderable_object_map_[id] = { info.material->GetInstanceID(), info.mesh->GetInstanceID() };
 }
 
-void UnsetRenderableObject(UID id)
+void RemoveRenderableObject(UID id)
 {
 	renderable_object_map_.erase(id);
 }
