@@ -18,16 +18,6 @@ struct RenderTargetInfo
 	CameraParams camParams;
 };
 
-struct RenderingPipelineInfo 
-{
-
-};
-
-struct MaterialInfo 
-{
-
-};
-
 class IRenderer {
 public:
 	virtual void Initialize(int width, int height) = 0;
@@ -47,4 +37,6 @@ public:
 	virtual std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
 
 	virtual std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
+
+	virtual std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
 };

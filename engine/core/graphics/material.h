@@ -14,6 +14,12 @@ struct MaterialDelegate
 	virtual void MaterialDidDestruct(Material* material) = 0;
 };
 
+struct MaterialInfo
+{
+	std::unordered_map<std::string, ShaderVarValue> uniform_settings;
+	std::shared_ptr<RenderingPipeline> rendering_pipeline;
+};
+
 class Material
 {
 public:
@@ -84,8 +90,6 @@ private:
 		int type_id;
 		std::vector<char> data;
 	};
-
-	GLuint vertex_attribute_ = 0;
 
 	MaterialID id_;
 

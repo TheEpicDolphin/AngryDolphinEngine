@@ -19,6 +19,8 @@ public:
 
 	void MaterialDidDestruct(Material *material) override;
 
+	std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
+
 private:
 	std::unordered_map<int, std::shared_ptr<Material>> spec_generated_materials_;
 	UIDGenerator material_id_generator_;

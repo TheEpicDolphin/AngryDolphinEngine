@@ -1,99 +1,10 @@
 
 #include "opengl_renderer.h"
 
-std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info) 
-{
-	// Create the shaders
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+#include <GL/glew.h>
+#include <string>
 
-	// Read the Vertex Shader code from the file
-	std::string VertexShaderCode;
-	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-	if (VertexShaderStream.is_open()) {
-		std::stringstream sstr;
-		sstr << VertexShaderStream.rdbuf();
-		VertexShaderCode = sstr.str();
-		VertexShaderStream.close();
-	}
-	else {
-		printf("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !\n", vertex_file_path);
-		getchar();
-		return 0;
-	}
-
-	// Read the Fragment Shader code from the file
-	std::string FragmentShaderCode;
-	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-	if (FragmentShaderStream.is_open()) {
-		std::stringstream sstr;
-		sstr << FragmentShaderStream.rdbuf();
-		FragmentShaderCode = sstr.str();
-		FragmentShaderStream.close();
-	}
-
-	GLint Result = GL_FALSE;
-	int InfoLogLength;
-
-
-	// Compile Vertex Shader
-	printf("Compiling shader : %s\n", vertex_file_path);
-	char const* VertexSourcePointer = VertexShaderCode.c_str();
-	glShaderSource(VertexShaderID, 1, &VertexSourcePointer, NULL);
-	glCompileShader(VertexShaderID);
-
-	// Check Vertex Shader
-	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	if (InfoLogLength > 0) {
-		std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
-		glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-		printf("%s\n", &VertexShaderErrorMessage[0]);
-	}
-
-
-
-	// Compile Fragment Shader
-	printf("Compiling shader : %s\n", fragment_file_path);
-	char const* FragmentSourcePointer = FragmentShaderCode.c_str();
-	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer, NULL);
-	glCompileShader(FragmentShaderID);
-
-	// Check Fragment Shader
-	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	if (InfoLogLength > 0) {
-		std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
-		glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-		printf("%s\n", &FragmentShaderErrorMessage[0]);
-	}
-
-
-
-	// Link the program
-	printf("Linking program\n");
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
-	glLinkProgram(ProgramID);
-
-	// Check the program
-	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	if (InfoLogLength > 0) {
-		std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
-		glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-		printf("%s\n", &ProgramErrorMessage[0]);
-	}
-
-	glDetachShader(ProgramID, VertexShaderID);
-	glDetachShader(ProgramID, FragmentShaderID);
-
-	glDeleteShader(VertexShaderID);
-	glDeleteShader(FragmentShaderID);
-
-	return ProgramID;
-}
+#include <core/utils/file_helpers.h>
 
 static MeshBatch CreateMeshBatch(GLuint& vao, Material& material, Mesh& mesh) 
 {
@@ -295,6 +206,17 @@ bool OpenGLRenderer::RenderFrame() {
 			projection_matrix = glm::perspective(glm::radians(45.0f), (float)window_width / (float)window_height, 0.1f, 100.0f);
 		}
 
+		for (auto& p_batch_iter : pipeline_batch_map_) 
+		{
+			PipelineBatch pipeline_batch = p_batch_iter.second;
+			glUseProgram(pipeline_batch.program_id);
+
+
+			MaterialBatch material_batch = it.second;
+			glBindVertexArray(material_batch.vao);
+			GLint mvp_location = glGetUniformLocation(pipeline_batch.program_id, "mvp");
+		}
+
 		for (auto& it : material_batch_map)
 		{
 			MaterialBatch material_batch = it.second;
@@ -302,6 +224,32 @@ bool OpenGLRenderer::RenderFrame() {
 			GLint mvp_location = glGetUniformLocation(material_batch.material.ProgramID(), "mvp");
 			for (auto& it : material_batch.mesh_batch_map) {
 				MeshBatch mesh_batch = it.second;
+
+				// set vertex attributes for mesh
+
+				for () {
+
+				}
+				// get the location of attribute "position" in program <code>p</code>
+				vertexLoc = glGetAttribLocation(p, "position");
+				vertexLoc = glGetAttribLocation(p, "position");
+				vertexLoc = glGetAttribLocation(p, "position");
+
+				// bind buffer for positions and copy data into buffer
+				// GL_ARRAY_BUFFER is the buffer type we use to feed attributes
+				glBindBuffer(GL_ARRAY_BUFFER, buffer);
+
+				// feed the buffer, and let OpenGL know that we don't plan to
+				// change it (STATIC) and that it will be used for drawing (DRAW)
+				glBufferData(GL_ARRAY_BUFFER, sizeof(pos), pos, GL_STATIC_DRAW);
+
+				// Enable the attribute at that location
+				glEnableVertexAttribArray(vertexLoc);
+
+				// Tell OpenGL what the array contains: 
+				// it is a set of 4 floats for each vertex
+				glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
+
 				for (glm::mat4& model_matrix : mesh_batch.model_matrices) {
 					const glm::mat4 mvp = model_matrix * view_matrix * projection_matrix;
 					// Insert MVP matrix into shader
@@ -328,5 +276,111 @@ void OpenGLRenderer::Cleanup() {
     DestroyWindow();
 
 	// TODO: Delete VAOs and VBOs
+}
+
+GLenum GLShaderTypeForStageType(ShaderStageType type) 
+{
+	switch (type)
+	{
+	case ShaderStageTypeVertex:
+		return GL_VERTEX_SHADER;
+	case ShaderStageTypeGeometry:
+		return GL_GEOMETRY_SHADER;
+	case ShaderStageTypeFragment:
+		return GL_FRAGMENT_SHADER;
+	case ShaderStageTypeCompute:
+		return GL_COMPUTE_SHADER;
+	}
+}
+
+std::string NameForStageType(ShaderStageType type)
+{
+	switch (type)
+	{
+	case ShaderStageTypeVertex:
+		return "Vertex Shader Stage";
+	case ShaderStageTypeGeometry:
+		return "Geometry Shader Stage";
+	case ShaderStageTypeFragment:
+		return "Fragment Shader Stage";
+	case ShaderStageTypeCompute:
+		return "Compute Shader Stage";
+	}
+}
+
+std::shared_ptr<RenderingPipeline> OpenGLRenderer::CreateRenderingPipeline(RenderingPipelineInfo info)
+{
+	const std::shared_ptr<RenderingPipeline> pipeline = pipeline_manager_.CreatePipeline(info);
+	const std::vector<Shader> shader_stages = pipeline->ShaderStages();
+	GLuint program_id = glCreateProgram();
+	std::vector<GLuint> shader_ids;
+	shader_ids.reserve(shader_stages.size());
+	GLint result = GL_FALSE;
+	int info_log_length;
+	for (Shader shader : shader_stages) {
+		// Create the shader
+		GLuint shader_id = glCreateShader(GLShaderTypeForStageType(shader.type));
+
+		// Compile shader
+		printf("Compiling %s...\n", NameForStageType(shader.type));
+		char const* shader_source_ptr = shader.code.data();
+		glShaderSource(shader_id, 1, &shader_source_ptr, NULL);
+		glCompileShader(shader_id);
+
+		// Check vertex shader
+		glGetShaderiv(shader_id, GL_COMPILE_STATUS, &result);
+		glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &info_log_length);
+		if (info_log_length > 0) {
+			std::vector<char> shader_error_message(info_log_length + 1);
+			glGetShaderInfoLog(shader_id, info_log_length, NULL, &shader_error_message[0]);
+			printf("%s\n", &shader_error_message[0]);
+		}
+
+		shader_ids.push_back(shader_id);
+		glAttachShader(program_id, shader_id);
+	}
+
+	// Link the program
+	printf("Linking the program...\n");
+	glLinkProgram(program_id);
+
+	// Check the program
+	glGetProgramiv(program_id, GL_LINK_STATUS, &result);
+	glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &info_log_length);
+	if (info_log_length > 0) {
+		std::vector<char> program_error_message(info_log_length + 1);
+		glGetProgramInfoLog(program_id, info_log_length, NULL, &program_error_message[0]);
+		printf("%s\n", &program_error_message[0]);
+	}
+
+	for (GLuint shader_id : shader_ids) {
+		glDetachShader(program_id, shader_id);
+		glDeleteShader(shader_id);
+	}
+
+	pipeline_batch_map_[pipeline->GetInstanceID()] = { pipeline, program_id, {} };
+	return pipeline;
+}
+
+std::shared_ptr<Material> OpenGLRenderer::CreateMaterial(MaterialInfo info)
+{
+	const std::shared_ptr<Material> material = material_manager_.CreateMaterial(info);
+	const PipelineID pipelineId = info.rendering_pipeline->GetInstanceID();
+	std::unordered_map<PipelineID, PipelineBatch>::iterator iter = pipeline_batch_map_.find(pipelineId);
+	if (iter != pipeline_batch_map_.end()) {
+		PipelineBatch const* pipeline_batch = &iter->second;
+		std::pair<std::unordered_map<MaterialID, MaterialBatch>::iterator, bool> material_batch_insertion = pipeline_batch->material_batch_map.insert(std::make_pair(material->GetInstanceID(), { material, 0, {} }));
+		MaterialBatch& material_batch = material_batch_insertion.first->second;
+		glGenVertexArrays(1, &material_batch.vao);
+	}
+	else {
+		// This pipeline should have been registered in this class already when it was created.
+	}
+}
+
+std::shared_ptr<Mesh> OpenGLRenderer::CreateMesh(MeshInfo info) 
+{
+	const std::shared_ptr<Mesh> mesh = mesh_manager_.CreateMesh(info);
+	return mesh;
 }
 

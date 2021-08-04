@@ -23,7 +23,7 @@ namespace file_helpers {
 
 	std::vector<char> ReadFileWithPath(fs::path path) 
 	{
-		std::string file_path = path.name;
+		std::string file_path = path.filename();
 		std::ifstream file_stream(path, std::ios::in);
 		if (file_stream.is_open()) {
 			std::stringstream sstr;

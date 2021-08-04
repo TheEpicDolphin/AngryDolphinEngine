@@ -41,3 +41,15 @@ void RenderingPipelineManager::PipelineDidDestruct(RenderingPipeline* pipeline)
 {
 	pipeline_id_generator_.ReturnId(pipeline->GetInstanceID());
 }
+
+std::shared_ptr<RenderingPipeline> RenderingPipelineManager::CreatePipeline(RenderingPipelineInfo info)
+{
+	std::vector<Shader> stages;
+
+	for (std::unordered_map stages : info["stages"]) {
+		stages.push_back(Shader(stages["type"], stages["code"]));
+	}
+
+	const PipelineID pipeline_id = pipeline_id_generator_.CheckoutNewId();
+	return std::make_shared<RenderingPipeline>(pipeline_id, stages, uniforms, this);
+}

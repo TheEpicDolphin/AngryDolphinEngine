@@ -18,6 +18,8 @@ public:
 
 	void PipelineDidDestruct(RenderingPipeline* pipeline) override;
 
+	std::shared_ptr<RenderingPipeline> CreatePipeline(RenderingPipelineInfo info);
+
 private:
 	std::unordered_map<int, std::shared_ptr<RenderingPipeline>> spec_generated_pipelines_;
 	UIDGenerator pipeline_id_generator_;
