@@ -14,8 +14,8 @@ const std::vector<char> shader::ValueData(something_shader::CustomStruct& cs)
 	return;
 }
 
-int shader::TypeID(float& f) { return 1; }
-int shader::TypeID(something_shader::CustomStruct& cs) { return 2; }
+ShaderDataType shader::TypeID(float& f) { return ShaderDataTypeFloat; }
+ShaderDataType shader::TypeID(something_shader::CustomStruct& cs) { return ShaderDataTypeSomethingShaderCustomStruct; }
 
 void shader::MakeValue(float* f, std::vector<char> data) 
 {

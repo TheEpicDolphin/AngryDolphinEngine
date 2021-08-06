@@ -3,7 +3,7 @@
 
 RenderingPipeline::RenderingPipeline() {}
 
-RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, std::vector<Shader> shader_stages)
+RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, std::vector<UniformInfo> uniforms, std::vector<Shader> shader_stages)
 {
 	id_ = pipeline_id;
 	shader_stages_ = shader_stages;
@@ -23,4 +23,9 @@ bool RenderingPipeline::HasUniformWithNameAndType(std::string name, int typeId)
 const std::vector<Shader>& RenderingPipeline::ShaderStages()
 {
 	return shader_stages_;
+}
+
+const std::vector<VertexAttributeInfo>& RenderingPipeline::VertexAttributes()
+{
+	return vertex_attributes_;
 }

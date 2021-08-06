@@ -6,12 +6,6 @@
 
 typedef UID PipelineID;
 
-enum VertexAttributeType {
-	VertexAttributeTypePosition = 0,
-	VertexAttributeTypeNormal,
-	VertexAttributeTypeTextureCoordinate
-};
-
 struct RenderingPipelineDelegate
 {
 	virtual void PipelineDidDestruct(RenderingPipeline* pipeline) = 0;
@@ -22,13 +16,24 @@ struct RenderingPipelineInfo
 
 };
 
+struct UniformInfo {
+	std::string name;
+	int typeId;
+};
+
+struct VertexAttributeInfo {
+	std::string name;
+	int typeId;
+	int location;
+};
+
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
 class RenderingPipeline 
 {
 public:
 	RenderingPipeline();
 
-	RenderingPipeline(PipelineID pipeline_id, std::vector<Shader> shader_stages);
+	RenderingPipeline(PipelineID pipeline_id, std::vector<UniformInfo> uniforms, std::vector<Shader> shader_stages);
 
 	const PipelineID& GetInstanceID();
 
@@ -36,14 +41,12 @@ public:
 
 	const std::vector<Shader>& ShaderStages();
 
+	const std::vector<VertexAttributeInfo>& VertexAttributes();
+
 private:
 	
-	struct UniformInfo {
-		int typeId;
-	};
-
 	PipelineID id_;
-	std::vector<VertexAttributeType> vertex_attributes_;
+	std::vector<VertexAttributeInfo> vertex_attributes_;
 	std::unordered_map<std::string, UniformInfo> uniform_info_map_;
 	std::vector<Shader> shader_stages_;
 };
