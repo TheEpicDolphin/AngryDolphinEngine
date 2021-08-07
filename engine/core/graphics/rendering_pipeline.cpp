@@ -20,6 +20,12 @@ bool RenderingPipeline::HasUniformWithNameAndType(std::string name, int typeId)
 	return iter != uniform_info_map_.end() && iter->second.typeId == typeId;
 }
 
+bool RenderingPipeline::HasVertexAttributeWithNameAndType(std::string name, int typeId) 
+{
+	std::unordered_map<std::string, VertexAttributeInfo>::iterator iter = uniform_info_map_.find(name);
+	return iter != uniform_info_map_.end() && iter->second.typeId == typeId;
+}
+
 const std::vector<Shader>& RenderingPipeline::ShaderStages()
 {
 	return shader_stages_;

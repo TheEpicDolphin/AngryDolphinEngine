@@ -33,7 +33,7 @@ public:
 
 private:
 	struct MeshBatch {
-		std::shared_ptr<Mesh> mesh;
+		std::size_t vertex_count;
 		GLuint vao;
 		GLuint vbo;
 		GLuint ibo;
@@ -41,12 +41,10 @@ private:
 	};
 
 	struct MaterialBatch {
-		std::shared_ptr<Material> material;
 		std::vector<MeshID> mesh_ids;
 	};
 
 	struct PipelineBatch {
-		std::shared_ptr<RenderingPipeline> pipeline;
 		GLuint program_id;
 		std::vector<MaterialID> material_ids;
 	};
@@ -62,10 +60,7 @@ private:
 	std::unordered_map<MeshID, MeshBatch> mesh_batch_map_;
 	std::unordered_map<UID, RenderableID> renderable_object_map_;
 
+	MeshManager mesh_manager_;
 	MaterialManager material_manager_;
 	RenderingPipelineManager pipeline_manager_;
-
-	static void DestroyWindow();
-
-	static MeshBatch CreateMeshBatch(GLuint& vao, Material& material, Mesh& mesh);
 };

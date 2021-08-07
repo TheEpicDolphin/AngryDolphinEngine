@@ -57,6 +57,10 @@ public:
 		return rendering_pipeline_->GetInstanceID();
 	}
 
+	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
+		return rendering_pipeline_;
+	}
+
 	template<typename T>
 	void SetUniform(std::string name, T value) 
 	{

@@ -6,39 +6,8 @@
 
 #include <core/utils/file_helpers.h>
 
-static MeshBatch CreateMeshBatch(GLuint& vao, Material& material, Mesh& mesh) 
-{
-	glBindVertexArray(vao);
-	glUseProgram(material.ProgramID());
-
-	MeshBatch mesh_batch = {
-		0,
-		0,
-		mesh,
-		{}
-	};
-
-	glGenBuffers(1, &mesh_batch.vbo);
-	//glGenBuffers(1, &mesh_batch.ibo);
-	glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_batch.ibo);
-	glBufferData(GL_ARRAY_BUFFER, 3, mesh.GetVertices().data(), GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(material.VertexAttribute());
-	glVertexAttribPointer(
-		material.VertexAttribute(), // The shader's attribute for vertex positions.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-	);
-	glDisableVertexAttribArray(material.VertexAttribute());
-	return mesh_batch;
-}
-
-static void DestroyWindow() {
-    glfwDestroyWindow(window_);
+static void DestroyWindow(GLFWwindow *window) {
+    glfwDestroyWindow(window);
     glfwTerminate();
     exit(EXIT_SUCCESS);
 }
@@ -79,7 +48,7 @@ void OpenGLRenderer::AddRenderableObject(UID id, RenderableObjectInfo info)
 		const MeshID mesh_id = info.mesh->GetInstanceID();
 		MeshBatch& mesh_batch = mesh_batch_map_[mesh_id];
 		
-		const MaterialBatch& material_batch = material_batch_map_[info.material->GetInstanceID()];
+		MaterialBatch& material_batch = material_batch_map_[info.material->GetInstanceID()];
 		if (std::find(material_batch.mesh_ids.begin(), material_batch.mesh_ids.end(), mesh_id) == material_batch.mesh_ids.end()) {
 			// mesh has already been mapped to this material
 			return;
@@ -88,15 +57,10 @@ void OpenGLRenderer::AddRenderableObject(UID id, RenderableObjectInfo info)
 		material_batch.mesh_ids.push_back(mesh_id);
 
 		glBindVertexArray(mesh_batch.vao);
-
-		glGenBuffers(1, &mesh_batch.vbo);
-		//glGenBuffers(1, &mesh_batch.ibo);
-		glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
-		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_batch.ibo);
-		glBufferData(GL_ARRAY_BUFFER, 3, info.mesh->GetVertices().data(), GL_STATIC_DRAW);
-
-		const std::vector<VertexAttributeInfo>& vertex_attributes = pipeline_batch.pipeline->VertexAttributes();
+		const std::vector<VertexAttributeInfo>& vertex_attributes = info.material->GetPipeline()->VertexAttributes();
 		for (VertexAttributeType vertex_attribute_type : vertex_attribute_types) {
+			glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
+
 			GLuint attrib_location = AttributeLocationForVertexAttributeType(vertex_attribute_type);
 			glEnableVertexAttribArray(attrib_location);
 			glVertexAttribPointer(
@@ -160,7 +124,7 @@ bool OpenGLRenderer::RenderFrame() {
 						// Insert MVP matrix into shader
 						glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
 						// Draw
-						glDrawArrays(GL_TRIANGLES, 0, mesh_batch.mesh->GetVertices().size());
+						glDrawArrays(GL_TRIANGLES, 0, mesh_batch.vertex_count);
 					}
 				}
 			}
@@ -181,7 +145,7 @@ bool OpenGLRenderer::RenderFrame() {
 }
 
 void OpenGLRenderer::Cleanup() {
-    DestroyWindow();
+    DestroyWindow(window_);
 
 	// TODO: Delete VAOs and VBOs
 }
@@ -266,19 +230,19 @@ std::shared_ptr<RenderingPipeline> OpenGLRenderer::CreateRenderingPipeline(Rende
 		glDeleteShader(shader_id);
 	}
 
-	pipeline_batch_map_[pipeline->GetInstanceID()] = { pipeline, program_id, {} };	
+	pipeline_batch_map_[pipeline->GetInstanceID()] = { program_id, {} };	
 	return pipeline;
 }
 
 std::shared_ptr<Material> OpenGLRenderer::CreateMaterial(MaterialInfo info)
 {
 	const std::shared_ptr<Material> material = material_manager_.CreateMaterial(info);
-	const PipelineID pipelineId = info.rendering_pipeline->GetInstanceID();
-	std::unordered_map<PipelineID, PipelineBatch>::iterator iter = pipeline_batch_map_.find(pipelineId);
+	const PipelineID pipeline_Id = info.rendering_pipeline->GetInstanceID();
+	std::unordered_map<PipelineID, PipelineBatch>::iterator iter = pipeline_batch_map_.find(pipeline_Id);
 	if (iter != pipeline_batch_map_.end()) {
-		PipelineBatch const* pipeline_batch = &iter->second;
+		PipelineBatch* pipeline_batch = &iter->second;
 		pipeline_batch->material_ids.push_back(material->GetInstanceID());
-		material_batch_map_[material->GetInstanceID()] = { material, {} };
+		material_batch_map_[material->GetInstanceID()] = { {} };
 	}
 	else {
 		// This pipeline should have been registered in this class already when it was created.
@@ -288,6 +252,19 @@ std::shared_ptr<Material> OpenGLRenderer::CreateMaterial(MaterialInfo info)
 std::shared_ptr<Mesh> OpenGLRenderer::CreateMesh(MeshInfo info) 
 {
 	const std::shared_ptr<Mesh> mesh = mesh_manager_.CreateMesh(info);
+	MeshBatch mb = { mesh->GetVertices().size(), 0, 0, 0, {} };
+	std::pair<std::unordered_map<MeshID, MeshBatch>::iterator, bool> result = mesh_batch_map_.insert(std::make_pair(mesh->GetInstanceID(), mb));
+	MeshBatch& mesh_batch = result.first->second;
+
+	glGenVertexArrays(1, &mesh_batch.vao);
+	glBindVertexArray(mesh_batch.vao);
+
+	glGenBuffers(1, &mesh_batch.vbo);
+	//glGenBuffers(1, &mesh_batch.ibo);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_batch.ibo);
+	glBufferData(GL_ARRAY_BUFFER, 3, mesh->GetVertices().data(), GL_STATIC_DRAW);
+
 	return mesh;
 }
 
