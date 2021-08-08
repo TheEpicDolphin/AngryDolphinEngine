@@ -49,7 +49,7 @@ void OpenGLRenderer::AddRenderableObject(UID id, RenderableObjectInfo info)
 		MeshBatch& mesh_batch = mesh_batch_map_[mesh_id];
 		
 		MaterialBatch& material_batch = material_batch_map_[info.material->GetInstanceID()];
-		if (std::find(material_batch.mesh_ids.begin(), material_batch.mesh_ids.end(), mesh_id) == material_batch.mesh_ids.end()) {
+		if (std::find(material_batch.mesh_ids.begin(), material_batch.mesh_ids.end(), mesh_id) != material_batch.mesh_ids.end()) {
 			// mesh has already been mapped to this material
 			return;
 		}
@@ -58,7 +58,9 @@ void OpenGLRenderer::AddRenderableObject(UID id, RenderableObjectInfo info)
 
 		glBindVertexArray(mesh_batch.vao);
 		const std::vector<VertexAttributeInfo>& vertex_attributes = info.material->GetPipeline()->VertexAttributes();
-		for (VertexAttributeType vertex_attribute_type : vertex_attribute_types) {
+		for (VertexAttributeInfo vertex_attribute : vertex_attributes) {
+			mesh_batch.SetVertexAttributes(vertex_attribute);
+			/*
 			glBindBuffer(GL_ARRAY_BUFFER, mesh_batch.vbo);
 
 			GLuint attrib_location = AttributeLocationForVertexAttributeType(vertex_attribute_type);
@@ -72,6 +74,7 @@ void OpenGLRenderer::AddRenderableObject(UID id, RenderableObjectInfo info)
 				(void*)0														// array buffer offset
 			);
 			glDisableVertexAttribArray(attrib_location);
+			*/
 		}
 	}
 	renderable_object_map_[id] = { info.material->GetInstanceID(), info.mesh->GetInstanceID() };

@@ -6,6 +6,14 @@
 
 typedef UID PipelineID;
 
+enum VertexAttributeUsageCategory
+{
+	VertexAttributeUsageCategoryPosition = 0,
+	VertexAttributeUsageCategoryNormal,
+	VertexAttributeUsageCategoryTextureCoordinates,
+	VertexAttributeUsageCategoryCustom,
+};
+
 struct RenderingPipelineDelegate
 {
 	virtual void PipelineDidDestruct(RenderingPipeline* pipeline) = 0;
@@ -18,19 +26,22 @@ struct RenderingPipelineInfo
 
 struct UniformInfo {
 	std::string name;
-	int typeId;
+	int type_id;
 };
 
 struct VertexAttributeInfo {
+	// Name of this vertex attribute.
 	std::string name;
-	// Type of the data
-	int typeId;
-	// Location in the shader
+	// Unique id assigned to this type.
+	int type_id;
+	// Location in the shader.
 	int location;
-	// Number of 
+	// Number of components in the data type. For example, vec3 has a dimension of 3.
 	int dimension;
-	// Format
+	// The data type byte size of each component. For example, vec3 has three GL_FLOAT components of size 4 each.
 	int format;
+	// The usage category for this vertex attribute.
+	VertexAttributeUsageCategory category;
 };
 
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
@@ -54,8 +65,9 @@ public:
 private:
 	
 	PipelineID id_;
-	std::vector<VertexAttributeInfo> vertex_attributes_;
 	std::unordered_map<std::string, UniformInfo> uniform_info_map_;
-	std::unordered_map<std::string, VertexAttributeInfo> vertex_attributes_info_map_;
+	std::vector<VertexAttributeInfo> vertex_attributes_;
+	// Maps name of vertex attribute to its index in the vertex_attributes_ vector.
+	std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
 	std::vector<Shader> shader_stages_;
 };

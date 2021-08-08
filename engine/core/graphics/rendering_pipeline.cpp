@@ -14,16 +14,16 @@ const PipelineID& RenderingPipeline::GetInstanceID()
 	return id_;
 }
 
-bool RenderingPipeline::HasUniformWithNameAndType(std::string name, int typeId)
+bool RenderingPipeline::HasUniformWithNameAndType(std::string name, int type_id)
 {
 	std::unordered_map<std::string, UniformInfo>::iterator iter = uniform_info_map_.find(name);
-	return iter != uniform_info_map_.end() && iter->second.typeId == typeId;
+	return iter != uniform_info_map_.end() && iter->second.type_id == type_id;
 }
 
-bool RenderingPipeline::HasVertexAttributeWithNameAndType(std::string name, int typeId) 
+bool RenderingPipeline::HasVertexAttributeWithNameAndType(std::string name, int type_id)
 {
 	std::unordered_map<std::string, VertexAttributeInfo>::iterator iter = uniform_info_map_.find(name);
-	return iter != uniform_info_map_.end() && iter->second.typeId == typeId;
+	return iter != uniform_info_map_.end() && iter->second.type_id == type_id;
 }
 
 const std::vector<Shader>& RenderingPipeline::ShaderStages()

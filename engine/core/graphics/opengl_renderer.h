@@ -35,9 +35,43 @@ private:
 	struct MeshBatch {
 		std::size_t vertex_count;
 		GLuint vao;
-		GLuint vbo;
+		//GLuint vbo;
 		GLuint ibo;
 		std::unordered_map<UID, glm::mat4> model_matrix_map;
+		virtual void SetVertexAttributes(VertexAttributeInfo vertex_attribute);
+	};
+
+	struct StaticMeshBatch : MeshBatch {
+		GLuint vbo;
+
+		void SetVertexAttributes(VertexAttributeInfo vertex_attribute) {
+			switch (vertex_attribute.category)
+			{
+			case VertexAttributeUsageCategoryPosition:
+				glBindBuffer(GL_ARRAY_BUFFER, vbo);
+				break;
+			case VertexAttributeUsageCategoryNormal:
+				//glBindBuffer(GL_ARRAY_BUFFER, nbo);
+				break;
+			case VertexAttributeUsageCategoryTextureCoordinates:
+				//glBindBuffer(GL_ARRAY_BUFFER, tbo);
+				break;
+			case VertexAttributeUsageCategoryCustom:
+				//glBindBuffer(GL_ARRAY_BUFFER, custom_bo[vertex_attribute.name]);
+				break;
+			}
+
+			glEnableVertexAttribArray(vertex_attribute.location);
+			glVertexAttribPointer(
+				vertex_attribute.location,		// The shader's location for vertex attribute.
+				vertex_attribute.dimension,		// number of components
+				vertex_attribute.format,		// type
+				GL_FALSE,						// normalized?
+				0,								// stride
+				(void*)0						// array buffer offset
+			);
+			glDisableVertexAttribArray(vertex_attribute.location);
+		}
 	};
 
 	struct MaterialBatch {
