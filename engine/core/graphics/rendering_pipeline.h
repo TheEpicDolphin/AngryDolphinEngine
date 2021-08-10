@@ -60,14 +60,21 @@ public:
 
 	const std::vector<Shader>& ShaderStages();
 
+	const std::vector<UniformInfo>& Uniforms();
+
 	const std::vector<VertexAttributeInfo>& VertexAttributes();
 
 private:
 	
 	PipelineID id_;
-	std::unordered_map<std::string, UniformInfo> uniform_info_map_;
+
+	std::vector<UniformInfo> uniforms_;
+	// Maps name of uniform to its index in the uniforms_ vector.
+	std::unordered_map<std::string, std::size_t> uniform_index_map_;
+
 	std::vector<VertexAttributeInfo> vertex_attributes_;
 	// Maps name of vertex attribute to its index in the vertex_attributes_ vector.
 	std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
+
 	std::vector<Shader> shader_stages_;
 };

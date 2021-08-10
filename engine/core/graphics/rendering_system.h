@@ -28,8 +28,6 @@ public:
 
 	void Update() 
 	{
-		std::unordered_map<InstanceID, MaterialBatch> material_batch_map;
-
 		std::function<void(EntityID, MeshRenderable&, Transform&)> block =
 		[&](EntityID entity_id, MeshRenderable& mesh_rend, Transform& trans) {
 			renderer_.AddRenderableObject(entity_id, { mesh_rend.material, mesh_rend.mesh, trans.matrix });

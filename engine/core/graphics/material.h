@@ -38,27 +38,14 @@ public:
 		}
 	}
 
-	GLuint VertexAttribute() {
-		return vertex_attribute_;
-	}
-
-	bool IsEqual(Material& otherMaterial) 
-	{
-		return id_ == otherMaterial.id_;
-	}
-
-	const MaterialID& GetInstanceID() 
+	const MaterialID& GetInstanceID()
 	{
 		return id_;
 	}
 
-	const PipelineID& GetPipelineID() 
+	bool IsEqual(Material& other_material) 
 	{
-		return rendering_pipeline_->GetInstanceID();
-	}
-
-	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
-		return rendering_pipeline_;
+		return id_ == other_material.id_;
 	}
 
 	template<typename T>
@@ -80,12 +67,29 @@ public:
 	{
 		std::unordered_map<std::string, ShaderVarValue>::iterator iter = uniform_value_map_.find(name);
 		// Check that the material has a uniform with this name and type.
-		if (iter != uniform_map_.end() && shader::TypeId(*value) == iter->second.type_id) {
+		if (iter != uniform_value_map_.end() && shader::TypeId(*value) == iter->second.type_id) {
 			shader::MakeValue(value, iter->second.data);
 		}
 		else {
 			// print warning that uniform with this name and/or type does not exist for this material
 		}
+	}
+
+	std::vector<char> GetUniformData(std::string name)
+	{
+		std::unordered_map<std::string, ShaderVarValue>::iterator iter = uniform_value_map_.find(name);
+		// Check that the material has a uniform with this name and type.
+		if (iter != uniform_value_map_.end()) {
+			return iter->second.data;
+		}
+		else {
+			// print warning that uniform with this name and/or type does not exist for this material
+			return {};
+		}
+	}
+
+	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
+		return rendering_pipeline_;
 	}
 
 private:

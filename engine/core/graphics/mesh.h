@@ -7,6 +7,7 @@
 #include <glm/vec2.hpp>
 
 #include "rendering_pipeline.h"
+#include "material.h"
 
 typedef UID MeshID;
 
@@ -19,6 +20,7 @@ struct MeshInfo
 {
 	std::unordered_map<std::string, ShaderBuffer> vertex_attribute_settings;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
+	bool is_static;
 };
 
 class Mesh
@@ -34,26 +36,22 @@ public:
 
 	~Mesh();
 
-	static Mesh CreateCube(float side_length);
-
-	void SetVertices(std::vector<glm::vec3> verts);
-
-	void SetTriangles(std::vector<Triangle> tris);
-
-	const std::vector<glm::vec3>& GetVertexPositions() 
-	{
-		return positions_;
-	}
-
-	const std::vector<Triangle>& GetTriangles() 
-	{
-		return tris_;
-	}
-
 	const MeshID& GetInstanceID()
 	{
 		return id_;
 	}
+
+	static Mesh CreateCube(float side_length);
+
+	std::size_t VertexCount();
+
+	void SetVertexPositions(std::vector<glm::vec3> verts);
+
+	const std::vector<glm::vec3>& GetVertexPositions();
+
+	void SetTriangles(std::vector<Triangle> tris);
+
+	const std::vector<Triangle>& GetTriangles();
 
 	template<typename T>
 	void SetVertexAttributeBuffer(std::string name, std::vector<T> buffer)
@@ -75,6 +73,10 @@ public:
 
 	}
 
+	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
+		return rendering_pipeline_;
+	}
+
 private:
 	struct ShaderBuffer {
 		int type_id;
@@ -82,6 +84,8 @@ private:
 	};
 
 	MeshID id_;
+
+	Material material_;
 
 	// Reserved vertex attributes
 	std::vector<glm::vec3> positions_;

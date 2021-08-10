@@ -7,7 +7,6 @@
 
 struct RenderableObjectInfo
 {
-	std::shared_ptr<Material> material;
 	std::shared_ptr<Mesh> mesh;
 	glm::mat4 model_matrix;
 };
@@ -22,15 +21,11 @@ class IRenderer {
 public:
 	virtual void Initialize(int width, int height) = 0;
 
-	virtual void AddRenderableObject(UID id, RenderableObjectInfo info) = 0;
-
-	virtual void RemoveRenderableObject(UID id) = 0;
-
 	virtual void SetRenderTarget(UID id, RenderTargetInfo info) = 0;
 
 	virtual void UnsetRenderTarget(UID id) = 0;
 	
-	virtual bool RenderFrame() = 0;
+	virtual bool RenderFrame(std::vector<RenderableObjectInfo> ros) = 0;
 
 	virtual void Cleanup() = 0;
 
