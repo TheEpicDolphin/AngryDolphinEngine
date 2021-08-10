@@ -208,7 +208,7 @@ std::shared_ptr<Mesh> OpenGLRenderer::CreateMesh(MeshInfo info)
 	}
 	else {
 		mb = new DynamicMeshBatch(mesh, 0, 0);
-		mb->ConfigureBuffersForVertexAttributes();
+		mb->SetupVertexAttributeBuffers();
 	}
 	mesh_batch_map_[mesh->GetInstanceID()] = mb;
 	return mesh;
@@ -223,9 +223,11 @@ OpenGLRenderer::DynamicMeshBatch::DynamicMeshBatch(std::shared_ptr<Mesh> mesh, G
 
 void OpenGLRenderer::DynamicMeshBatch::SetupVertexAttributeBuffers()
 {
+	const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 	for () {
+		const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributeInfoAtIndex();
 		switch (vertex_attribute.category)
 		{
 		case VertexAttributeUsageCategoryPosition:

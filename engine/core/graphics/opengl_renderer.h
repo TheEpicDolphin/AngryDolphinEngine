@@ -36,7 +36,7 @@ private:
 		//GLuint vbo;
 		GLuint ibo;
 		std::unordered_map<UID, glm::mat4> model_matrix_map;
-		virtual void SetupVertexAttributeBuffers(std::unordered_map<std::string, VertexAttributeInfo>::iterator it);
+		virtual void SetupVertexAttributeBuffers();
 	};
 
 	struct DynamicMeshBatch : IMeshBatch {

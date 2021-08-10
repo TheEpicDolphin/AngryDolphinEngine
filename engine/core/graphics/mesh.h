@@ -16,9 +16,15 @@ struct MeshDelegate
 	virtual void MaterialDidDestruct(Mesh* mesh) = 0;
 };
 
+struct VertexAttributeBuffer {
+	std::size_t attribute_index;
+	int type_id;
+	std::vector<char> data;
+};
+
 struct MeshInfo
 {
-	std::unordered_map<std::string, ShaderBuffer> vertex_attribute_settings;
+	std::unordered_map<std::string, VertexAttributeBuffer> vertex_attribute_settings;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
 	bool is_static;
 };
@@ -59,9 +65,9 @@ public:
 		const int type_id = shader::TypeID(buffer[0]);
 		const std::vector<char> buffer_data = shader::BufferData(buffer);
 		// Check if rendering pipeline actually has a uniform with this name and type.
-		if (rendering_pipeline_->HasVertexAttributeWithNameAndType(name, type_id)) {
-			uniform_value_map_[name] = { type_id, value_data };
-			vertex_attribute_map_[name] = { type_id, num_components, data_type_size, buffer_data };
+		const std::size_t index = rendering_pipeline_->IndexOfVertexAttributeWithNameAndType(name, type_id);
+		if (index != shader::index_not_found) {
+			vertex_attribute_map_[name] = { index, type_id, num_components, data_type_size, buffer_data };
 		}
 		else {
 			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
@@ -73,16 +79,17 @@ public:
 
 	}
 
-	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
+	const std::shared_ptr<RenderingPipeline>& GetPipeline() 
+	{
 		return rendering_pipeline_;
 	}
 
-private:
-	struct ShaderBuffer {
-		int type_id;
-		std::vector<char> data;
-	};
+	std::vector<VertexAttributeBuffer> GetVertexAttributeBuffers() 
+	{
 
+	}
+
+private:
 	MeshID id_;
 
 	Material material_;
@@ -93,7 +100,7 @@ private:
 	std::vector<glm::vec2> tex_coords_;
 
 	// Un-reserved vertex attributes
-	std::unordered_map<std::string, ShaderBuffer> vertex_attribute_map_;
+	std::unordered_map<std::string, VertexAttributeBuffer> vertex_attribute_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 	
 	std::vector<Triangle> tris_;

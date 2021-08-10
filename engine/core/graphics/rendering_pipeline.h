@@ -54,24 +54,26 @@ public:
 
 	const PipelineID& GetInstanceID();
 
-	bool HasUniformWithNameAndType(std::string name, int typeId);
-
-	bool HasVertexAttributeWithNameAndType(std::string name, int typeId);
-
 	const std::vector<Shader>& ShaderStages();
 
-	const std::vector<UniformInfo>& Uniforms();
+	std::size_t IndexOfUniformWithNameAndType(std::string name, int typeId);
 
-	const std::vector<VertexAttributeInfo>& VertexAttributes();
+	std::size_t IndexOfVertexAttributeWithNameAndType(std::string name, int typeId);
+
+	const UniformInfo& UniformInfoAtIndex(std::size_t index);
+
+	const VertexAttributeInfo& VertexAttributeInfoAtIndex(std::size_t index);
 
 private:
 	
 	PipelineID id_;
 
+	// The uniforms are sorted by appearance order in shaders
 	std::vector<UniformInfo> uniforms_;
 	// Maps name of uniform to its index in the uniforms_ vector.
 	std::unordered_map<std::string, std::size_t> uniform_index_map_;
 
+	// The vertex attributes are sorted by appearance order in shaders
 	std::vector<VertexAttributeInfo> vertex_attributes_;
 	// Maps name of vertex attribute to its index in the vertex_attributes_ vector.
 	std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;

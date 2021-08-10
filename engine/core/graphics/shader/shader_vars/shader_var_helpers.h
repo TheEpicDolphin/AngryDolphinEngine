@@ -7,6 +7,8 @@
 
 namespace shader{
 
+	static const std::size_t index_not_found = -1;
+
 	/* Used for converting Uniform values to/from data */
 	const std::vector<char> ValueData(float& f);
 	const std::vector<char> ValueData(something_shader::CustomStruct& cs);
