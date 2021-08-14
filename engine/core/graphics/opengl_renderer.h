@@ -33,9 +33,8 @@ private:
 	struct IMeshBatch {
 		std::shared_ptr<Mesh> mesh;
 		GLuint vao;
-		//GLuint vbo;
 		GLuint ibo;
-		std::unordered_map<UID, glm::mat4> model_matrix_map;
+		std::vector<glm::mat4> model_matrices;
 		virtual void SetupVertexAttributeBuffers();
 	};
 
@@ -50,15 +49,9 @@ private:
 		std::vector<MeshID> mesh_ids;
 	};
 
-	typedef struct RenderableID {
-		MaterialID material_id;
-		MeshID mesh_id;
-	} RenderableID;
-
 	GLFWwindow* window_;
 	std::unordered_map<MeshID, IMeshBatch*> mesh_batch_map_;
 	std::unordered_map<PipelineID, PipelineBatch> pipeline_batch_map_;
-	std::unordered_map<UID, RenderableID> renderable_object_map_;
 
 	MeshManager mesh_manager_;
 	MaterialManager material_manager_;

@@ -1,10 +1,10 @@
 
 #include "opengl_renderer.h"
 
-#include <GL/glew.h>
-#include <string>
-
 #include <core/utils/file_helpers.h>
+#include <GL/glew.h>
+#include <glm/gtc/type_ptr.hpp>
+#include <string>
 
 static void DestroyWindow(GLFWwindow *window) {
     glfwDestroyWindow(window);
@@ -37,7 +37,35 @@ void OpenGLRenderer::Initialize(int width, int height)
     }
 }
 
-bool OpenGLRenderer::RenderFrame() {
+void SetUniform(ShaderDataType type, int location, const char *value_ptr)
+{
+	switch (type)
+	{
+	case ShaderDataTypeFloat:
+		glUniform1fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	case ShaderDataTypeVector2f:
+		glUniform2fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	case ShaderDataTypeVector3f:
+		glUniform2fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	case ShaderDataTypeVector4f:
+		glUniform2fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	case ShaderDataTypeMatrix2f:
+		glUniformMatrix2fv(location, 1, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	case ShaderDataTypeMatrix3f:
+		glUniformMatrix3fv(location, 1, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	case ShaderDataTypeMatrix4f:
+		glUniformMatrix4fv(location, 1, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
+		break;
+	}
+}
+
+bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
     if (!glfwWindowShouldClose(window_)) {
         glfwSwapBuffers(window_);
         glfwPollEvents();
@@ -69,19 +97,23 @@ bool OpenGLRenderer::RenderFrame() {
 		for (auto& p_batch_iter : pipeline_batch_map_) {
 			PipelineBatch& pipeline_batch = p_batch_iter.second;
 			glUseProgram(pipeline_batch.program_id);
-			for (auto& mesh_batch_iter : mesh_batch_map_) {
-				IMeshBatch *mesh_batch = mesh_batch_iter.second;
+			// Find location of mvp matrix. This uniform is treated differently from the ones in Materials
+			GLint mvp_location = glGetUniformLocation(pipeline_batch.program_id, "mvp");
+			for (MeshID& mesh_id : pipeline_batch.mesh_ids) {
+				IMeshBatch* mesh_batch = mesh_batch_map_[mesh_id];
 				glBindVertexArray(mesh_batch->vao);
 
+				const std::shared_ptr<RenderingPipeline>& pipeline = mesh_batch->mesh->GetPipeline();
+				const std::shared_ptr<Material>& material = mesh_batch->mesh->GetMaterial();
 				// TODO: Iterate material uniforms and set corresponding uniforms in shaders
-				for () {
-					glUniformMatrix4fv(uniform_location, 1, GL_FALSE, mesh_batch->mesh->material->GetUniformData(name));
+				for (const UniformValue& uniform_value : material->UniformValues()) {
+					const UniformInfo& uniform_info = pipeline->UniformInfoAtIndex(uniform_value.uniform_index);
+					SetUniform(uniform_info.type, uniform_info.location, uniform_value.data.data());
 				}
-
-				GLint mvp_location = glGetUniformLocation(pipeline_batch.program_id, "mvp");
-				for (glm::mat4& model_matrix : mesh_batch.model_matrix_map) {
+				
+				for (glm::mat4& model_matrix : mesh_batch->model_matrices) {
 					const glm::mat4 mvp = model_matrix * vp;
-					// Insert MVP matrix into shader
+					// Insert MVP matrix into shader.
 					glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
 					// Draw
 					glDrawArrays(GL_TRIANGLES, 0, mesh_batch->mesh->VertexCount());
@@ -210,7 +242,10 @@ std::shared_ptr<Mesh> OpenGLRenderer::CreateMesh(MeshInfo info)
 		mb = new DynamicMeshBatch(mesh, 0, 0);
 		mb->SetupVertexAttributeBuffers();
 	}
+	
 	mesh_batch_map_[mesh->GetInstanceID()] = mb;
+	PipelineBatch& pipeline_batch = pipeline_batch_map_[mesh->GetPipeline()->GetInstanceID()];
+	pipeline_batch.mesh_ids.push_back(mesh->GetInstanceID());
 	return mesh;
 }
 

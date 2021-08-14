@@ -16,7 +16,7 @@ struct MaterialDelegate
 
 struct UniformValue {
 	std::size_t uniform_index;
-	int type_id;
+	ShaderDataType type;
 	std::vector<char> data;
 };
 
@@ -57,12 +57,13 @@ public:
 	template<typename T>
 	void SetUniform(std::string name, T value) 
 	{
-		const int type_id = shader::TypeID(value);
+		const ShaderDataType type = shader::TypeID(value);
 		const std::vector<char> value_data = shader::ValueData(value);
 		// Check if rendering pipeline actually has a uniform with this name and type.
-		const std::size_t index = rendering_pipeline_->IndexOfUniformWithNameAndType(name, type_id);
+		const std::size_t index = rendering_pipeline_->IndexOfUniformWithNameAndType(name, type);
 		if (index != shader::index_not_found) {
-			uniform_value_map_[name] = { index, type_id, value_data };
+			uniform_value_index_map_[name] = uniform_values_.size();
+			uniform_values_.push_back({ index, type, value_data });
 		}
 		else {
 			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
@@ -72,27 +73,24 @@ public:
 	template<typename T>
 	void GetUniform(std::string name, T* value) 
 	{
-		std::unordered_map<std::string, UniformValue>::iterator iter = uniform_value_map_.find(name);
-		// Check that the material has a uniform with this name and type.
-		if (iter != uniform_value_map_.end() && shader::TypeId(*value) == iter->second.type_id) {
-			shader::MakeValue(value, iter->second.data);
+		std::unordered_map<std::string, std::size_t>::iterator iter = uniform_value_index_map_.find(name);
+		if (iter == uniform_value_index_map_.end()) {
+			// print warning that uniform with this name does not exist or has not been assigned for this material.
+		}
+
+		UniformValue& uniform_value = uniform_values_[iter->second];
+		// Check that the found uniform has the expected type
+		if (shader::TypeId(*value) == uniform_value.type) {
+			shader::MakeValue(value, uniform_value.data);
 		}
 		else {
-			// print warning that uniform with this name and/or type does not exist for this material
+			// print warning that uniform with this type does not exist for this material
 		}
 	}
 
-	std::vector<char> GetUniformData(std::string name)
+	const std::vector<UniformValue>& UniformValues() 
 	{
-		std::unordered_map<std::string, UniformValue>::iterator iter = uniform_value_map_.find(name);
-		// Check that the material has a uniform with this name and type.
-		if (iter != uniform_value_map_.end()) {
-			return iter->second.data;
-		}
-		else {
-			// print warning that uniform with this name and/or type does not exist for this material
-			return {};
-		}
+		return uniform_values_;
 	}
 
 	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
@@ -102,7 +100,8 @@ public:
 private:
 	MaterialID id_;
 
-	std::unordered_map<std::string, UniformValue> uniform_value_map_;
+	std::vector<UniformValue> uniform_values_;
+	std::unordered_map<std::string, std::size_t> uniform_value_index_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 	std::weak_ptr<MaterialDelegate> delegate_;
 };

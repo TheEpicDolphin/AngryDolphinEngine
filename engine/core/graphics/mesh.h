@@ -18,7 +18,7 @@ struct MeshDelegate
 
 struct VertexAttributeBuffer {
 	std::size_t attribute_index;
-	int type_id;
+	ShaderDataType type;
 	std::vector<char> data;
 	bool is_dirty;
 };
@@ -52,7 +52,7 @@ public:
 
 	void SetMaterial(std::shared_ptr<Material> material);
 
-	std::shared_ptr<Material> GetMaterial();
+	const std::shared_ptr<Material>& GetMaterial();
 
 	void SetVertexPositions(std::vector<glm::vec3> verts);
 
@@ -65,28 +65,22 @@ public:
 	template<typename T>
 	void SetVertexAttributeBuffer(std::string name, std::vector<T> buffer)
 	{
-		const int type_id = shader::TypeID(buffer[0]);
+		const ShaderDataType type = shader::TypeID(buffer[0]);
 		const std::vector<char> buffer_data = shader::BufferData(buffer);
 		// Check if rendering pipeline actually has a uniform with this name and type.
-		const std::size_t index = rendering_pipeline_->IndexOfVertexAttributeWithNameAndType(name, type_id);
+		const std::size_t index = rendering_pipeline_->IndexOfVertexAttributeWithNameAndType(name, type);
 		if (index != shader::index_not_found) {
 			vertex_attribute_buffer_index_map_[name] = vertex_attribute_buffers_.size();
-			vertex_attribute_buffers_.push_back({ index, type_id, num_components, data_type_size, buffer_data, true });
+			vertex_attribute_buffers_.push_back({ index, type, num_components, data_type_size, buffer_data, true });
 		}
 		else {
 			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
 		}
 	}
 
-	const std::shared_ptr<RenderingPipeline>& GetPipeline() 
-	{
-		return rendering_pipeline_;
-	}
+	const std::shared_ptr<RenderingPipeline>& GetPipeline();
 
-	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers() 
-	{
-		return vertex_attribute_buffers_;
-	}
+	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers();
 
 	static Mesh CreateCube(float side_length);
 

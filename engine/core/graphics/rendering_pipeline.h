@@ -25,15 +25,19 @@ struct RenderingPipelineInfo
 };
 
 struct UniformInfo {
+	// Name of this uniform.
 	std::string name;
-	int type_id;
+	// Unique id assigned to this type.
+	ShaderDataType type;
+	// Location in the shader.
+	int location;
 };
 
 struct VertexAttributeInfo {
 	// Name of this vertex attribute.
 	std::string name;
 	// Unique id assigned to this type.
-	int type_id;
+	ShaderDataType type;
 	// Location in the shader.
 	int location;
 	// Number of components in the data type. For example, vec3 has a dimension of 3.
@@ -56,9 +60,9 @@ public:
 
 	const std::vector<Shader>& ShaderStages();
 
-	std::size_t IndexOfUniformWithNameAndType(std::string name, int typeId);
+	std::size_t IndexOfUniformWithNameAndType(std::string name, ShaderDataType type);
 
-	std::size_t IndexOfVertexAttributeWithNameAndType(std::string name, int typeId);
+	std::size_t IndexOfVertexAttributeWithNameAndType(std::string name, ShaderDataType type);
 
 	const UniformInfo& UniformInfoAtIndex(std::size_t index);
 

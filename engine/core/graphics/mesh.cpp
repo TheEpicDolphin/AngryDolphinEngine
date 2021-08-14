@@ -1,9 +1,9 @@
 
 #include "mesh.h"
 
-Mesh::Mesh()
+Mesh::Mesh(MeshID id)
 {
-
+	id_ = id;
 }
 
 Mesh::~Mesh()
@@ -25,7 +25,7 @@ void Mesh::SetMaterial(std::shared_ptr<Material> material)
 	}
 }
 
-std::shared_ptr<Material> Mesh::GetMaterial()
+const std::shared_ptr<Material>& Mesh::GetMaterial()
 {
 	return material_;
 }
@@ -46,6 +46,16 @@ std::vector<glm::vec3> Mesh::GetVertexPositions() {
 	glm::vec3* positions_ptr = reinterpret_cast<glm::vec3*>(buffer.data.data());
 	const std::vector<glm::vec3> positions(positions_ptr, positions_ptr + vertex_count_);
 	return positions;
+}
+
+const std::shared_ptr<RenderingPipeline>& Mesh::GetPipeline()
+{
+	return rendering_pipeline_;
+}
+
+const std::vector<VertexAttributeBuffer>& Mesh::GetVertexAttributeBuffers()
+{
+	return vertex_attribute_buffers_;
 }
 
 void Mesh::SetTriangles(std::vector<Triangle> tris) 

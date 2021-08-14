@@ -16,7 +16,7 @@ const PipelineID& RenderingPipeline::GetInstanceID()
 	return id_;
 }
 
-std::size_t RenderingPipeline::IndexOfUniformWithNameAndType(std::string name, int type_id)
+std::size_t RenderingPipeline::IndexOfUniformWithNameAndType(std::string name, ShaderDataType type)
 {
 	std::unordered_map<std::string, std::size_t>::iterator iter = uniform_index_map_.find(name);
 	if (iter == uniform_index_map_.end()) {
@@ -24,14 +24,14 @@ std::size_t RenderingPipeline::IndexOfUniformWithNameAndType(std::string name, i
 	}
 
 	const UniformInfo uniform = uniforms_[iter->second];
-	if (uniform.type_id != type_id) {
+	if (uniform.type != type) {
 		return shader::npos;
 	}
 
 	return iter->second;
 }
 
-std::size_t RenderingPipeline::IndexOfVertexAttributeWithNameAndType(std::string name, int type_id)
+std::size_t RenderingPipeline::IndexOfVertexAttributeWithNameAndType(std::string name, ShaderDataType type)
 {
 	std::unordered_map<std::string, std::size_t>::iterator iter = vertex_attribute_index_map_.find(name);
 	if (iter == vertex_attribute_index_map_.end()) {
@@ -39,7 +39,7 @@ std::size_t RenderingPipeline::IndexOfVertexAttributeWithNameAndType(std::string
 	}
 
 	const VertexAttributeInfo vertex_attribute = vertex_attributes_[iter->second];
-	if (vertex_attribute.type_id != type_id) {
+	if (vertex_attribute.type != type) {
 		return shader::npos;
 	}
 
