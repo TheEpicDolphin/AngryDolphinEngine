@@ -233,15 +233,17 @@ void OpenGLRenderer::DynamicMeshBatch::SetupVertexAttributeBuffers()
 		case VertexAttributeUsageCategoryPosition:
 			glGenBuffers(1, &vbo);
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), mesh->GetVertexAttributePositionBuffer().data.data(), GL_DYNAMIC_DRAW);
+			glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
 			break;
 		case VertexAttributeUsageCategoryNormal:
 			//glGenBuffers(1, &nbo);
 			//glBindBuffer(GL_ARRAY_BUFFER, nbo);
+			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
 			break;
 		case VertexAttributeUsageCategoryTextureCoordinates:
 			//glGenBuffers(1, &tbo);
 			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
+			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
 			break;
 		case VertexAttributeUsageCategoryCustom:
 			//glGenBuffers(1, &custom_bo[vertex_attribute.name]);

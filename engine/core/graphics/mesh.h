@@ -48,13 +48,15 @@ public:
 		return id_;
 	}
 
-	static Mesh CreateCube(float side_length);
+	const std::size_t& VertexCount();
 
-	std::size_t VertexCount();
+	void SetMaterial(std::shared_ptr<Material> material);
+
+	std::shared_ptr<Material> GetMaterial();
 
 	void SetVertexPositions(std::vector<glm::vec3> verts);
 
-	const std::vector<glm::vec3>& GetVertexPositions();
+	std::vector<glm::vec3> GetVertexPositions();
 
 	void SetTriangles(std::vector<Triangle> tris);
 
@@ -81,23 +83,21 @@ public:
 		return rendering_pipeline_;
 	}
 
-	const VertexAttributeBuffer& GetVertexAttributePositionBuffer();
-
 	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers() 
 	{
 		return vertex_attribute_buffers_;
 	}
 
+	static Mesh CreateCube(float side_length);
+
 private:
 	MeshID id_;
 
-	Material material_;
+	std::shared_ptr<Material> material_;
+
+	std::size_t vertex_count_;
 
 	// Reserved vertex attributes
-	std::vector<glm::vec3> positions_;
-	std::vector<glm::vec3> normals_;
-	std::vector<glm::vec2> tex_coords_;
-
 	std::size_t position_attribute_index_;
 	std::size_t normal_attribute_index_;
 	std::size_t tex_coords_attribute_index_;
