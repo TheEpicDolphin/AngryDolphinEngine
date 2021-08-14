@@ -3,11 +3,16 @@
 #include "something_shader/vars.h"
 #include "shader_data_type.h"
 
+#include <string>
 #include <vector>
+
+#define VERTEX_ATTRIBUTE_POSITION_NAME "_position"
+#define VERTEX_ATTRIBUTE_NORMAL_NAME "_normal"
+#define VERTEX_ATTRIBUTE_TEXTURE_COORDINATES_NAME "_texCoords"
 
 namespace shader{
 
-	static const std::size_t index_not_found = -1;
+	const std::size_t index_not_found = -1;
 
 	/* Used for converting Uniform values to/from data */
 	const std::vector<char> ValueData(float& f);

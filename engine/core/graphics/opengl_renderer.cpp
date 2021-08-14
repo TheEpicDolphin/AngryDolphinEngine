@@ -226,14 +226,14 @@ void OpenGLRenderer::DynamicMeshBatch::SetupVertexAttributeBuffers()
 	const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
-	for () {
-		const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributeInfoAtIndex();
+	for (const VertexAttributeBuffer& va_buffer : mesh->GetVertexAttributeBuffers()) {
+		const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributeInfoAtIndex(va_buffer.attribute_index);
 		switch (vertex_attribute.category)
 		{
 		case VertexAttributeUsageCategoryPosition:
 			glGenBuffers(1, &vbo);
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), mesh->GetVertexPositions().data(), GL_DYNAMIC_DRAW);
+			glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), mesh->GetVertexAttributePositionBuffer().data.data(), GL_DYNAMIC_DRAW);
 			break;
 		case VertexAttributeUsageCategoryNormal:
 			//glGenBuffers(1, &nbo);

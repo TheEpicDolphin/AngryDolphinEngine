@@ -20,6 +20,7 @@ struct VertexAttributeBuffer {
 	std::size_t attribute_index;
 	int type_id;
 	std::vector<char> data;
+	bool is_dirty;
 };
 
 struct MeshInfo
@@ -67,16 +68,12 @@ public:
 		// Check if rendering pipeline actually has a uniform with this name and type.
 		const std::size_t index = rendering_pipeline_->IndexOfVertexAttributeWithNameAndType(name, type_id);
 		if (index != shader::index_not_found) {
-			vertex_attribute_map_[name] = { index, type_id, num_components, data_type_size, buffer_data };
+			vertex_attribute_buffer_index_map_[name] = vertex_attribute_buffers_.size();
+			vertex_attribute_buffers_.push_back({ index, type_id, num_components, data_type_size, buffer_data, true });
 		}
 		else {
 			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
 		}
-	}
-
-	std::vector<glm::vec3> GetPositionVertexAttributeBuffer() 
-	{
-
 	}
 
 	const std::shared_ptr<RenderingPipeline>& GetPipeline() 
@@ -84,9 +81,11 @@ public:
 		return rendering_pipeline_;
 	}
 
-	std::vector<VertexAttributeBuffer> GetVertexAttributeBuffers() 
-	{
+	const VertexAttributeBuffer& GetVertexAttributePositionBuffer();
 
+	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers() 
+	{
+		return vertex_attribute_buffers_;
 	}
 
 private:
@@ -99,8 +98,12 @@ private:
 	std::vector<glm::vec3> normals_;
 	std::vector<glm::vec2> tex_coords_;
 
-	// Un-reserved vertex attributes
-	std::unordered_map<std::string, VertexAttributeBuffer> vertex_attribute_map_;
+	std::size_t position_attribute_index_;
+	std::size_t normal_attribute_index_;
+	std::size_t tex_coords_attribute_index_;
+
+	std::vector<VertexAttributeBuffer> vertex_attribute_buffers_;
+	std::unordered_map<std::string, std::size_t> vertex_attribute_buffer_index_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 	
 	std::vector<Triangle> tris_;

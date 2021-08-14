@@ -33,9 +33,19 @@ Mesh Mesh::CreateCube(float side_length) {
 	return mesh;
 }
 
-void Mesh::SetVertices(std::vector<glm::vec3> verts) 
-{
-	verts_ = verts;
+void Mesh::SetVertexPositions(std::vector<glm::vec3> verts) {
+	if (!position_attribute_index_) {
+		position_attribute_index_ = vertex_attribute_buffers_.size();
+		SetVertexAttributeBuffer<glm::vec3>(VERTEX_ATTRIBUTE_POSITION_NAME, verts);
+	}
+	else {
+		vertex_attribute_buffers_[position_attribute_index_].data = shader::BufferData(verts);
+		vertex_attribute_buffers_[position_attribute_index_].is_dirty = true;
+	}
+}
+
+std::size_t Mesh::VertexCount() {
+	return;
 }
 
 void Mesh::SetTriangles(std::vector<Triangle> tris) 
