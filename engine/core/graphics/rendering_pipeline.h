@@ -27,16 +27,18 @@ struct RenderingPipelineInfo
 struct UniformInfo {
 	// Name of this uniform.
 	std::string name;
-	// Unique id assigned to this type.
+	// Data type. In the case of an array, this is the type of each element.
 	ShaderDataType type;
 	// Location in the shader.
 	int location;
+	// Array length. It is 1 for non-arrays.
+	int array_length;
 };
 
 struct VertexAttributeInfo {
 	// Name of this vertex attribute.
 	std::string name;
-	// Unique id assigned to this type.
+	// Data type.
 	ShaderDataType type;
 	// Location in the shader.
 	int location;

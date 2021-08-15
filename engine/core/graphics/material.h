@@ -71,6 +71,22 @@ public:
 	}
 
 	template<typename T>
+	void SetUniformArray(std::string name, T value_array[])
+	{
+		const ShaderDataType type = shader::TypeID(value_array[0]);
+		const std::vector<char> value_data = shader::ValueArrayData(value_array);
+		// Check if rendering pipeline actually has a uniform with this name and type.
+		const std::size_t index = rendering_pipeline_->IndexOfUniformWithNameAndType(name, type);
+		if (index != shader::index_not_found) {
+			uniform_value_index_map_[name] = uniform_values_.size();
+			uniform_values_.push_back({ index, type, value_data });
+		}
+		else {
+			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
+		}
+	}
+
+	template<typename T>
 	void GetUniform(std::string name, T* value) 
 	{
 		std::unordered_map<std::string, std::size_t>::iterator iter = uniform_value_index_map_.find(name);

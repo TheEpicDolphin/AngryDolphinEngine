@@ -37,34 +37,6 @@ void OpenGLRenderer::Initialize(int width, int height)
     }
 }
 
-void SetUniform(ShaderDataType type, int location, const char *value_ptr)
-{
-	switch (type)
-	{
-	case ShaderDataTypeFloat:
-		glUniform1fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	case ShaderDataTypeVector2f:
-		glUniform2fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	case ShaderDataTypeVector3f:
-		glUniform2fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	case ShaderDataTypeVector4f:
-		glUniform2fv(location, 1, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	case ShaderDataTypeMatrix2f:
-		glUniformMatrix2fv(location, 1, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	case ShaderDataTypeMatrix3f:
-		glUniformMatrix3fv(location, 1, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	case ShaderDataTypeMatrix4f:
-		glUniformMatrix4fv(location, 1, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
-		break;
-	}
-}
-
 bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
     if (!glfwWindowShouldClose(window_)) {
         glfwSwapBuffers(window_);
@@ -105,12 +77,13 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 
 				const std::shared_ptr<RenderingPipeline>& pipeline = mesh_batch->mesh->GetPipeline();
 				const std::shared_ptr<Material>& material = mesh_batch->mesh->GetMaterial();
-				// TODO: Iterate material uniforms and set corresponding uniforms in shaders
+				// Iterate material uniforms and set corresponding uniforms in shaders
 				for (const UniformValue& uniform_value : material->UniformValues()) {
 					const UniformInfo& uniform_info = pipeline->UniformInfoAtIndex(uniform_value.uniform_index);
-					SetUniform(uniform_info.type, uniform_info.location, uniform_value.data.data());
+					shader::opengl::SetUniform(uniform_info.type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
 				}
 				
+				// Iterate model matrices and draw the mesh after each transformation.
 				for (glm::mat4& model_matrix : mesh_batch->model_matrices) {
 					const glm::mat4 mvp = model_matrix * vp;
 					// Insert MVP matrix into shader.
@@ -124,7 +97,6 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 		glBindVertexArray(0);
 		glUseProgram(0);
 
-		// TODO: Do above inside window context
 		// TODO: Keep track of areas in viewport that haven't been rendered yet. 
 		// Once the entire viewport has been rendered, stop the enumeration.
     }

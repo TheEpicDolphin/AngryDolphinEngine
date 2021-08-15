@@ -29,9 +29,9 @@ public:
 
 	virtual void Cleanup() = 0;
 
-	virtual std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
+	virtual std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info) = 0;
 
-	virtual std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
+	virtual std::shared_ptr<Material> CreateMaterial(MaterialInfo info) = 0;
 
-	virtual std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
+	virtual std::shared_ptr<Mesh> CreateMesh(MeshInfo info) = 0;
 };
