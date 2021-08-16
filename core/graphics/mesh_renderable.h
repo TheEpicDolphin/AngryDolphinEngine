@@ -12,6 +12,8 @@ struct MeshRenderable
 	// Mesh that is shared by potentially several MeshRenderables
 	std::shared_ptr<Mesh> shared_mesh;
 
+	bool enabled;
+
 	/*
 	// If empty, the shared_material is used to define the MeshRenderable's material properties. 
 	// Set this to a value in order to override this MeshRenderable's material properties without affecting other MeshRenderables.

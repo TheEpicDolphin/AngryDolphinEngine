@@ -3,8 +3,9 @@
 #include <core/utils/file_helpers.h>
 #include <rapidjson/document.h>
 
-void RenderingPipelineManager::LoadPipelineSpecs()
+void RenderingPipelineManager::LoadRenderingPipelines()
 {
+	// Recursively searches for .rp files in the project's resources folder.
 	const std::vector<fs::path> pipeline_spec_files = file_helpers::AllFilePathsInDirectoryWithExtension("//Resources/", ".pipelinespec");
 	for (fs::path pipeline_spec_file : pipeline_spec_files) {
 		std::vector<char> file_contents = file_helpers::ReadFileWithPath(pipeline_spec_file);
@@ -26,17 +27,6 @@ void RenderingPipelineManager::LoadPipelineSpecs()
 	}
 }
 
-int RenderingPipelineManager::PipelineSpecHashForFilePath(std::string)
-{
-	// TODO: implement hashing of file names
-	return 0;
-}
-
-std::shared_ptr<RenderingPipeline> RenderingPipelineManager::PipelineForPipelineSpecHash(int hash)
-{
-	return spec_generated_pipelines_[hash];
-}
-
 void RenderingPipelineManager::PipelineDidDestruct(RenderingPipeline* pipeline)
 {
 	pipeline_id_generator_.ReturnId(pipeline->GetInstanceID());
@@ -52,4 +42,14 @@ std::shared_ptr<RenderingPipeline> RenderingPipelineManager::CreatePipeline(Rend
 
 	const PipelineID pipeline_id = pipeline_id_generator_.CheckoutNewId();
 	return std::make_shared<RenderingPipeline>(pipeline_id, stages, uniforms, this);
+}
+
+std::shared_ptr<RenderingPipeline> RenderingPipelineManager::CreatePipelineWithHash(RenderingPipelineInfo info, int hash)
+{
+	loaded_rendering_pipelines_[hash] = CreatePipeline(info);
+}
+
+std::shared_ptr<RenderingPipeline> RenderingPipelineManager::LoadPipeline(int hash) 
+{
+	return loaded_rendering_pipelines_[hash];
 }

@@ -34,4 +34,10 @@ public:
 	virtual std::shared_ptr<Material> CreateMaterial(MaterialInfo info) = 0;
 
 	virtual std::shared_ptr<Mesh> CreateMesh(MeshInfo info) = 0;
+
+	virtual std::shared_ptr<RenderingPipeline> LoadRenderingPipeline(int hash);
+
+	virtual std::shared_ptr<Material> LoadMaterial(int hash);
+
+	virtual std::shared_ptr<Mesh> LoadMesh(int hash);
 };

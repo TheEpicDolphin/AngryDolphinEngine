@@ -28,7 +28,9 @@ public:
 		std::vector<RenderableObjectInfo> renderable_objects;
 		std::function<void(EntityID, MeshRenderable&, Transform&)> block =
 		[&](EntityID entity_id, MeshRenderable& mesh_rend, Transform& trans) {
-			renderable_objects.push_back({ mesh_rend.shared_mesh, trans.matrix });
+			if (mesh_rend.enabled) {
+				renderable_objects.push_back({ mesh_rend.shared_mesh, trans.matrix });
+			}
 		};
 		ecs_->EnumerateComponentsWithBlock<MeshRenderable, Transform>(block);
 

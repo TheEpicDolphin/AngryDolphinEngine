@@ -29,10 +29,10 @@ struct MaterialInfo
 class Material
 {
 public:
-	Material(MaterialID id, std::shared_ptr<RenderingPipeline> rendering_pipeline, MaterialDelegate *delegate)
+	Material(MaterialID id, MaterialInfo info, MaterialDelegate *delegate)
 	{
 		id_ = id;
-		rendering_pipeline_ = rendering_pipeline;
+		rendering_pipeline_ = info.rendering_pipeline;
 		delegate_ = std::make_shared<MaterialDelegate>(delegate);
 	}
 

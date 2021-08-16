@@ -30,6 +30,8 @@ public:
 	std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
 
 private:
+	void LoadRenderingAssets();
+
 	struct IMeshBatch {
 		std::shared_ptr<Mesh> mesh;
 		GLuint vao;
@@ -56,4 +58,6 @@ private:
 	MeshManager mesh_manager_;
 	MaterialManager material_manager_;
 	RenderingPipelineManager pipeline_manager_;
+
+	std::unordered_map<std::string, int> asset_filepath_hasher_;
 };

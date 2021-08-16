@@ -5,9 +5,10 @@
 
 RenderingPipeline::RenderingPipeline() {}
 
-RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, std::vector<UniformInfo> uniforms, std::vector<Shader> shader_stages)
+RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info)
 {
 	id_ = pipeline_id;
+
 	shader_stages_ = shader_stages;
 }
 

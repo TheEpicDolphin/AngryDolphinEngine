@@ -21,7 +21,7 @@ struct RenderingPipelineDelegate
 
 struct RenderingPipelineInfo
 {
-
+	std::vector<char> source_code;
 };
 
 struct UniformInfo {
@@ -56,7 +56,7 @@ class RenderingPipeline
 public:
 	RenderingPipeline();
 
-	RenderingPipeline(PipelineID pipeline_id, std::vector<UniformInfo> uniforms, std::vector<Shader> shader_stages);
+	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info);
 
 	const PipelineID& GetInstanceID();
 

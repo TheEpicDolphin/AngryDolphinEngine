@@ -1,6 +1,7 @@
 
 #include "opengl_renderer.h"
 
+#include <config/generated/config.h>
 #include <core/utils/file_helpers.h>
 #include <GL/glew.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -14,10 +15,9 @@ static void DestroyWindow(GLFWwindow *window) {
 
 void OpenGLRenderer::Initialize(int width, int height) 
 {
-	material_manager.delegate = this;
-	pipeline_manager.delegate = this;
-	material_manager_.LoadMaterialSpecs();
-	pipeline_manager_.LoadPipelineSpecs();
+	material_manager_.delegate = this;
+	pipeline_manager_.delegate = this;
+	LoadRenderingAssets();
 
     glfwSetErrorCallback(error_callback);
 
@@ -74,6 +74,8 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 			for (MeshID& mesh_id : pipeline_batch.mesh_ids) {
 				IMeshBatch* mesh_batch = mesh_batch_map_[mesh_id];
 				glBindVertexArray(mesh_batch->vao);
+
+				// TODO: sort meshes by material id to reduce number of times setting material uniforms.
 
 				const std::shared_ptr<RenderingPipeline>& pipeline = mesh_batch->mesh->GetPipeline();
 				const std::shared_ptr<Material>& material = mesh_batch->mesh->GetMaterial();
@@ -270,4 +272,37 @@ void OpenGLRenderer::DynamicMeshBatch::SetupVertexAttributeBuffers()
 		glDisableVertexAttribArray(vertex_attribute.location);
 	}
 	glBindVertexArray(0);
+}
+
+void OpenGLRenderer::LoadRenderingAssets() {
+	// Recursively searches for .rp files in the project's resources folder.
+	const std::vector<fs::path> rp_file_paths = file_helpers::AllFilePathsInDirectoryWithExtension(GAME_RESOURCES_DIRECTORY, ".rp");
+	for (fs::path rp_file_path : rp_file_paths) {
+		std::vector<char> source_code = file_helpers::ReadFileWithPath(rp_file_path);
+		int asset_id = asset_filepath_hasher_.size();
+		pipeline_manager_.CreatePipelineWithHash({ source_code }, asset_id);
+		asset_filepath_hasher_[rp_file_path.u8string()] = asset_id;
+
+		// Look for mesh spec files
+		fs::path mesh_specs_folder("mesh_specs");
+		fs::path mesh_spec_folder_path = rp_file_path.parent_path() / mesh_specs_folder;
+		std::vector<fs::path> mesh_spec_filepaths = file_helpers::AllFilePathsInDirectoryWithExtension(mesh_spec_folder_path.u8string(), ".meshspec");
+		for (fs::path mesh_spec_path : mesh_spec_filepaths) {
+			std::vector<char> mesh_spec_contents = file_helpers::ReadFileWithPath(mesh_spec_path);
+			int mesh_asset_id = asset_filepath_hasher_.size();
+			mesh_manager_.CreateMeshWithHash({ source_code }, mesh_asset_id);
+			asset_filepath_hasher_[mesh_spec_path.u8string()] = mesh_asset_id;
+		}
+
+		// Look for material spec files
+		fs::path material_specs_folder("material_specs");
+		fs::path material_specs_folder_path = rp_file_path.parent_path() / material_specs_folder;
+		std::vector<fs::path> material_spec_filepaths = file_helpers::AllFilePathsInDirectoryWithExtension(material_specs_folder_path.u8string(), ".materialspec");
+		for (fs::path material_spec_path : material_spec_filepaths) {
+			std::vector<char> material_spec_contents = file_helpers::ReadFileWithPath(material_spec_path);
+			int material_asset_id = asset_filepath_hasher_.size();
+			material_manager_.CreateMaterialWithHash({ source_code }, material_asset_id);
+			asset_filepath_hasher_[material_spec_path.u8string()] = material_asset_id;
+		}
+	}
 }
