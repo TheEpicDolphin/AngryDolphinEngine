@@ -2,7 +2,6 @@ file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
 add_library (transform ${SOURCES})
 
-target_link_libraries(transform PUBLIC libglew_static)
 target_link_libraries(transform glm::glm)
 target_link_libraries(transform LINK_PUBLIC ecs)
 

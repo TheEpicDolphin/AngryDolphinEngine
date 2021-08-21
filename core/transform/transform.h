@@ -2,9 +2,14 @@
 
 #include <glm/mat4x4.hpp>
 
-#include <core/ecs/component.h>
+typedef std::uint64_t TransformID;
 
-struct Transform : public Component<Transform>
+struct Transform
 {
-	glm::mat4 matrix;
+	// ID of parent. If no parent, this is 0.
+	TransformID parent_id;
+	// Relative to parent. If this transform is the root, then local_matrix == world_matrix.
+	glm::mat4 local_matrix;
+	// Relative to world
+	glm::mat4 world_matrix;
 };
