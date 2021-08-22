@@ -1,19 +1,13 @@
 #pragma once
 
-#include 
 #include <vector>
 #include <core/transform/transform.h>
 
 class SceneGraph {
 
-	SceneGraph() {
-		world_transform_ = { 0, 0, {}, glm::mat4::identity(), glm::mat4::identity() };
-	}
+	SceneGraph();
 
-	void CreateTransform(TransformID id) {
-		transform_tree_map_[id] = { &world_transform_.children.data(), world_transform_.children.size()};
-		world_transform_.children.push_back({ id, 0, {}, glm::mat4::identity(), glm::mat4::identity() });
-	}
+	void CreateTransform(TransformID id);
 	
 	const glm::mat4& GetLocalTransform(TransformID id);
 
