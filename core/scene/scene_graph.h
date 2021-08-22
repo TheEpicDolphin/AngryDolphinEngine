@@ -1,10 +1,19 @@
 #pragma once
 
+#include 
 #include <vector>
 #include <core/transform/transform.h>
-#include <core/transform/transform_tree.h>
 
 class SceneGraph {
+
+	SceneGraph() {
+		world_transform_ = { 0, 0, {}, glm::mat4::identity(), glm::mat4::identity() };
+	}
+
+	void CreateTransform(TransformID id) {
+		transform_tree_map_[id] = { &world_transform_.children.data(), world_transform_.children.size()};
+		world_transform_.children.push_back({ id, 0, {}, glm::mat4::identity(), glm::mat4::identity() });
+	}
 	
 	const glm::mat4& GetLocalTransform(TransformID id);
 
@@ -19,6 +28,15 @@ class SceneGraph {
 	void SetParent(TransformID id, TransformID parent_id);
 
 private:
-	// Maps transform IDs to trees
-	std::vector<std::shared_ptr<TransformTree>> transform_tree_map_;
+	struct TransformIndex {
+		// Pointer to array of children it belongs to.
+		Transform* array_ptr;
+		// Offset from beginning of children array.
+		std::size_t offset;
+	};
+
+	// Maps transform IDs to transform indices. 
+	std::vector<TransformIndex> transform_tree_map_;
+	// World transform
+	Transform world_transform_;
 };
