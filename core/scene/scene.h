@@ -3,25 +3,23 @@
 #include "scene_graph.h"
 #include <core/ecs/ecs.h>
 #include <core/serialize/archive.h>
+#include <core/serialize/serializable.h>
+#include <core/graphics/renderer.h>
 
-class Scene 
+class Scene : ISerializable
 {
 public:
 
-	void Load();
+	void DidLoad();
 
-	void Unload();
+	void DidUnload();
 
 	EntityID CreateEntity();
 
 	void DestroyEntity(EntityID entity_id);
 
-	void SerializeHumanReadable(Archive& archive);
-
-	void DeserializeHumanReadable(Archive& archive);
-
 private:
 	SceneGraph scene_graph_;
 	ECS ecs_;
-	IRenderer renderer_;
+	IRenderer *renderer_;
 };

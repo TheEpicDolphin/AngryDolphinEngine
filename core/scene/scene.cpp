@@ -1,6 +1,16 @@
 
 #include "scene.h"
 
+void DidLoad() 
+{
+
+}
+
+void DidUnload() 
+{
+
+}
+
 EntityID Scene::CreateEntity() 
 {
 	const EntityID& entity_id = ecs_.CreateEntity();
@@ -14,19 +24,21 @@ void Scene::DestroyEntity(EntityID entity_id)
 	ecs_.DestroyEntity(entity_id);
 }
 
-void Scene::SerializeHumanReadable(Archive& archive)
+void Scene::SerializeHumanReadable(Archive& archive, std::ostream& ostream)
 {
 	archive.SerializeHumanReadable(
-		std::make_pair("Scene Graph", scene_graph_), 
+		ostream,
+		std::make_pair("Scene_Graph", scene_graph_), 
 		std::make_pair("ECS", ecs_ ), 
 		std::make_pair("IRenderer", renderer_ )
 	);
 }
 
-void Scene::DeserializeHumanReadable(Archive& archive)
+void Scene::DeserializeHumanReadable(Archive& archive, std::ostream& ostream)
 {
 	archive.DeserializeHumanReadable(
-		std::make_pair("Scene Graph", scene_graph_),
+		ostream,
+		std::make_pair("Scene_Graph", scene_graph_),
 		std::make_pair("ECS", ecs_),
 		std::make_pair("IRenderer", renderer_)
 	);
