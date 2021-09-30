@@ -1,12 +1,12 @@
 
 #include "scene.h"
 
-void DidLoad() 
+void Scene::DidLoad()
 {
 
 }
 
-void DidUnload() 
+void Scene::DidUnload()
 {
 
 }
@@ -29,8 +29,8 @@ void Scene::SerializeHumanReadable(Archive& archive, std::ostream& ostream)
 	archive.SerializeHumanReadable(
 		ostream,
 		std::make_pair("Scene_Graph", scene_graph_), 
-		std::make_pair("ECS", ecs_ ), 
-		std::make_pair("IRenderer", renderer_ )
+		std::make_pair("ECS", ecs_), 
+		std::make_pair("IRenderer", renderer_)
 	);
 }
 

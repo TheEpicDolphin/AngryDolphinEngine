@@ -1,7 +1,11 @@
 #pragma once
 
 #include <iostream>
+#include <string>
+#include <sstream>
 #include <unordered_map>
+
+#include "serializable.h"
 
 class Archive 
 {
@@ -17,22 +21,25 @@ public:
     }
 
     template<typename... Ts>
-    void SerializeHumanReadable(std::ostream& xml_ostream, std::pair<std::string, Ts&> ...objects)
+    void SerializeHumanReadable(std::ostream& xml_ostream, std::pair<const char *, Ts&>... objects)
     {
-		{ SerializeHumanReadableIfAble(xml_ostream, objects.first, objects.second)... };
+		using expand_type = int[];
+		expand_type{ (SerializeHumanReadableIfAble(xml_ostream, objects.first, objects.second), 0)... };
     }
 
 	template<typename T>
-	std::ostream& SerializeHumanReadable(std::ostream& xml_ostream, T& root_object)
+	std::ostream& SerializedHumanReadable(std::ostream& xml_ostream, const char* name, T& root_object)
 	{
-		root_object.Serialize(this, xml_ostream);
+		SerializeHumanReadableIfAble(xml_ostream, name, root_object);
 
 		// It is assumed that any unresolved pointers point to objects allocated on the heap.
 		xml_ostream << "<Heap>\n";
-		for (std::pair<std::size_t, std::ostream> pair : unresolved_pointer_serializations_) {
-			xml_ostream << pair.second;
+		for (auto& serializations_iter : unresolved_pointer_serializations_) {
+			xml_ostream << "<Object" << " id=" << serializations_iter.first << ">\n";
+			xml_ostream << serializations_iter.second.rdbuf();
+			xml_ostream << "<Object/>\n";
 		}
-		xml_ostream << "<\Heap>\n";
+		xml_ostream << "</Heap>\n";
 		unresolved_pointer_serializations_.clear();
 		id_to_object_map_.clear();
 		object_to_id_map_.clear();
@@ -57,6 +64,27 @@ private:
     std::unordered_map<void*, std::size_t> object_to_id_map_;
 	std::unordered_map<std::size_t, std::ostream> unresolved_pointer_serializations_;
 
+	static std::string XMLElementStartTag(std::string elementName, std::size_t id)
+	{
+		std::ostringstream oss;
+		oss << "<" << elementName << " id=" << id << ">\n";
+		return oss.str();
+	}
+
+	static std::string XMLElementStartTag(std::string elementName, std::size_t id, std::string type)
+	{
+		std::ostringstream oss;
+		oss << "<" << elementName << " id=" << id << " type=" << type << ">\n";
+		return oss.str();
+	}
+
+	static std::string XMLElementEndTag(std::string elementName)
+	{
+		std::ostringstream oss;
+		oss << "<" << elementName << "/>\n";
+		return oss.str();
+	}
+
 	std::size_t Store(void* object_ptr)
 	{
 		const std::size_t id = id_to_object_map_.size();
@@ -73,27 +101,23 @@ private:
 		return 0;
 	}
 
-	// Override for std::shared_ptrs
+	// Override for std::shared_ptr
 	template<typename T>
 	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, std::shared_ptr<T>& obj_shared_ptr)
 	{
-		xml_ostream << "<" << name << " type=SharedPointer id=" + id + ">\n";
 		SerializeHumanReadableIfAble(xml_ostream, "ptr", obj_shared_ptr.get());
-		xml_ostream << "</" + name + ">\n";
 	}
 
-	// Override for std::vectors
+	// Override for std::vector
 	template<typename T>
 	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, std::vector<T>& obj_vec)
 	{
-		xml_ostream << "<" << name << " type=Vector id=" + id + ">\n";
 		xml_ostream << "<count>" << obj_vec.size() << "</count>\n";
 		for (T& object : obj_vec) {
 			SerializeHumanReadableIfAble(xml_ostream, "element", object);
 		}
-		xml_ostream << "</" + name + ">\n";
 	}
-
+	
 	template<typename T>
 	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T*& object)
 	{
@@ -109,15 +133,17 @@ private:
 	}
 
 	template<typename T>
-	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T& object)
+	typename std::enable_if<std::is_base_of<ISerializable, T>::value>::type
+		SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T& object)
 	{
-		ISerializable* object_serializable = dynamic_cast<ISerializable*>(object);
-		if (serializable) {
-			object_serializable->SerializeHumanReadable(this, xml_ostream);
-		}
-		else {
-			xml_ostream << object;
-		}
+		object.SerializeHumanReadable(*this, xml_ostream);
+	}
+
+	template<typename T>
+	typename std::enable_if<!std::is_base_of<ISerializable, T>::value>::type
+		SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T& object)
+	{
+		xml_ostream << object << "\n";
 	}
 
 	template<typename T>
@@ -126,8 +152,8 @@ private:
 		std::size_t id = IdForObject((void*)&object);
 		if (!id) {
 			id = Store((void*)&object);
-			if (name != std::empty) {
-				xml_ostream << "<" << name << " id=" << id << ">\n";
+			if (!name.empty()) {
+				xml_ostream << XMLElementStartTag(name, id);
 			}
 			SerializeHumanReadable(xml_ostream, name, object);
 		}
@@ -137,17 +163,18 @@ private:
 				return;
 			}
 
-			// We have already visited and serialized this object. This is a cycle. Stop recursing.
-			if (name != std::empty) {
-				xml_ostream << "<" << name << " id=" << id << ">\n";
+			// We have already visited and serialized this object. This is a cycle. 
+			// Stop recursing and add this object's serialization to the xml output stream
+			if (!name.empty()) {
+				xml_ostream << XMLElementStartTag(name, id);
 			}
-			xml_ostream << iter->second;
+			xml_ostream << iter->second.rdbuf();
 			unresolved_pointer_serializations_.erase(id);
 			return;
 		}
 
-		if (name != std::empty) {
-			xml_ostream << "</" << name << ">\n";
+		if (!name.empty()) {
+			xml_ostream << XMLElementEndTag(name);
 		}
 	}
 };

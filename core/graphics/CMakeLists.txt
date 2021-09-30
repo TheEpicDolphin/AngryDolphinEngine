@@ -6,7 +6,7 @@ target_link_libraries(graphics PUBLIC libglew_static)
 target_link_libraries(graphics PUBLIC glm::glm)
 target_link_libraries(graphics LINK_PUBLIC ecs)
 target_link_libraries(graphics PUBLIC glfw)
-target_link_libraries(graphics PUBLIC rapidjson)
+#target_link_libraries(graphics PUBLIC rapidjson)
 
 set_target_properties(graphics PROPERTIES
     CXX_STANDARD 14

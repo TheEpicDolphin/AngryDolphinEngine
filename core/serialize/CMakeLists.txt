@@ -2,9 +2,7 @@ file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
 add_library (serialize ${SOURCES})
 
-target_link_libraries(serialize PUBLIC gtest)
-
-add_subdirectory(serialize)
+add_subdirectory(tests)
 
 set_target_properties(serialize PROPERTIES
     CXX_STANDARD 14

@@ -63,5 +63,5 @@ TEST(ecs_test_suite, adding_component_test)
 
     ecs.AddComponent<B>(entity_id, { b_name_0 });
 
-    ecs.EnumerateComponentsWithBlock<A, B>();
+    ecs.EnumerateComponentsWithBlock<A, B>({});
 }
