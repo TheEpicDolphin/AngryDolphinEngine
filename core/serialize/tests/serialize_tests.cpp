@@ -35,14 +35,12 @@ TEST(serialize_test_suite, serialize_parent_class_no_pointers_test)
 
 TEST(serialize_test_suite, serialize_parent_class_with_heap_pointer_test)
 {
-    /*
     ParentClassWithHeapPointer pcwhp(120920);
     Archive archive;
     std::filebuf xmlofilebuf;
     xmlofilebuf.open("serialize_parent_class_no_pointers_test.txt", std::ios::out);
     std::ostream xmlostream(&xmlofilebuf);
-    archive.SerializeHumanReadable(xmlostream, "ParentClass", pcwhp);
+    archive.SerializeHumanReadable(xmlostream, "ParentClassWithHeapPointer", pcwhp);
     xmlofilebuf.close();
-    */
     //ASSERT_EQ(*node_value, node_1);
 }

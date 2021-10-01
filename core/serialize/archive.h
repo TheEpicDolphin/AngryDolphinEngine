@@ -37,27 +37,16 @@ public:
 	{
 		SerializeHumanReadableIfAble(xml_doc_, name, root_object);
 
+		std::cout << "starting heap" << std::endl;
 		// It is assumed that any unresolved pointers point to objects allocated on the heap.
 		rapidxml::xml_node<> *heap_node = xml_doc_.allocate_node(rapidxml::node_element, "heap");
 		for (auto& serializations_iter : unresolved_pointer_serializations_) {
-			rapidxml::xml_node<>* object_node = xml_doc_.allocate_node(rapidxml::node_element, "object");
-			rapidxml::xml_attribute<>* id_attribute = xml_doc_.allocate_attribute("id", std::to_string(serializations_iter.first).c_str());
-			object_node->append_attribute(id_attribute);
 			rapidxml::xml_node<>* serialized_node = serializations_iter.second;
-			object_node->append_node(serialized_node);
-			heap_node->append_node(object_node);
+			char* heap_node_id_string = xml_doc_.allocate_string(std::to_string(serializations_iter.first).c_str());
+			rapidxml::xml_attribute<>* id_attribute = xml_doc_.allocate_attribute("id", heap_node_id_string);
+			heap_node->append_node(xml_doc_.clone_node(serialized_node));
 		}
 		xml_doc_.append_node(heap_node);
-		
-		/*
-		xml_ostream << "<Heap>\n";
-		for (auto& serializations_iter : unresolved_pointer_serializations_) {
-			xml_ostream << "<Object" << " id=" << serializations_iter.first << ">\n";
-			xml_ostream << serializations_iter.second.rdbuf();
-			xml_ostream << "<Object/>\n";
-		}
-		xml_ostream << "</Heap>\n";
-		*/
 
 		unresolved_pointer_serializations_.clear();
 		id_to_object_map_.clear();
@@ -84,15 +73,6 @@ private:
     std::unordered_map<void*, std::size_t> object_to_id_map_;
 	std::unordered_map<std::size_t, rapidxml::xml_node<> *> unresolved_pointer_serializations_;
 	rapidxml::xml_document<> xml_doc_;
-
-	/*
-	template<typename T>
-	static const char* ValueToCharArray(T& value) 
-	{
-		std::string tmp = std::to_string(value);
-		return tmp.c_str();
-	}
-	*/
 
 	std::size_t Store(void* object_ptr)
 	{
@@ -135,10 +115,10 @@ private:
 	{
 		std::size_t pointee_id = IdForObject((void*)object);
 		if (!pointee_id) {
-			pointee_id = Store((void*)object);
 			// Serialize object being pointed to. Does not handle the case of a pointer to an array of objects.
 			rapidxml::xml_node<>* dummy_root_node = xml_doc_.allocate_node(rapidxml::node_element, "dummy_root");
-			SerializeHumanReadableIfAble(*dummy_root_node, "temp_name", *object);
+			SerializeHumanReadableIfAble(*dummy_root_node, "object", *object);
+			pointee_id = IdForObject((void*)object);
 			unresolved_pointer_serializations_.insert({ pointee_id , dummy_root_node->first_node() });
 		}
 
