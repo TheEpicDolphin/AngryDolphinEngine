@@ -38,7 +38,7 @@ TEST(serialize_test_suite, serialize_parent_class_with_heap_pointer_test)
     ParentClassWithHeapPointer pcwhp(120920);
     Archive archive;
     std::filebuf xmlofilebuf;
-    xmlofilebuf.open("serialize_parent_class_no_pointers_test.txt", std::ios::out);
+    xmlofilebuf.open("serialize_parent_class_with_heap_pointer_test.txt", std::ios::out);
     std::ostream xmlostream(&xmlofilebuf);
     archive.SerializeHumanReadable(xmlostream, "ParentClassWithHeapPointer", pcwhp);
     xmlofilebuf.close();
