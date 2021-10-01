@@ -30,6 +30,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/googletest/googletest/
 #add_subdirectory(3rd_party/rapidjson)
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/rapidjson/include)
 
+# RapidXML
+add_subdirectory(3rd_party/rapidxml)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/rapidxml)
+
 add_subdirectory(core)
 
 add_library(angery_dolphine_engine INTERFACE)

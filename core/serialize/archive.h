@@ -5,6 +5,11 @@
 #include <sstream>
 #include <unordered_map>
 
+//#include <rapidxml/rapidxml.hpp>
+//#include <rapidxml/rapidxml_print.hpp>
+#include "rapidxml.hpp"
+#include "rapidxml_print.hpp"
+
 #include "serializable.h"
 
 class Archive 
@@ -21,18 +26,30 @@ public:
     }
 
     template<typename... Ts>
-    void SerializeHumanReadable(std::ostream& xml_ostream, std::pair<const char *, Ts&>... objects)
+    void SerializeHumanReadable(rapidxml::xml_node<>& xml_node, std::pair<const char *, Ts&>... objects)
     {
 		using expand_type = int[];
-		expand_type{ (SerializeHumanReadableIfAble(xml_ostream, objects.first, objects.second), 0)... };
+		expand_type{ (SerializeHumanReadableIfAble(xml_node, objects.first, objects.second), 0)... };
     }
 
 	template<typename T>
-	std::ostream& SerializedHumanReadable(std::ostream& xml_ostream, const char* name, T& root_object)
+	void SerializeHumanReadable(std::ostream& xml_ostream, const char* name, T& root_object)
 	{
-		SerializeHumanReadableIfAble(xml_ostream, name, root_object);
+		SerializeHumanReadableIfAble(xml_doc_, name, root_object);
 
 		// It is assumed that any unresolved pointers point to objects allocated on the heap.
+		rapidxml::xml_node<> *heap_node = xml_doc_.allocate_node(rapidxml::node_element, "heap");
+		for (auto& serializations_iter : unresolved_pointer_serializations_) {
+			rapidxml::xml_node<>* object_node = xml_doc_.allocate_node(rapidxml::node_element, "object");
+			rapidxml::xml_attribute<>* id_attribute = xml_doc_.allocate_attribute("id", std::to_string(serializations_iter.first).c_str());
+			object_node->append_attribute(id_attribute);
+			rapidxml::xml_node<>* serialized_node = serializations_iter.second;
+			object_node->append_node(serialized_node);
+			heap_node->append_node(object_node);
+		}
+		xml_doc_.append_node(heap_node);
+		
+		/*
 		xml_ostream << "<Heap>\n";
 		for (auto& serializations_iter : unresolved_pointer_serializations_) {
 			xml_ostream << "<Object" << " id=" << serializations_iter.first << ">\n";
@@ -40,10 +57,13 @@ public:
 			xml_ostream << "<Object/>\n";
 		}
 		xml_ostream << "</Heap>\n";
+		*/
+
 		unresolved_pointer_serializations_.clear();
 		id_to_object_map_.clear();
 		object_to_id_map_.clear();
-		return xml_ostream;
+
+		xml_ostream << xml_doc_;
 	}
 
 	// completion is called when all the args have been retrieved from the XML file.
@@ -62,28 +82,17 @@ public:
 private:
     std::vector<void*> id_to_object_map_;
     std::unordered_map<void*, std::size_t> object_to_id_map_;
-	std::unordered_map<std::size_t, std::ostream> unresolved_pointer_serializations_;
+	std::unordered_map<std::size_t, rapidxml::xml_node<> *> unresolved_pointer_serializations_;
+	rapidxml::xml_document<> xml_doc_;
 
-	static std::string XMLElementStartTag(std::string elementName, std::size_t id)
+	/*
+	template<typename T>
+	static const char* ValueToCharArray(T& value) 
 	{
-		std::ostringstream oss;
-		oss << "<" << elementName << " id=" << id << ">\n";
-		return oss.str();
+		std::string tmp = std::to_string(value);
+		return tmp.c_str();
 	}
-
-	static std::string XMLElementStartTag(std::string elementName, std::size_t id, std::string type)
-	{
-		std::ostringstream oss;
-		oss << "<" << elementName << " id=" << id << " type=" << type << ">\n";
-		return oss.str();
-	}
-
-	static std::string XMLElementEndTag(std::string elementName)
-	{
-		std::ostringstream oss;
-		oss << "<" << elementName << "/>\n";
-		return oss.str();
-	}
+	*/
 
 	std::size_t Store(void* object_ptr)
 	{
@@ -103,78 +112,87 @@ private:
 
 	// Override for std::shared_ptr
 	template<typename T>
-	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, std::shared_ptr<T>& obj_shared_ptr)
+	void SerializeHumanReadable(rapidxml::xml_node<>& xml_node, std::shared_ptr<T>& obj_shared_ptr)
 	{
-		SerializeHumanReadableIfAble(xml_ostream, "ptr", obj_shared_ptr.get());
+		SerializeHumanReadableIfAble(xml_node, "ptr", obj_shared_ptr.get());
 	}
 
 	// Override for std::vector
 	template<typename T>
-	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, std::vector<T>& obj_vec)
+	void SerializeHumanReadable(rapidxml::xml_node<>& xml_node, std::vector<T>& obj_vec)
 	{
-		xml_ostream << "<count>" << obj_vec.size() << "</count>\n";
+		char* vector_count_string = xml_doc_.allocate_string(std::to_string(obj_vec.size()).c_str());
+		rapidxml::xml_node<>* count_node = xml_doc_.allocate_node(rapidxml::node_element, "count", vector_count_string);
+		xml_node.append_node(count_node);
+
 		for (T& object : obj_vec) {
-			SerializeHumanReadableIfAble(xml_ostream, "element", object);
+			SerializeHumanReadableIfAble(xml_node, "element", object);
 		}
 	}
 	
 	template<typename T>
-	void SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T*& object)
+	void SerializeHumanReadable(rapidxml::xml_node<>& xml_node, T*& object)
 	{
 		std::size_t pointee_id = IdForObject((void*)object);
 		if (!pointee_id) {
 			pointee_id = Store((void*)object);
-			// Serialize object being pointed to and . Does not handle the case of a pointer to an array of objects.
-			std::ostream temp_ostream;
-			SerializeHumanReadableIfAble(temp_ostream, std::empty, *object);
-			unresolved_pointer_serializations_.insert({ pointee_id , temp_ostream });
+			// Serialize object being pointed to. Does not handle the case of a pointer to an array of objects.
+			rapidxml::xml_node<>* dummy_root_node = xml_doc_.allocate_node(rapidxml::node_element, "dummy_root");
+			SerializeHumanReadableIfAble(*dummy_root_node, "temp_name", *object);
+			unresolved_pointer_serializations_.insert({ pointee_id , dummy_root_node->first_node() });
 		}
-		xml_ostream << "<Pointer pointee_id=" << pointee_id << "/>\n";
+
+		rapidxml::xml_node<>* pointer_node = xml_doc_.allocate_node(rapidxml::node_element, "pointee");
+		char* pointee_id_string = xml_doc_.allocate_string(std::to_string(pointee_id).c_str());
+		rapidxml::xml_attribute<>* pointee_id_atttribute = xml_doc_.allocate_attribute("pointee_id", pointee_id_string);
+		pointer_node->append_attribute(pointee_id_atttribute);
+		xml_node.append_node(pointer_node);
 	}
 
 	template<typename T>
 	typename std::enable_if<std::is_base_of<ISerializable, T>::value>::type
-		SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T& object)
+		SerializeHumanReadable(rapidxml::xml_node<>& xml_node, T& object)
 	{
-		object.SerializeHumanReadable(*this, xml_ostream);
+		object.SerializeHumanReadable(*this, xml_node);
 	}
 
 	template<typename T>
 	typename std::enable_if<!std::is_base_of<ISerializable, T>::value>::type
-		SerializeHumanReadable(std::ostream& xml_ostream, std::string name, T& object)
+		SerializeHumanReadable(rapidxml::xml_node<>& xml_node, T& object)
 	{
-		xml_ostream << object << "\n";
+		std::stringstream tmp_ss;
+		tmp_ss << object;
+		xml_node.value(xml_doc_.allocate_string(tmp_ss.str().c_str()));
 	}
 
 	template<typename T>
-	void SerializeHumanReadableIfAble(std::ostream& xml_ostream, std::string name, T& object)
+	void SerializeHumanReadableIfAble(rapidxml::xml_node<>& parent_xml_node, const char* name, T& object)
 	{
 		std::size_t id = IdForObject((void*)&object);
 		if (!id) {
 			id = Store((void*)&object);
-			if (!name.empty()) {
-				xml_ostream << XMLElementStartTag(name, id);
-			}
-			SerializeHumanReadable(xml_ostream, name, object);
+
+			rapidxml::xml_node<>* object_node = xml_doc_.allocate_node(rapidxml::node_element, name);
+			char* object_id_string = xml_doc_.allocate_string(std::to_string(id).c_str());
+			rapidxml::xml_attribute<>* object_id_atttribute = xml_doc_.allocate_attribute("id", object_id_string);
+			object_node->append_attribute(object_id_atttribute);
+			SerializeHumanReadable(*object_node, object);
+			parent_xml_node.append_node(object_node);
 		}
 		else {
-			std::unordered_map<std::size_t, std::ostream>::iterator iter = unresolved_pointer_serializations_.find(id);
+			std::unordered_map<std::size_t, rapidxml::xml_node<> *>::iterator iter = unresolved_pointer_serializations_.find(id);
 			if (iter == unresolved_pointer_serializations_.end()) {
 				return;
 			}
 
 			// We have already visited and serialized this object. This is a cycle. 
-			// Stop recursing and add this object's serialization to the xml output stream
-			if (!name.empty()) {
-				xml_ostream << XMLElementStartTag(name, id);
-			}
-			xml_ostream << iter->second.rdbuf();
+			// Stop recursing and add this object's serialization to the xml tree
+
+			// Update name of node because we didn't know it before
+			iter->second->name(name);
+			parent_xml_node.append_node(iter->second);
 			unresolved_pointer_serializations_.erase(id);
 			return;
-		}
-
-		if (!name.empty()) {
-			xml_ostream << XMLElementEndTag(name);
 		}
 	}
 };

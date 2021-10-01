@@ -17,17 +17,17 @@ public:
         s_ = s;
     }
 
-    void SerializeHumanReadable(Archive& archive, std::ostream& ostream) override
+    void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         archive.SerializeHumanReadable<int&, float&, std::string&>(
-            ostream,
+            xml_node,
             { "i", i_ },
             { "f", f_ },
             { "s", s_ }
         );
     }
 
-    void DeserializeHumanReadable(Archive& archive, std::ostream& ostream) override {};
+    void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override {};
 
 private:
     int i_;
@@ -44,18 +44,43 @@ public:
         sc_ = sc;
     }
 
-    void SerializeHumanReadable(Archive& archive, std::ostream& ostream) override
+    void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         archive.SerializeHumanReadable<std::vector<int>&, SimpleClass&>(
-            ostream,
+            xml_node,
             { "vec", vec_ },
             { "sc", sc_ }
         );
     }
 
-    void DeserializeHumanReadable(Archive& archive, std::ostream& ostream) override {};
+    void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override {};
 
 private:
     std::vector<int> vec_;
     SimpleClass sc_;
+};
+
+class ParentClassWithHeapPointer : public ISerializable
+{
+public:
+    ParentClassWithHeapPointer(std::uint64_t u)
+    {
+        sc_ptr_ = new SimpleClass(50, -3.14f, "I was allocated on the heap!");
+        u_ = u;
+    }
+
+    void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        archive.SerializeHumanReadable<SimpleClass*&, std::uint64_t&>(
+            xml_node,
+            { "simple_class_ptr", sc_ptr_ },
+            { "u", u_ }
+        );
+    }
+
+    void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override {};
+
+private:
+    SimpleClass* sc_ptr_;
+    std::uint64_t u_;
 };
