@@ -17,17 +17,17 @@ public:
         s_ = s;
     }
 
-    void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
     {
-        archive.SerializeHumanReadable<int&, float&, std::string&>(
-            xml_node,
+        return
+        archive.RegisterMembers<int&, float&, std::string&>(
             { "i", i_ },
             { "f", f_ },
             { "s", s_ }
         );
     }
 
-    void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override {};
+    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
 
 private:
     int i_;
@@ -44,16 +44,16 @@ public:
         sc_ = sc;
     }
 
-    void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
     {
-        archive.SerializeHumanReadable<std::vector<int>&, SimpleClass&>(
-            xml_node,
+        return
+        archive.RegisterMembers<std::vector<int>&, SimpleClass&>(
             { "vec", vec_ },
             { "sc", sc_ }
         );
     }
 
-    void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override {};
+    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
 
 private:
     std::vector<int> vec_;
@@ -69,18 +69,88 @@ public:
         u_ = u;
     }
 
-    void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
     {
-        archive.SerializeHumanReadable<SimpleClass*&, std::uint64_t&>(
-            xml_node,
+        return 
+        archive.RegisterMembers<SimpleClass*&, std::uint64_t&>(
             { "simple_class_ptr", sc_ptr_ },
             { "u", u_ }
         );
     }
 
-    void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) override {};
+    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
 
 private:
     SimpleClass* sc_ptr_;
     std::uint64_t u_;
+};
+
+class B;
+
+class A : public ISerializable
+{
+public:
+    B* b_ptr;
+
+    A(){}
+
+    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    {
+        return
+            archive.RegisterMembers<B*&>(
+                { "b_ptr", b_ptr }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
+    
+};
+
+class B : public ISerializable
+{
+public:
+    A* a_ptr;
+
+    B() {}
+
+    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    {
+        return
+            archive.RegisterMembers<A*&>(
+                { "a_ptr", a_ptr }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
+};
+
+class C : public ISerializable
+{
+public:
+    C(A a, B b, int i)
+    {
+        a_ = a;
+        b_ = b;
+        i_ = i;
+
+        a_.b_ptr = &b_;
+        b_.a_ptr = &a_;
+    }
+
+    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    {
+        return
+            archive.RegisterMembers<A&, B&, int&>(
+                { "a", a_ },
+                { "b", b_ },
+                { "i", i_ }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
+
+private:
+    A a_;
+    B b_;
+    int i_;
 };

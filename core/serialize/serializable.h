@@ -1,11 +1,12 @@
 #pragma once
 
+class ArchiveNodeBase;
 class Archive;
 
 class ISerializable
 {
 public:
-	virtual void SerializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) = 0;
+	virtual std::vector<ArchiveNodeBase *> SerializeHumanReadable(Archive& archive) = 0;
 
-	virtual void DeserializeHumanReadable(Archive& archive, rapidxml::xml_node<>& xml_node) = 0;
+	virtual std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) = 0;
 };

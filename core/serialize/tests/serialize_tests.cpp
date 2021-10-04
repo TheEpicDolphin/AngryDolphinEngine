@@ -44,3 +44,15 @@ TEST(serialize_test_suite, serialize_parent_class_with_heap_pointer_test)
     xmlofilebuf.close();
     //ASSERT_EQ(*node_value, node_1);
 }
+
+TEST(serialize_test_suite, serialize_cyclical_pointer_test)
+{
+    C c(A(), B(), 2);
+    Archive archive;
+    std::filebuf xmlofilebuf;
+    xmlofilebuf.open("serialize_cyclical_pointer_test.txt", std::ios::out);
+    std::ostream xmlostream(&xmlofilebuf);
+    archive.SerializeHumanReadable(xmlostream, "c", c);
+    xmlofilebuf.close();
+    //ASSERT_EQ(*node_value, node_1);
+}
