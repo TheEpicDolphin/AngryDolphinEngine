@@ -25,7 +25,10 @@ public:
 
 	// TODO insert version numbers at beginning of xml
 
-    Archive() {}
+    Archive() 
+	{
+		next_id_ = 0;
+	}
 
 	template<typename T>
 	ArchiveNodeBase* RegisterMember(const char* name, T& object)
@@ -69,27 +72,26 @@ public:
 	template<typename T>
 	void SerializeHumanReadable(std::ostream& xml_ostream, const char* name, T& root_object)
 	{
-		rapidxml::xml_document<> xml_doc;
-		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc.allocate_node(rapidxml::node_element, "dynamic_memory");
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.allocate_node(rapidxml::node_element, "dynamic_memory");
 		next_id_ = 0;
 
-		SerializeHumanReadableFromNode(xml_doc, &xml_doc, RegisterMember(name, root_object));
+		SerializeHumanReadableFromNode(xml_doc_, &xml_doc_, RegisterMember(name, root_object));
 
 		while (!dynamic_memory_candidate_nodes_map_.empty()) {
 			std::unordered_map<void*, ArchiveNodeBase*>::iterator first_node_pair_iter = dynamic_memory_candidate_nodes_map_.begin();
 			ArchiveNodeBase* dynamic_memory_node = first_node_pair_iter->second;
 			dynamic_memory_candidate_nodes_map_.erase(first_node_pair_iter->first);
-			SerializeHumanReadableFromNode(xml_doc, dynamic_memory_xml_node, dynamic_memory_node);
+			SerializeHumanReadableFromNode(xml_doc_, dynamic_memory_xml_node, dynamic_memory_node);
 		}
 
-		xml_doc.append_node(dynamic_memory_xml_node);
-		xml_ostream << xml_doc;
+		xml_doc_.append_node(dynamic_memory_xml_node);
+		xml_ostream << xml_doc_;
 
 		for (std::pair<void*, ArchiveNodeBase*> object_node_pair : object_to_node_map_) {
 			delete object_node_pair.second;
 		}
 		object_to_node_map_.clear();
-		xml_doc.clear();
+		xml_doc_.clear();
 	}
 
 	/*
@@ -132,6 +134,7 @@ private:
 	std::uint32_t next_id_;
     std::unordered_map<void*, ArchiveNodeBase*> object_to_node_map_;
 	std::unordered_map<void*, ArchiveNodeBase*> dynamic_memory_candidate_nodes_map_;
+	rapidxml::xml_document<> xml_doc_;
 
 	std::size_t IdForObject(void* object_ptr)
 	{
