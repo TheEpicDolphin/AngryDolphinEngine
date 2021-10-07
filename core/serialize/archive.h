@@ -31,7 +31,7 @@ public:
 	}
 
 	template<typename T>
-	ArchiveNodeBase* RegisterMember(const char* name, T& object)
+	ArchiveNodeBase* RegisterObject(const char* name, T& object)
 	{
 		// Important to do ++next_id_ because we want 0 to be the null id.
 		std::uint32_t object_id = ++next_id_;
@@ -52,7 +52,7 @@ public:
 	}
 
 	template<typename T>
-	ArchiveNodeBase* RegisterMember(const char* name, T*& object_ptr)
+	ArchiveNodeBase* RegisterObject(const char* name, T*& object_ptr)
 	{
 		// Important to do ++next_id_ because we want 0 to be the null id.
 		const std::uint32_t pointer_id = ++next_id_;
@@ -84,9 +84,9 @@ public:
 	}
 
 	template<typename... Ts>
-	std::vector<ArchiveNodeBase*> RegisterMembers(std::pair<const char*, Ts&>... objects)
+	std::vector<ArchiveNodeBase*> RegisterObjects(std::pair<const char*, Ts&>... objects)
 	{
-		const std::vector<ArchiveNodeBase *> child_nodes = { (RegisterMember(objects.first, objects.second))... };
+		const std::vector<ArchiveNodeBase *> child_nodes = { (RegisterObject(objects.first, objects.second))... };
 		return child_nodes;
 	}
 
@@ -96,7 +96,7 @@ public:
 		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.allocate_node(rapidxml::node_element, "dynamic_memory");
 		next_id_ = 0;
 
-		SerializeHumanReadableFromNodeBFS(xml_doc_, &xml_doc_, RegisterMember(name, root_object));
+		SerializeHumanReadableFromNodeBFS(xml_doc_, &xml_doc_, RegisterObject(name, root_object));
 
 		while (!pointee_to_pointer_node_map_.empty()) {
 			std::unordered_map<void*, std::vector<ArchivePointerNodeBase*>>::iterator first_node_pair_iter = pointee_to_pointer_node_map_.begin();
@@ -121,23 +121,38 @@ public:
 	template<typename T>
 	void DeserializeHumanReadable(std::istream& xml_istream, const char* name, T& root_object)
 	{
-		xml_istream >> xml_doc_;
-		next_id_ = 0;
-		DeserializeHumanReadableFromNode(xml_doc_, &xml_doc_, RegisterMember(name, root_object));
+		std::vector<char> buffer((std::istreambuf_iterator<char>(xml_istream)), std::istreambuf_iterator<char>());
+		buffer.push_back('\0');
+		xml_doc_.parse<0>(buffer.data());
 
+		next_id_ = 0;
+		std::vector<ArchiveNodeBase*> bfs_nodes = DeserializeHumanReadableFromNodeBFS(xml_doc_, xml_doc_.first_node(), RegisterObject(name, root_object));
+
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.allocate_node(rapidxml::node_element, "dynamic_memory");
+		rapidxml::xml_node<>* dynamic_memory_child_xml_node = dynamic_memory_xml_node->first_node();
 		while (!pointee_to_pointer_node_map_.empty()) {
 			std::unordered_map<void*, std::vector<ArchivePointerNodeBase*>>::iterator first_node_pair_iter = pointee_to_pointer_node_map_.begin();
 			void* object_addr = first_node_pair_iter->first;
 			ArchivePointerNodeBase* dynamic_memory_pointer_node = first_node_pair_iter->second.front();
+			dynamic_memory_pointer_node->DynamicallyAllocateObject();
 			ArchiveNodeBase* pointee_node = dynamic_memory_pointer_node->PointeeNode(*this);
 			// Calling PointeeNode should have removed this dynamically-allocated node from pointee_to_pointer_node_map_.
 			assert(pointee_to_pointer_node_map_.find(object_addr) == pointee_to_pointer_node_map_.end());
-			DeserializeHumanReadableFromNode(xml_doc_, dynamic_memory_xml_node, pointee_node);
+			std::vector<ArchiveNodeBase*> dynamicallly_allocated_bfs_nodes = DeserializeHumanReadableFromNodeBFS(xml_doc_, dynamic_memory_child_xml_node, pointee_node);
+			bfs_nodes.insert(bfs_nodes.end(), dynamicallly_allocated_bfs_nodes.begin(), dynamicallly_allocated_bfs_nodes.end());
+			dynamic_memory_child_xml_node = dynamic_memory_child_xml_node->next_sibling();
+		}
+
+		// We must do this in reverse to ensure that dependencies are constructed before their parents are.
+		for (std::vector<ArchiveNodeBase*>::reverse_iterator it = bfs_nodes.rbegin(); it != bfs_nodes.rend(); ++it)
+		{
+			(*it)->ConstructFromDeserializedDependencies();
 		}
 
 		for (std::pair<void*, ArchiveNodeBase*> object_node_pair : object_to_node_map_) {
 			delete object_node_pair.second;
 		}
+
 		object_to_node_map_.clear();
 		xml_doc_.clear();
 	}
@@ -210,7 +225,7 @@ private:
 		}
 	}
 	
-	void DeserializeHumanReadableFromNode(rapidxml::xml_document<>& xml_doc, rapidxml::xml_node<>* root_xml_node, ArchiveNodeBase* root_node)
+	std::vector<ArchiveNodeBase*> DeserializeHumanReadableFromNodeBFS(rapidxml::xml_document<>& xml_doc, rapidxml::xml_node<>* root_xml_node, ArchiveNodeBase* root_node)
 	{
 		std::vector<ArchiveNodeBase*> bfs_nodes;
 		std::queue<ArchiveNodeBase*> bfs_queue;
@@ -226,6 +241,7 @@ private:
 			bfs_xml_node_queue.pop();
 
 			// Deserialize node.
+			std::cout << node->Name() << std::endl;
 			node->DeserializeHumanReadable(*xml_node);
 
 			// Iterate children in reverse.
@@ -240,11 +256,7 @@ private:
 			}
 		}
 
-		// We must do this in reverse to ensure that dependencies are constructed before their parents are.
-		for (std::vector<ArchiveNodeBase*>::reverse_iterator it = bfs_nodes.rbegin(); it != bfs_nodes.rend(); ++it) 
-		{
-			(*it)->ConstructFromDeserializedDependencies();
-		}
+		return bfs_nodes;
 	}
 	
 };

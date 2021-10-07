@@ -17,17 +17,20 @@ public:
         s_ = s;
     }
 
-    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
     {
         return
-        archive.RegisterMembers<int&, float&, std::string&>(
+        archive.RegisterObjects<int&, float&, std::string&>(
             { "i", i_ },
             { "f", f_ },
             { "s", s_ }
         );
     }
 
-    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
+    friend bool operator==(const SimpleClass& lhs, const SimpleClass& rhs) 
+    {
+        return lhs.i_ == rhs.i_ && lhs.f_ == rhs.f_ && lhs.s_ == rhs.s_;
+    }
 
 private:
     int i_;
@@ -38,22 +41,32 @@ private:
 class ParentClass : public ISerializable
 {
 public:
+    ParentClass() {
+
+    }
+
     ParentClass(std::vector<int> vec, SimpleClass sc)
     {
         vec_ = vec;
         sc_ = sc;
     }
 
-    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
     {
         return
-        archive.RegisterMembers<std::vector<int>&, SimpleClass&>(
+        archive.RegisterObjects<std::vector<int>&, SimpleClass&>(
             { "vec", vec_ },
             { "sc", sc_ }
         );
     }
 
-    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
+    friend bool operator==(const ParentClass& lhs, const ParentClass& rhs)
+    {
+        return (lhs.vec_.size() == rhs.vec_.size() 
+            && std::equal(lhs.vec_.begin(), lhs.vec_.end(), rhs.vec_.begin())) 
+            && lhs.sc_ == rhs.sc_;
+        
+    }
 
 private:
     std::vector<int> vec_;
@@ -69,16 +82,14 @@ public:
         u_ = u;
     }
 
-    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
     {
         return 
-        archive.RegisterMembers<SimpleClass*&, std::uint64_t&>(
+        archive.RegisterObjects<SimpleClass*&, std::uint64_t&>(
             { "simple_class_ptr", sc_ptr_ },
             { "u", u_ }
         );
     }
-
-    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
 
 private:
     SimpleClass* sc_ptr_;
@@ -94,16 +105,13 @@ public:
 
     A(){}
 
-    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
     {
         return
-            archive.RegisterMembers<B*&>(
+            archive.RegisterObjects<B*&>(
                 { "b_ptr", b_ptr }
         );
     }
-
-    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
-    
 };
 
 class B : public ISerializable
@@ -113,20 +121,20 @@ public:
 
     B() {}
 
-    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
     {
         return
-            archive.RegisterMembers<A*&>(
+            archive.RegisterObjects<A*&>(
                 { "a_ptr", a_ptr }
         );
     }
-
-    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
 };
 
 class C : public ISerializable
 {
 public:
+    C() {}
+
     C(A a, B b, int i)
     {
         a_ = a;
@@ -135,22 +143,33 @@ public:
 
         a_.b_ptr = &b_;
         b_.a_ptr = &a_;
+
+        sc_sp_ = std::make_shared<SimpleClass>(-1, 420.420f, "squid game");
     }
 
-    std::vector<ArchiveNodeBase*> SerializeHumanReadable(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
     {
         return
-            archive.RegisterMembers<A&, B&, int&>(
+            archive.RegisterObjects<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
                 { "a", a_ },
                 { "b", b_ },
-                { "i", i_ }
+                { "i", i_ },
+                { "sc_sp", sc_sp_ }
         );
     }
 
-    std::vector<ArchiveNodeBase*> DeserializeHumanReadable(Archive& archive) override { return {}; };
+    /*
+    friend bool operator==(const C& lhs, const C& rhs)
+    {
+        return (lhs.vec_.size() == rhs.vec_.size()
+            && std::equal(lhs.vec_.begin(), lhs.vec_.end(), rhs.vec_.begin()))
+            && lhs.sc_ == rhs.sc_;
+    }
+    */
 
 private:
     A a_;
     B b_;
     int i_;
+    std::shared_ptr<SimpleClass> sc_sp_;
 };

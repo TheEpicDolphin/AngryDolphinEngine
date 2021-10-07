@@ -52,9 +52,14 @@ public:
 			// Throw warning saying that names do not match
 		}
 
-		//if (id_ != xml_node.first_attribute("id")->value()) {
+		std::uint32_t id;
+		std::stringstream tmp_ss;
+		tmp_ss << xml_node.first_attribute("id")->value();
+		tmp_ss >> id;
+		assert(id_ == id);
+		if (id_ != id) {
 			// Throw error saying that ordering is not the same.
-		//}
+		}
 	}
 
 	virtual void ConstructFromDeserializedDependencies() {}
@@ -109,7 +114,7 @@ public:
 
 	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
-		return object_.SerializeHumanReadable(archive);
+		return object_.RegisterMemberVariables(archive);
 	}
 
 private:
@@ -152,7 +157,7 @@ public:
 	{
 		std::vector<ArchiveNodeBase*> children;
 		for (T& object : obj_vector_) {
-			children.push_back(archive.RegisterMember("element", object));
+			children.push_back(archive.RegisterObject("element", object));
 		}
 		return children;
 	}
@@ -192,7 +197,7 @@ public:
 
 	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
-		return  { archive.RegisterMember("unordered_map_contents", contents_) };
+		return  { archive.RegisterObject("unordered_map_contents", contents_) };
 	}
 
 private:
@@ -209,7 +214,7 @@ public:
 
 	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
-		return archive.RegisterMembers({ "first" , obj_pair_.first }, { "second", obj_pair_.second });
+		return archive.RegisterObjects({ "first" , obj_pair_.first }, { "second", obj_pair_.second });
 	}
 
 private:
@@ -232,7 +237,7 @@ public:
 
 	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
-		return { archive.RegisterMember("ptr", obj_ptr_) };
+		return { archive.RegisterObject("ptr", obj_ptr_) };
 	}
 
 private:
@@ -297,7 +302,7 @@ public:
 
 	ArchiveNodeBase* PointeeNode(Archive& archive) override
 	{
-		return archive.RegisterMember("object", *object_ptr_);
+		return archive.RegisterObject("object", *object_ptr_);
 	}
 
 private:
