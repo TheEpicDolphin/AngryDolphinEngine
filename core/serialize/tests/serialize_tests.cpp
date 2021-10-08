@@ -65,12 +65,13 @@ TEST(serialize_test_suite, serialize_cyclical_pointer_test)
     xmlofile.open("serialize_cyclical_pointer_test.xml", std::ios::out);
     archive.SerializeHumanReadable(xmlofile, "c", c);
     xmlofile.close();
+    /*
+    C c2;
+    std::ifstream xmlifile;
+    xmlifile.open("serialize_cyclical_pointer_test.xml", std::ios::in);
+    archive.DeserializeHumanReadable(xmlifile, "SimpleClass", c2);
+    xmlifile.close();
 
-    //C c2;
-    //std::ifstream xmlifile;
-    //xmlifile.open("serialize_cyclical_pointer_test.xml", std::ios::in);
-    //archive.DeserializeHumanReadable(xmlifile, "SimpleClass", c2);
-    //xmlifile.close();
-
-    //ASSERT_EQ(c, c2);
+    ASSERT_EQ(c, c2);
+    */
 }

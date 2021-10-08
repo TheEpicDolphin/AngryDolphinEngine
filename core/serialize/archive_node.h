@@ -16,12 +16,12 @@ public:
 
 class ArchiveNodeBase {
 public:
-	ArchiveNodeBase(std::uint32_t id, const char* name) {
+	ArchiveNodeBase(std::size_t id, const char* name) {
 		id_ = id;
 		name_ = name;
 	}
 
-	std::uint32_t Id()
+	std::size_t Id()
 	{
 		return id_;
 	}
@@ -46,28 +46,16 @@ public:
 		return serialized_node_;
 	}
 
-	virtual void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node)
-	{
-		if (!strcmp(name_, xml_node.name())) {
-			// Throw warning saying that names do not match
-		}
-
-		std::uint32_t id;
-		std::stringstream tmp_ss;
-		tmp_ss << xml_node.first_attribute("id")->value();
-		tmp_ss >> id;
-		assert(id_ == id);
-		if (id_ != id) {
-			// Throw error saying that ordering is not the same.
-		}
-	}
+	virtual void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) {}
 
 	virtual void ConstructFromDeserializedDependencies() {}
 
-	virtual std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) = 0;
+	virtual std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) = 0;
+
+	virtual std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) = 0;
 
 protected:
-	std::uint32_t id_;
+	std::size_t id_;
 	const char* name_;
 	rapidxml::xml_node<>* serialized_node_;
 };
@@ -75,7 +63,7 @@ protected:
 template<typename T, typename Enable = void>
 class ArchiveObjectNode : ArchiveNodeBase {
 public:
-	ArchiveObjectNode(std::uint32_t id, const char* name, T& object) 
+	ArchiveObjectNode(std::size_t id, const char* name, T& object)
 		: ArchiveNodeBase(id, name)
 		, object_(object) {}
 
@@ -96,7 +84,12 @@ public:
 		tmp_ss >> object_;
 	}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
+	{
+		return {};
+	}
+
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
 	{
 		return {};
 	}
@@ -108,13 +101,18 @@ private:
 template<typename T>
 class ArchiveObjectNode<T, typename std::enable_if<std::is_base_of<ISerializable, T>::value>::type> : ArchiveNodeBase {
 public:
-	ArchiveObjectNode(std::uint32_t id, const char* name, T& object) 
+	ArchiveObjectNode(std::size_t id, const char* name, T& object)
 		: ArchiveNodeBase(id, name)
 		, object_(object) {}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
 	{
-		return object_.RegisterMemberVariables(archive);
+		return object_.RegisterMemberVariablesForSerialization(archive);
+	}
+
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return object_.RegisterMemberVariablesForDeserialization(archive, xml_node);
 	}
 
 private:
@@ -124,7 +122,7 @@ private:
 template<typename T>
 class ArchiveObjectNode<std::vector<T>> : ArchiveNodeBase {
 public:
-	ArchiveObjectNode(std::uint32_t id, const char* name, std::vector<T>& obj_vector) 
+	ArchiveObjectNode(std::size_t id, const char* name, std::vector<T>& obj_vector)
 		: ArchiveNodeBase(id, name)
 		, obj_vector_(obj_vector) {}
 
@@ -153,11 +151,22 @@ public:
 		// no-op
 	}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
 	{
 		std::vector<ArchiveNodeBase*> children;
 		for (T& object : obj_vector_) {
-			children.push_back(archive.RegisterObject("element", object));
+			children.push_back(archive.RegisterObjectForSerialization("element", object));
+		}
+		return children;
+	}
+
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		std::vector<ArchiveNodeBase*> children;
+		rapidxml::xml_node<>* child_node = xml_node.first_node();
+		for (T& object : obj_vector_) {
+			children.push_back(archive.RegisterObjectForDeserialization(*child_node, object));
+			child_node = child_node->next_sibling();
 		}
 		return children;
 	}
@@ -169,7 +178,7 @@ private:
 template<typename T, typename U>
 class ArchiveObjectNode<std::unordered_map<T, U>> : ArchiveNodeBase {
 public:
-	ArchiveObjectNode(std::uint32_t id, const char* name, std::unordered_map<T, U>& obj_unordered_map)
+	ArchiveObjectNode(std::size_t id, const char* name, std::unordered_map<T, U>& obj_unordered_map)
 		: ArchiveNodeBase(id, name)
 		, obj_unordered_map_(obj_unordered_map) {
 		for (std::pair<T, U> unordered_map_pair : obj_unordered_map_) {
@@ -195,9 +204,14 @@ public:
 		}
 	}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
 	{
-		return  { archive.RegisterObject("unordered_map_contents", contents_) };
+		return  { archive.RegisterObjectForSerialization("unordered_map_contents", contents_) };
+	}
+
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return { archive.RegisterObjectForDeserialization(xml_node, contents_) };
 	}
 
 private:
@@ -208,13 +222,18 @@ private:
 template<typename T, typename U>
 class ArchiveObjectNode<std::pair<T, U>> : ArchiveNodeBase {
 public:
-	ArchiveObjectNode(std::uint32_t id, const char* name, std::pair<T, U>& obj_pair)
+	ArchiveObjectNode(std::size_t id, const char* name, std::pair<T, U>& obj_pair)
 		: ArchiveNodeBase(id, name)
 		, obj_pair_(obj_pair) {}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
 	{
-		return archive.RegisterObjects({ "first" , obj_pair_.first }, { "second", obj_pair_.second });
+		return archive.RegisterObjectsForSerialization({ "first" , obj_pair_.first }, { "second", obj_pair_.second });
+	}
+
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return archive.RegisterObjectsForDeserialization(xml_node, obj_pair_.first, obj_pair_.second);
 	}
 
 private:
@@ -224,7 +243,7 @@ private:
 template<typename T>
 class ArchiveObjectNode<std::shared_ptr<T>> : ArchiveNodeBase {
 public:
-	ArchiveObjectNode(std::uint32_t id, const char* name, std::shared_ptr<T>& obj_shared_ptr) 
+	ArchiveObjectNode(std::size_t id, const char* name, std::shared_ptr<T>& obj_shared_ptr)
 		: ArchiveNodeBase(id, name)
 		, obj_shared_ptr_(obj_shared_ptr) {
 		obj_ptr_ = obj_shared_ptr_.get();
@@ -232,12 +251,17 @@ public:
 
 	void ConstructFromDeserializedDependencies() override
 	{
-		obj_shared_ptr_ = std::make_shared<T>(obj_ptr_);
+		obj_shared_ptr_.reset(obj_ptr_);
 	}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
 	{
-		return { archive.RegisterObject("ptr", obj_ptr_) };
+		return { archive.RegisterObjectForSerialization("ptr", obj_ptr_) };
+	}
+
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return { archive.RegisterObjectForDeserialization(xml_node, obj_ptr_) };
 	}
 
 private:
@@ -247,7 +271,7 @@ private:
 
 class ArchivePointerNodeBase : public ArchiveNodeBase {
 public:
-	ArchivePointerNodeBase(std::uint32_t id, const char* name, std::uint32_t pointee_id)
+	ArchivePointerNodeBase(std::size_t id, const char* name, std::size_t pointee_id)
 		: ArchiveNodeBase(id, name) {
 		pointee_id_ = pointee_id;
 	}
@@ -263,16 +287,23 @@ public:
 		return base_node;
 	}
 
-	std::vector<ArchiveNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForSerialization(Archive& archive) override
 	{
 		return {};
 	}
 
-	virtual void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::uint32_t pointee_id) = 0;
+	std::vector<ArchiveNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return {};
+	}
+
+	virtual void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::size_t pointee_id) = 0;
 
 	virtual void DynamicallyAllocateObject() = 0;
 
-	virtual ArchiveNodeBase* PointeeNode(Archive& archive) = 0;
+	virtual ArchiveNodeBase* SerializablePointeeNode(Archive& archive) = 0;
+
+	virtual ArchiveNodeBase* DeserializablePointeeNode(Archive& archive, rapidxml::xml_node<>& xml_node) = 0;
 
 protected:
 	std::size_t pointee_id_;
@@ -281,11 +312,11 @@ protected:
 template<typename T>
 class ArchivePointerNode : public ArchivePointerNodeBase {
 public:
-	ArchivePointerNode(std::uint32_t id, const char* name, std::uint32_t pointee_id, T*& object_ptr)
+	ArchivePointerNode(std::size_t id, const char* name, std::size_t pointee_id, T*& object_ptr)
 		: ArchivePointerNodeBase(id, name, pointee_id)
 		, object_ptr_(object_ptr) {}
 
-	void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::uint32_t pointee_id) override 
+	void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::size_t pointee_id) override
 	{
 		object_ptr_ = static_cast<T*>(ptr);
 		pointee_id_ = pointee_id;
@@ -300,9 +331,14 @@ public:
 		object_ptr_ = new T();
 	}
 
-	ArchiveNodeBase* PointeeNode(Archive& archive) override
+	ArchiveNodeBase* SerializablePointeeNode(Archive& archive) override
 	{
-		return archive.RegisterObject("object", *object_ptr_);
+		return archive.RegisterObjectForSerialization("object", *object_ptr_);
+	}
+
+	ArchiveNodeBase* DeserializablePointeeNode(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return archive.RegisterObjectForDeserialization(xml_node, *object_ptr_);
 	}
 
 private:

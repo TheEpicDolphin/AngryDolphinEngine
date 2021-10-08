@@ -17,13 +17,22 @@ public:
         s_ = s;
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return
-        archive.RegisterObjects<int&, float&, std::string&>(
+        return archive.RegisterObjectsForSerialization<int&, float&, std::string&>(
             { "i", i_ },
             { "f", f_ },
             { "s", s_ }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        return archive.RegisterObjectsForDeserialization<int&, float&, std::string&>(
+            xml_node,
+            i_,
+            f_,
+            s_
         );
     }
 
@@ -51,12 +60,20 @@ public:
         sc_ = sc;
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return
-        archive.RegisterObjects<std::vector<int>&, SimpleClass&>(
+        return archive.RegisterObjectsForSerialization<std::vector<int>&, SimpleClass&>(
             { "vec", vec_ },
             { "sc", sc_ }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        return archive.RegisterObjectsForDeserialization<std::vector<int>&, SimpleClass&>(
+            xml_node,
+            vec_,
+            sc_
         );
     }
 
@@ -82,12 +99,20 @@ public:
         u_ = u;
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return 
-        archive.RegisterObjects<SimpleClass*&, std::uint64_t&>(
+        return archive.RegisterObjectsForSerialization<SimpleClass*&, std::uint64_t&>(
             { "simple_class_ptr", sc_ptr_ },
             { "u", u_ }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        return archive.RegisterObjectsForDeserialization<SimpleClass*&, std::uint64_t&>(
+            xml_node,
+            sc_ptr_,
+            u_
         );
     }
 
@@ -105,11 +130,18 @@ public:
 
     A(){}
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return
-            archive.RegisterObjects<B*&>(
-                { "b_ptr", b_ptr }
+        return archive.RegisterObjectsForSerialization<B*&>(
+            { "b_ptr", b_ptr }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        return archive.RegisterObjectsForDeserialization<B*&>(
+            xml_node,
+            b_ptr
         );
     }
 };
@@ -121,11 +153,18 @@ public:
 
     B() {}
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return
-            archive.RegisterObjects<A*&>(
-                { "a_ptr", a_ptr }
+        return archive.RegisterObjectsForSerialization<A*&>(
+            { "a_ptr", a_ptr }
+        );
+    }
+
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        return archive.RegisterObjectsForDeserialization<A*&>(
+            xml_node,
+            a_ptr
         );
     }
 };
@@ -147,21 +186,31 @@ public:
         sc_sp_ = std::make_shared<SimpleClass>(-1, 420.420f, "squid game");
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariables(Archive& archive) override
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return
-            archive.RegisterObjects<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
-                { "a", a_ },
-                { "b", b_ },
-                { "i", i_ },
-                { "sc_sp", sc_sp_ }
+        return archive.RegisterObjectsForSerialization<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
+            { "a", a_ },
+            { "b", b_ },
+            { "i", i_ },
+            { "sc_sp", sc_sp_ }
         );
     }
 
+    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    {
+        return archive.RegisterObjectsForDeserialization<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
+            xml_node,
+            a_,
+            b_,
+            i_,
+            sc_sp_
+        );
+    }
+    
     /*
     friend bool operator==(const C& lhs, const C& rhs)
     {
-        return (lhs.vec_.size() == rhs.vec_.size()
+        return (lhs.a_== rhs.vec_.size()
             && std::equal(lhs.vec_.begin(), lhs.vec_.end(), rhs.vec_.begin()))
             && lhs.sc_ == rhs.sc_;
     }
