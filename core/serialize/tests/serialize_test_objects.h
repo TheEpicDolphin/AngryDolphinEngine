@@ -4,8 +4,9 @@
 #include <string>
 
 #include "../serializable.h"
+#include "../deserializable.h"
 
-class SimpleClass : public ISerializable
+class SimpleClass : public ISerializable, public IDeserializable
 {
 public:
     SimpleClass() {};
@@ -17,7 +18,7 @@ public:
         s_ = s;
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+    std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
         return archive.RegisterObjectsForSerialization<int&, float&, std::string&>(
             { "i", i_ },
@@ -26,7 +27,7 @@ public:
         );
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         return archive.RegisterObjectsForDeserialization<int&, float&, std::string&>(
             xml_node,
@@ -47,7 +48,7 @@ private:
     std::string s_;
 };
 
-class ParentClass : public ISerializable
+class ParentClass : public ISerializable, public IDeserializable
 {
 public:
     ParentClass() {
@@ -60,7 +61,7 @@ public:
         sc_ = sc;
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+    std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
         return archive.RegisterObjectsForSerialization<std::vector<int>&, SimpleClass&>(
             { "vec", vec_ },
@@ -68,7 +69,7 @@ public:
         );
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         return archive.RegisterObjectsForDeserialization<std::vector<int>&, SimpleClass&>(
             xml_node,
@@ -90,7 +91,7 @@ private:
     SimpleClass sc_;
 };
 
-class ParentClassWithHeapPointer : public ISerializable
+class ParentClassWithHeapPointer : public ISerializable, public IDeserializable
 {
 public:
     ParentClassWithHeapPointer(std::uint64_t u)
@@ -99,7 +100,7 @@ public:
         u_ = u;
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+    std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
         return archive.RegisterObjectsForSerialization<SimpleClass*&, std::uint64_t&>(
             { "simple_class_ptr", sc_ptr_ },
@@ -107,7 +108,7 @@ public:
         );
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         return archive.RegisterObjectsForDeserialization<SimpleClass*&, std::uint64_t&>(
             xml_node,
@@ -123,53 +124,63 @@ private:
 
 class B;
 
-class A : public ISerializable
+class A : public ISerializable, public IDeserializable
 {
 public:
     B* b_ptr;
 
     A(){}
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+    std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
         return archive.RegisterObjectsForSerialization<B*&>(
             { "b_ptr", b_ptr }
         );
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         return archive.RegisterObjectsForDeserialization<B*&>(
             xml_node,
             b_ptr
         );
     }
+
+    friend bool operator==(const A& lhs, const A& rhs)
+    {
+        return lhs.b_ptr == rhs.b_ptr;
+    }
 };
 
-class B : public ISerializable
+class B : public ISerializable, public IDeserializable
 {
 public:
     A* a_ptr;
 
     B() {}
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+    std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
         return archive.RegisterObjectsForSerialization<A*&>(
             { "a_ptr", a_ptr }
         );
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         return archive.RegisterObjectsForDeserialization<A*&>(
             xml_node,
             a_ptr
         );
     }
+
+    friend bool operator==(const B& lhs, const B& rhs)
+    {
+        return lhs.a_ptr == rhs.a_ptr;
+    }
 };
 
-class C : public ISerializable
+class C : public ISerializable, public IDeserializable
 {
 public:
     C() {}
@@ -186,7 +197,7 @@ public:
         sc_sp_ = std::make_shared<SimpleClass>(-1, 420.420f, "squid game");
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+    std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
         return archive.RegisterObjectsForSerialization<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
             { "a", a_ },
@@ -196,7 +207,7 @@ public:
         );
     }
 
-    std::vector<ArchiveNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+    std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
         return archive.RegisterObjectsForDeserialization<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
             xml_node,
@@ -207,14 +218,13 @@ public:
         );
     }
     
-    /*
     friend bool operator==(const C& lhs, const C& rhs)
     {
-        return (lhs.a_== rhs.vec_.size()
-            && std::equal(lhs.vec_.begin(), lhs.vec_.end(), rhs.vec_.begin()))
-            && lhs.sc_ == rhs.sc_;
+        return lhs.a_== rhs.a_
+            && lhs.b_ == rhs.b_
+            && lhs.i_ == rhs.i_
+            && lhs.sc_sp_ == rhs.sc_sp_;
     }
-    */
 
 private:
     A a_;

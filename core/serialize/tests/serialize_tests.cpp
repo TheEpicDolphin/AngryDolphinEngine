@@ -65,7 +65,7 @@ TEST(serialize_test_suite, serialize_cyclical_pointer_test)
     xmlofile.open("serialize_cyclical_pointer_test.xml", std::ios::out);
     archive.SerializeHumanReadable(xmlofile, "c", c);
     xmlofile.close();
-    /*
+    
     C c2;
     std::ifstream xmlifile;
     xmlifile.open("serialize_cyclical_pointer_test.xml", std::ios::in);
@@ -73,5 +73,4 @@ TEST(serialize_test_suite, serialize_cyclical_pointer_test)
     xmlifile.close();
 
     ASSERT_EQ(c, c2);
-    */
 }
