@@ -42,6 +42,30 @@ class ArchiveDesObjectNode : ArchiveDesNodeBase {
 public:
 	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
 		: ArchiveDesNodeBase(id, name)
+		, object_(object) 
+	{
+		throw std::runtime_error("Archive deserialization object node is not implemented for type: ", typeid(T).name());
+	}
+
+	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
+	{
+		
+	}
+
+	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return {};
+	}
+
+private:
+	T& object_;
+};
+
+template<typename T>
+class ArchiveDesObjectNode<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> : ArchiveDesNodeBase {
+public:
+	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+		: ArchiveDesNodeBase(id, name)
 		, object_(object) {}
 
 	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
@@ -61,25 +85,48 @@ private:
 	T& object_;
 };
 
-template<typename T>
-class ArchiveDesObjectNode<T, typename std::enable_if<std::is_base_of<IDeserializable, T>::value>::type> : ArchiveDesNodeBase {
+template<class T, std::size_t N>
+class ArchiveDesObjectNode<T[N]> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveDesObjectNode(std::size_t id, const char* name, T (&obj_array)[N])
 		: ArchiveDesNodeBase(id, name)
-		, object_(object) {}
+		, obj_array_(obj_array) {}
 
-	void ConstructFromDeserializedDependencies() override
+	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
 	{
-		object_.ConstructFromDeserializedDependencies();
+		std::vector<ArchiveDesNodeBase*> children(N);
+		rapidxml::xml_node<>* child_node = xml_node.first_node();
+		for (std::size_t i = 0; i < N; ++i) {
+			children[i] = archive.RegisterObjectForDeserialization(*child_node, obj_array_[i]);
+			child_node = child_node->next_sibling();
+		}
+		return children;
+	}
+
+private:
+	T (&obj_array_)[N];
+};
+
+template<>
+class ArchiveDesObjectNode<std::string> : ArchiveDesNodeBase {
+public:
+	ArchiveDesObjectNode(std::size_t id, const char* name, std::string& obj_string)
+		: ArchiveDesNodeBase(id, name)
+		, obj_string_(obj_string) {}
+
+	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
+	{
+		ArchiveDesNodeBase::DeserializeHumanReadable(xml_node);
+		obj_string_ = std::string(xml_node.value());
 	}
 
 	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
 	{
-		return object_.RegisterMemberVariablesForDeserialization(archive, xml_node);
+		return {};
 	}
 
 private:
-	T& object_;
+	std::string& obj_string_;
 };
 
 template<typename T>
@@ -127,17 +174,6 @@ public:
 		: ArchiveDesNodeBase(id, name)
 		, obj_unordered_map_(obj_unordered_map) {}
 
-	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
-	{
-		std::size_t count;
-
-		std::stringstream tmp_ss;
-		tmp_ss << xml_node.last_attribute("count")->value();
-		tmp_ss >> count;
-
-		contents_.resize(count);
-	}
-
 	void ConstructFromDeserializedDependencies() override
 	{
 		for (std::pair<T, U> unordered_map_pair : contents_) {
@@ -152,6 +188,30 @@ public:
 
 private:
 	std::unordered_map<T, U>& obj_unordered_map_;
+	std::vector<std::pair<T, U>> contents_;
+};
+
+template<typename T, typename U>
+class ArchiveDesObjectNode<std::map<T, U>> : ArchiveDesNodeBase {
+public:
+	ArchiveDesObjectNode(std::size_t id, const char* name, std::map<T, U>& obj_map)
+		: ArchiveDesNodeBase(id, name)
+		, obj_map_(obj_map) {}
+
+	void ConstructFromDeserializedDependencies() override
+	{
+		for (std::pair<T, U> map_pair : contents_) {
+			obj_map_.insert(map_pair);
+		}
+	}
+
+	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return { archive.RegisterObjectForDeserialization(xml_node, contents_) };
+	}
+
+private:
+	std::map<T, U>& obj_map_;
 	std::vector<std::pair<T, U>> contents_;
 };
 
@@ -191,6 +251,27 @@ public:
 private:
 	std::shared_ptr<T>& obj_shared_ptr_;
 	T* obj_ptr_;
+};
+
+template<typename T>
+class ArchiveDesObjectNode<T, typename std::enable_if<std::is_base_of<IDeserializable, T>::value>::type> : ArchiveDesNodeBase {
+public:
+	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+		: ArchiveDesNodeBase(id, name)
+		, object_(object) {}
+
+	void ConstructFromDeserializedDependencies() override
+	{
+		object_.ConstructFromDeserializedDependencies();
+	}
+
+	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return object_.RegisterMemberVariablesForDeserialization(archive, xml_node);
+	}
+
+private:
+	T& object_;
 };
 
 class ArchiveDesPointerNodeBase : public ArchiveDesNodeBase {

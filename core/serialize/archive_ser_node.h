@@ -54,6 +54,30 @@ class ArchiveSerObjectNode : ArchiveSerNodeBase {
 public:
 	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
 		: ArchiveSerNodeBase(id, name)
+		, object_(object) 
+	{
+		throw std::runtime_error("Archive serialization object node is not implemented for type: ", typeid(T).name());
+	}
+
+	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
+	{
+		return ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
+	}
+
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	{
+		return {};
+	}
+
+private:
+	T& object_;
+};
+
+template<typename T>
+class ArchiveSerObjectNode<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> : ArchiveSerNodeBase {
+public:
+	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
+		: ArchiveSerNodeBase(id, name)
 		, object_(object) {}
 
 	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
@@ -74,20 +98,58 @@ private:
 	T& object_;
 };
 
-template<typename T>
-class ArchiveSerObjectNode<T, typename std::enable_if<std::is_base_of<ISerializable, T>::value>::type> : ArchiveSerNodeBase {
+template<class T, std::size_t N>
+class ArchiveSerObjectNode<T[N]> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveSerObjectNode(std::size_t id, const char* name, T (&obj_array)[N])
 		: ArchiveSerNodeBase(id, name)
-		, object_(object) {}
+		, obj_array_(obj_array) {}
+
+	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
+	{
+		rapidxml::xml_node<>* base_node = ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
+		rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "array");
+		base_node->append_attribute(container_attribute);
+		return base_node;
+	}
 
 	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
-		return object_.RegisterMemberVariablesForSerialization(archive);
+		std::vector<ArchiveSerNodeBase*> children(N);
+		for (std::size_t i = 0; i < N; ++i) {
+			// TODO: Include index in element name
+			//std::stringstream element_name_ss;
+			//element_name_ss << "element " << i;
+			children[i] = archive.RegisterObjectForSerialization("element", obj_array_[i]);
+		}
+		return children;
 	}
 
 private:
-	T& object_;
+	T (&obj_array_)[N];
+};
+
+template<>
+class ArchiveSerObjectNode<std::string> : ArchiveSerNodeBase {
+public:
+	ArchiveSerObjectNode(std::size_t id, const char* name, std::string& obj_string)
+		: ArchiveSerNodeBase(id, name)
+		, obj_string_(obj_string) {}
+
+	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
+	{
+		rapidxml::xml_node<>* base_node = ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
+		base_node->value(obj_string_.c_str());
+		return base_node;
+	}
+
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	{
+		return {};
+	}
+
+private:
+	std::string& obj_string_;
 };
 
 template<typename T>
@@ -103,6 +165,8 @@ public:
 		char* vector_count_string = xml_doc.allocate_string(std::to_string(obj_vector_.size()).c_str());
 		rapidxml::xml_attribute<>* vector_count_atttribute = xml_doc.allocate_attribute("count", vector_count_string);
 		base_node->append_attribute(vector_count_atttribute);
+		rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "vector");
+		base_node->append_attribute(container_attribute);
 		return base_node;
 	}
 
@@ -141,6 +205,27 @@ private:
 };
 
 template<typename T, typename U>
+class ArchiveSerObjectNode<std::map<T, U>> : ArchiveSerNodeBase {
+public:
+	ArchiveSerObjectNode(std::size_t id, const char* name, std::map<T, U>& obj_map)
+		: ArchiveSerNodeBase(id, name)
+		, obj_map_(obj_map) {
+		for (std::pair<T, U> map_pair : obj_map) {
+			contents_.push_back(map_pair);
+		}
+	}
+
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	{
+		return  { archive.RegisterObjectForSerialization("map_contents", contents_) };
+	}
+
+private:
+	std::map<T, U>& obj_map_;
+	std::vector<std::pair<T, U>> contents_;
+};
+
+template<typename T, typename U>
 class ArchiveSerObjectNode<std::pair<T, U>> : ArchiveSerNodeBase {
 public:
 	ArchiveSerObjectNode(std::size_t id, const char* name, std::pair<T, U>& obj_pair)
@@ -173,6 +258,22 @@ public:
 private:
 	std::shared_ptr<T>& obj_shared_ptr_;
 	T* obj_ptr_;
+};
+
+template<typename T>
+class ArchiveSerObjectNode<T, typename std::enable_if<std::is_base_of<ISerializable, T>::value>::type> : ArchiveSerNodeBase {
+public:
+	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
+		: ArchiveSerNodeBase(id, name)
+		, object_(object) {}
+
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	{
+		return object_.RegisterMemberVariablesForSerialization(archive);
+	}
+
+private:
+	T& object_;
 };
 
 class ArchiveSerPointerNodeBase : public ArchiveSerNodeBase {

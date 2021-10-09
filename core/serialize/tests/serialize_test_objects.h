@@ -175,13 +175,21 @@ public:
 class C : public ISerializable, public IDeserializable
 {
 public:
-    C() {}
 
-    C(A a, B b, int i)
+    C(A a, B b, char c)
     {
         a_ = a;
         b_ = b;
-        i_ = i;
+        c_ = c;
+
+        i_arr_[0] = 98;
+        i_arr_[1] = 99;
+        i_arr_[2] = 100;
+
+        i_2d_arr_[0][0] = 12;
+        i_2d_arr_[0][1] = 13;
+        i_2d_arr_[1][0] = 14;
+        i_2d_arr_[1][1] = 15;
 
         a_.b_ptr = &b_;
         b_.a_ptr = &a_;
@@ -191,38 +199,44 @@ public:
 
     std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
     {
-        return archive.RegisterObjectsForSerialization<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
+        return archive.RegisterObjectsForSerialization<A&, B&, char&, int(&)[3], int(&)[2][2], std::shared_ptr<SimpleClass>&>(
             { "a", a_ },
             { "b", b_ },
-            { "i", i_ },
+            { "c", c_ },
+            { "i_arr", i_arr_ },
+            { "i_2d_arr", i_2d_arr_ },
             { "sc_sp", sc_sp_ }
         );
     }
 
     std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
     {
-        return archive.RegisterObjectsForDeserialization<A&, B&, int&, std::shared_ptr<SimpleClass>&>(
+        return archive.RegisterObjectsForDeserialization<A&, B&, char&, int(&)[3], int(&)[2][2], std::shared_ptr<SimpleClass>&>(
             xml_node,
             a_,
             b_,
-            i_,
+            c_,
+            i_arr_,
+            i_2d_arr_,
             sc_sp_
         );
     }
     
     friend bool operator==(const C& lhs, const C& rhs)
     {
-        SimpleClass sclh = *lhs.sc_sp_.get();
-        SimpleClass scrh = *rhs.sc_sp_.get();
         return (lhs.a_.b_ptr == &lhs.b_ && rhs.a_.b_ptr == &rhs.b_)
             && (lhs.b_.a_ptr == &lhs.a_ && rhs.b_.a_ptr == &rhs.a_)
-            && lhs.i_ == rhs.i_
-            && sclh == scrh;
+            && lhs.c_ == rhs.c_
+            && (lhs.i_arr_[0] == rhs.i_arr_[0] && lhs.i_arr_[1] == rhs.i_arr_[1] && lhs.i_arr_[2] == rhs.i_arr_[2])
+            && (lhs.i_2d_arr_[0][0] == rhs.i_2d_arr_[0][0] && lhs.i_2d_arr_[0][1] == rhs.i_2d_arr_[0][1] && lhs.i_2d_arr_[1][0] == rhs.i_2d_arr_[1][0] && lhs.i_2d_arr_[1][1] == rhs.i_2d_arr_[1][1])
+            && *lhs.sc_sp_.get() == *rhs.sc_sp_.get();
     }
 
 private:
     A a_;
     B b_;
-    int i_;
+    char c_;
+    int i_arr_[3];
+    int i_2d_arr_[2][2];
     std::shared_ptr<SimpleClass> sc_sp_;
 };

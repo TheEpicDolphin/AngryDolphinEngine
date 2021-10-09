@@ -40,7 +40,7 @@ TEST(serialize_test_suite, serialize_parent_class_no_pointers_test)
     ParentClass pc2;
     std::ifstream xmlifile;
     xmlifile.open("serialize_parent_class_no_pointers_test.xml", std::ios::in);
-    archive.DeserializeHumanReadable(xmlifile, "SimpleClass", pc2);
+    archive.DeserializeHumanReadable(xmlifile, "ParentClass", pc2);
     xmlifile.close();
     
     ASSERT_EQ(pc, pc2);
@@ -54,22 +54,21 @@ TEST(serialize_test_suite, serialize_parent_class_with_heap_pointer_test)
     xmlofile.open("serialize_parent_class_with_heap_pointer_test.xml", std::ios::out);
     archive.SerializeHumanReadable(xmlofile, "ParentClassWithHeapPointer", pcwhp);
     xmlofile.close();
-    //ASSERT_EQ(*node_value, node_1);
 }
 
 TEST(serialize_test_suite, serialize_cyclical_pointer_test)
 {
-    C c(A(), B(), 2);
+    C c(A(), B(), 'a');
     Archive archive;
     std::ofstream xmlofile;
     xmlofile.open("serialize_cyclical_pointer_test.xml", std::ios::out);
     archive.SerializeHumanReadable(xmlofile, "c", c);
     xmlofile.close();
     
-    C c2;
+    C c2(A(), B(), 'd');
     std::ifstream xmlifile;
     xmlifile.open("serialize_cyclical_pointer_test.xml", std::ios::in);
-    archive.DeserializeHumanReadable(xmlifile, "SimpleClass", c2);
+    archive.DeserializeHumanReadable(xmlifile, "c", c2);
     xmlifile.close();
 
     ASSERT_EQ(c, c2);
