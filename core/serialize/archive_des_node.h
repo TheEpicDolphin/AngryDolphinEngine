@@ -176,9 +176,7 @@ class ArchiveDesObjectNode<std::shared_ptr<T>> : ArchiveDesNodeBase {
 public:
 	ArchiveDesObjectNode(std::size_t id, const char* name, std::shared_ptr<T>& obj_shared_ptr)
 		: ArchiveDesNodeBase(id, name)
-		, obj_shared_ptr_(obj_shared_ptr) {
-		obj_ptr_ = obj_shared_ptr_.get();
-	}
+		, obj_shared_ptr_(obj_shared_ptr) {}
 
 	void ConstructFromDeserializedDependencies() override
 	{
@@ -187,7 +185,7 @@ public:
 
 	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
 	{
-		return { archive.RegisterObjectForDeserialization(xml_node, obj_ptr_) };
+		return { archive.RegisterObjectForDeserialization(*xml_node.first_node(), obj_ptr_) };
 	}
 
 private:

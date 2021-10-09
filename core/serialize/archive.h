@@ -122,7 +122,7 @@ public:
 	ArchiveDesNodeBase* RegisterObjectForDeserialization(rapidxml::xml_node<>& xml_node, T& object)
 	{
 		const char* name = xml_node.name();
-		const std::size_t object_id = IdForXMLNode(xml_node);;
+		const std::size_t object_id = IdForXMLNode(xml_node);
 
 		// Notify listeners for this object's id
 		std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator iter = pointee_id_to_des_pointer_nodes_map_.find(object_id);
@@ -130,15 +130,16 @@ public:
 			const std::vector<ArchiveDesPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_id_to_des_pointer_nodes_map_.erase(object_id);
 			for (ArchiveDesPointerNodeBase* pointer_listener : pointer_listeners) {
+				std::cout << pointer_listener->Name() << std::endl;
 				pointer_listener->DidRegisterPointee(xml_doc_, &object, object_id);
 			}
 		}
 
 		ArchiveDesNodeBase* object_node = (ArchiveDesNodeBase*) new ArchiveDesObjectNode<T>(object_id, name, object);
-		//std::cout << name << " " << nodes_.size() << " " << object_id << std::endl;
 		assert(des_nodes_.size() == object_id);
 		object_to_id_map_[&object] = object_id;
 		des_nodes_.push_back((ArchiveDesNodeBase*)object_node);
+		objects_.push_back(&object);
 		return object_node;
 	}
 
@@ -160,7 +161,11 @@ public:
 		}
 
 		ArchiveDesPointerNodeBase* pointer_node = (ArchiveDesPointerNodeBase*) new ArchiveDesPointerNode<T>(pointer_id, name, pointee_id, object_ptr);
-		if (pointee_id > des_nodes_.size()) {
+		void* pointee_object = ObjectForId(pointee_id);
+		if (pointee_object) {
+			pointer_node->DidRegisterPointee(xml_doc_, objects_[pointee_id], pointee_id);
+		}
+		else {
 			// The object pointed to by object_ptr has not been registered yet.
 			if (pointee_id_to_des_pointer_nodes_map_.find(pointee_id) != pointee_id_to_des_pointer_nodes_map_.end()) {
 				pointee_id_to_des_pointer_nodes_map_[pointee_id].push_back(pointer_node);
@@ -172,6 +177,7 @@ public:
 
 		assert(des_nodes_.size() == pointer_id);
 		object_to_id_map_[&object_ptr] = pointer_id;
+		objects_.push_back(&object_ptr);
 		des_nodes_.push_back((ArchiveDesNodeBase*)pointer_node);
 		return (ArchiveDesNodeBase*)pointer_node;
 	}
@@ -199,9 +205,9 @@ public:
 		xml_doc_.parse<0>(buffer.data());
 
 		des_nodes_ = { nullptr };
+		objects_ = { nullptr };
 		DeserializeHumanReadableFromNodeBFS(xml_doc_, xml_doc_.first_node(), RegisterObjectForDeserialization(*xml_doc_.first_node(), root_object));
-
-		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.allocate_node(rapidxml::node_element, "dynamic_memory");
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.last_node("dynamic_memory");
 		rapidxml::xml_node<>* dynamic_memory_child_xml_node = dynamic_memory_xml_node->first_node();
 		while (!pointee_id_to_des_pointer_nodes_map_.empty()) {
 			std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator first_node_pair_iter = pointee_id_to_des_pointer_nodes_map_.begin();
@@ -223,11 +229,13 @@ public:
 		}
 
 		des_nodes_.clear();
+		objects_.clear();
 		xml_doc_.clear();
 	}
 
 private:
 	std::unordered_map<void*, std::size_t> object_to_id_map_;
+	std::vector<void*> objects_;
 	// BFS order
 	std::vector<ArchiveSerNodeBase*> ser_nodes_;
 	std::vector<ArchiveDesNodeBase*> des_nodes_;
@@ -241,6 +249,22 @@ private:
 			return object_to_id_map_[object_ptr];
 		}
 		return 0;
+	}
+
+	void* ObjectForId(std::size_t id) 
+	{
+		if (id < objects_.size()) {
+			return objects_[id];
+		}
+		return nullptr;
+	}
+
+	std::size_t StoreObject(void* object)
+	{
+		const std::size_t id = objects_.size();
+		object_to_id_map_[object] = id;
+		objects_.push_back(object);
+		return id;
 	}
 
 	std::size_t IdForXMLNode(rapidxml::xml_node<>& xml_node) 

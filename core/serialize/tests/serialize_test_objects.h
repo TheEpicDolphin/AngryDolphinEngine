@@ -145,11 +145,6 @@ public:
             b_ptr
         );
     }
-
-    friend bool operator==(const A& lhs, const A& rhs)
-    {
-        return lhs.b_ptr == rhs.b_ptr;
-    }
 };
 
 class B : public ISerializable, public IDeserializable
@@ -172,11 +167,6 @@ public:
             xml_node,
             a_ptr
         );
-    }
-
-    friend bool operator==(const B& lhs, const B& rhs)
-    {
-        return lhs.a_ptr == rhs.a_ptr;
     }
 };
 
@@ -220,10 +210,10 @@ public:
     
     friend bool operator==(const C& lhs, const C& rhs)
     {
-        return lhs.a_== rhs.a_
-            && lhs.b_ == rhs.b_
-            && lhs.i_ == rhs.i_
-            && lhs.sc_sp_ == rhs.sc_sp_;
+        return (lhs.a_.b_ptr == &lhs.b_ && rhs.a_.b_ptr == &rhs.b_)
+            && (lhs.b_.a_ptr == &lhs.a_ && rhs.b_.a_ptr == &rhs.a_)
+            && lhs.i_ == rhs.i_;
+            //&& *lhs.sc_sp_.get() == *rhs.sc_sp_.get();
     }
 
 private:
