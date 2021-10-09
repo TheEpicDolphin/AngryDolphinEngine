@@ -39,6 +39,8 @@ public:
 
     friend bool operator==(const SimpleClass& lhs, const SimpleClass& rhs) 
     {
+        std::cout << lhs.i_ << " " << lhs.f_ << " " << lhs.s_ << std::endl;
+        std::cout << rhs.i_ << " " << rhs.f_ << " " << rhs.s_ << std::endl;
         return lhs.i_ == rhs.i_ && lhs.f_ == rhs.f_ && lhs.s_ == rhs.s_;
     }
 
@@ -210,10 +212,12 @@ public:
     
     friend bool operator==(const C& lhs, const C& rhs)
     {
+        SimpleClass sclh = *lhs.sc_sp_.get();
+        SimpleClass scrh = *rhs.sc_sp_.get();
         return (lhs.a_.b_ptr == &lhs.b_ && rhs.a_.b_ptr == &rhs.b_)
             && (lhs.b_.a_ptr == &lhs.a_ && rhs.b_.a_ptr == &rhs.a_)
-            && lhs.i_ == rhs.i_;
-            //&& *lhs.sc_sp_.get() == *rhs.sc_sp_.get();
+            && lhs.i_ == rhs.i_
+            && sclh == scrh;
     }
 
 private:

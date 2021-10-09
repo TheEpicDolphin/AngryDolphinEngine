@@ -32,7 +32,9 @@ public:
 	template<typename T>
 	ArchiveSerNodeBase* RegisterObjectForSerialization(const char* name, T& object)
 	{
-		std::size_t object_id = ser_nodes_.size();
+		std::size_t object_id = StoreObject(&object);
+		ArchiveSerNodeBase* object_node = (ArchiveSerNodeBase*) new ArchiveSerObjectNode<T>(object_id, name, object);
+		ser_nodes_.push_back((ArchiveSerNodeBase*)object_node);
 
 		// Notify listeners for this object's address
 		std::unordered_map<void*, std::vector<ArchiveSerPointerNodeBase*>>::iterator iter = pointee_to_ser_pointer_nodes_map_.find(&object);
@@ -44,16 +46,25 @@ public:
 			}
 		}
 
-		ArchiveSerNodeBase* object_node = (ArchiveSerNodeBase*) new ArchiveSerObjectNode<T>(object_id, name, object);
-		object_to_id_map_[&object] = object_id;
-		ser_nodes_.push_back((ArchiveSerNodeBase*)object_node);
 		return object_node;
 	}
 
 	template<typename T>
 	ArchiveSerNodeBase* RegisterObjectForSerialization(const char* name, T*& object_ptr)
 	{
-		const std::size_t pointer_id = ser_nodes_.size();
+		const std::size_t pointer_id = StoreObject(&object_ptr);
+		const std::size_t pointee_id = IdForObject((void*)object_ptr);
+		ArchiveSerPointerNodeBase* pointer_node = (ArchiveSerPointerNodeBase*) new ArchiveSerPointerNode<T>(pointer_id, name, pointee_id, object_ptr);
+		ser_nodes_.push_back((ArchiveSerNodeBase*)pointer_node);
+		if (!pointee_id) {
+			// The object pointed to by object_ptr has not been registered yet.
+			if (pointee_to_ser_pointer_nodes_map_.find((void*)object_ptr) != pointee_to_ser_pointer_nodes_map_.end()) {
+				pointee_to_ser_pointer_nodes_map_[(void*)object_ptr].push_back(pointer_node);
+			}
+			else {
+				pointee_to_ser_pointer_nodes_map_[(void*)object_ptr] = { pointer_node };
+			}
+		}
 
 		// Notify listeners for this object's address
 		std::unordered_map<void*, std::vector<ArchiveSerPointerNodeBase*>>::iterator iter = pointee_to_ser_pointer_nodes_map_.find(&object_ptr);
@@ -65,20 +76,6 @@ public:
 			}
 		}
 
-		const std::size_t pointee_id = IdForObject((void*)object_ptr);
-		ArchiveSerPointerNodeBase* pointer_node = (ArchiveSerPointerNodeBase*) new ArchiveSerPointerNode<T>(pointer_id, name, pointee_id, object_ptr);
-		if (!pointee_id) {
-			// The object pointed to by object_ptr has not been registered yet.
-			if (pointee_to_ser_pointer_nodes_map_.find((void*)object_ptr) != pointee_to_ser_pointer_nodes_map_.end()) {
-				pointee_to_ser_pointer_nodes_map_[(void*)object_ptr].push_back(pointer_node);
-			}
-			else {
-				pointee_to_ser_pointer_nodes_map_[(void*)object_ptr] = { pointer_node };
-			}
-		}
-
-		object_to_id_map_[&object_ptr] = pointer_id;
-		ser_nodes_.push_back((ArchiveSerNodeBase*)pointer_node);
 		return (ArchiveSerNodeBase*)pointer_node;
 	}
 
@@ -95,6 +92,7 @@ public:
 		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.allocate_node(rapidxml::node_element, "dynamic_memory");
 
 		ser_nodes_ = { nullptr };
+		objects_ = { nullptr };
 		SerializeHumanReadableFromNodeBFS(xml_doc_, &xml_doc_, RegisterObjectForSerialization(name, root_object));
 
 		while (!pointee_to_ser_pointer_nodes_map_.empty()) {
@@ -122,24 +120,22 @@ public:
 	ArchiveDesNodeBase* RegisterObjectForDeserialization(rapidxml::xml_node<>& xml_node, T& object)
 	{
 		const char* name = xml_node.name();
-		const std::size_t object_id = IdForXMLNode(xml_node);
+		const std::size_t object_id = StoreObject(&object);
+		assert(IdForXMLNode(xml_node) == object_id);
 
+		ArchiveDesNodeBase* object_node = (ArchiveDesNodeBase*) new ArchiveDesObjectNode<T>(object_id, name, object);
+		des_nodes_.push_back((ArchiveDesNodeBase*)object_node);
+		
 		// Notify listeners for this object's id
 		std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator iter = pointee_id_to_des_pointer_nodes_map_.find(object_id);
 		if (iter != pointee_id_to_des_pointer_nodes_map_.end()) {
 			const std::vector<ArchiveDesPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_id_to_des_pointer_nodes_map_.erase(object_id);
 			for (ArchiveDesPointerNodeBase* pointer_listener : pointer_listeners) {
-				std::cout << pointer_listener->Name() << std::endl;
 				pointer_listener->DidRegisterPointee(xml_doc_, &object, object_id);
 			}
 		}
 
-		ArchiveDesNodeBase* object_node = (ArchiveDesNodeBase*) new ArchiveDesObjectNode<T>(object_id, name, object);
-		assert(des_nodes_.size() == object_id);
-		object_to_id_map_[&object] = object_id;
-		des_nodes_.push_back((ArchiveDesNodeBase*)object_node);
-		objects_.push_back(&object);
 		return object_node;
 	}
 
@@ -147,20 +143,13 @@ public:
 	ArchiveDesNodeBase* RegisterObjectForDeserialization(rapidxml::xml_node<>& xml_node, T*& object_ptr)
 	{
 		const char* name = xml_node.name();
-		const std::size_t pointer_id = IdForXMLNode(xml_node);
+		const std::size_t pointer_id = StoreObject(&object_ptr);
+		assert(IdForXMLNode(xml_node) == pointer_id);
+
 		const std::size_t pointee_id = PointeeIdForXMLNode(xml_node);
-
-		// Notify listeners for this object's id
-		std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator iter = pointee_id_to_des_pointer_nodes_map_.find(pointer_id);
-		if (iter != pointee_id_to_des_pointer_nodes_map_.end()) {
-			const std::vector<ArchiveDesPointerNodeBase*> pointer_listeners = iter->second;
-			pointee_id_to_des_pointer_nodes_map_.erase(pointer_id);
-			for (ArchiveDesPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(xml_doc_, &object_ptr, pointer_id);
-			}
-		}
-
 		ArchiveDesPointerNodeBase* pointer_node = (ArchiveDesPointerNodeBase*) new ArchiveDesPointerNode<T>(pointer_id, name, pointee_id, object_ptr);
+		des_nodes_.push_back((ArchiveDesNodeBase*)pointer_node);
+
 		void* pointee_object = ObjectForId(pointee_id);
 		if (pointee_object) {
 			pointer_node->DidRegisterPointee(xml_doc_, objects_[pointee_id], pointee_id);
@@ -175,10 +164,16 @@ public:
 			}
 		}
 
-		assert(des_nodes_.size() == pointer_id);
-		object_to_id_map_[&object_ptr] = pointer_id;
-		objects_.push_back(&object_ptr);
-		des_nodes_.push_back((ArchiveDesNodeBase*)pointer_node);
+		// Notify listeners for this object's id
+		std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator iter = pointee_id_to_des_pointer_nodes_map_.find(pointer_id);
+		if (iter != pointee_id_to_des_pointer_nodes_map_.end()) {
+			const std::vector<ArchiveDesPointerNodeBase*> pointer_listeners = iter->second;
+			pointee_id_to_des_pointer_nodes_map_.erase(pointer_id);
+			for (ArchiveDesPointerNodeBase* pointer_listener : pointer_listeners) {
+				pointer_listener->DidRegisterPointee(xml_doc_, &object_ptr, pointer_id);
+			}
+		}
+
 		return (ArchiveDesNodeBase*)pointer_node;
 	}
 
