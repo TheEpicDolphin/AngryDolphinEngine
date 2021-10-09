@@ -103,13 +103,23 @@ class ArchiveSerObjectNode<T[N]> : ArchiveSerNodeBase {
 public:
 	ArchiveSerObjectNode(std::size_t id, const char* name, T (&obj_array)[N])
 		: ArchiveSerNodeBase(id, name)
-		, obj_array_(obj_array) {}
+		, obj_array_(obj_array) 
+	{
+		for (std::size_t i = 0; i < N; ++i) {
+			std::stringstream element_name_ss;
+			element_name_ss << "element_" << i;
+			element_names_[i] = element_name_ss.str();
+		}
+	}
 
 	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
 	{
 		rapidxml::xml_node<>* base_node = ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
 		rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "array");
 		base_node->append_attribute(container_attribute);
+		char* array_count_string = xml_doc.allocate_string(std::to_string(N).c_str());
+		rapidxml::xml_attribute<>* array_count_atttribute = xml_doc.allocate_attribute("count", array_count_string);
+		base_node->append_attribute(array_count_atttribute);
 		return base_node;
 	}
 
@@ -117,16 +127,14 @@ public:
 	{
 		std::vector<ArchiveSerNodeBase*> children(N);
 		for (std::size_t i = 0; i < N; ++i) {
-			// TODO: Include index in element name
-			//std::stringstream element_name_ss;
-			//element_name_ss << "element " << i;
-			children[i] = archive.RegisterObjectForSerialization("element", obj_array_[i]);
+			children[i] = archive.RegisterObjectForSerialization(element_names_[i].c_str(), obj_array_[i]);
 		}
 		return children;
 	}
 
 private:
 	T (&obj_array_)[N];
+	std::string element_names_[N];
 };
 
 template<>
@@ -157,30 +165,40 @@ class ArchiveSerObjectNode<std::vector<T>> : ArchiveSerNodeBase {
 public:
 	ArchiveSerObjectNode(std::size_t id, const char* name, std::vector<T>& obj_vector)
 		: ArchiveSerNodeBase(id, name)
-		, obj_vector_(obj_vector) {}
+		, obj_vector_(obj_vector) 
+	{
+		const std::size_t N = obj_vector.size();
+		element_names_ = std::vector<std::string>(N);
+		for (std::size_t i = 0; i < N; ++i) {
+			std::stringstream element_name_ss;
+			element_name_ss << "element_" << i;
+			element_names_[i] = element_name_ss.str();
+		}
+	}
 
 	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
 	{
 		rapidxml::xml_node<>* base_node = ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
+		rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "vector");
+		base_node->append_attribute(container_attribute);
 		char* vector_count_string = xml_doc.allocate_string(std::to_string(obj_vector_.size()).c_str());
 		rapidxml::xml_attribute<>* vector_count_atttribute = xml_doc.allocate_attribute("count", vector_count_string);
 		base_node->append_attribute(vector_count_atttribute);
-		rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "vector");
-		base_node->append_attribute(container_attribute);
 		return base_node;
 	}
 
 	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
 		std::vector<ArchiveSerNodeBase*> children;
-		for (T& object : obj_vector_) {
-			children.push_back(archive.RegisterObjectForSerialization("element", object));
+		for (std::size_t i = 0; i < obj_vector_.size(); ++i) {
+			children.push_back(archive.RegisterObjectForSerialization(element_names_[i].c_str(), obj_vector_[i]));
 		}
 		return children;
 	}
 
 private:
 	std::vector<T>& obj_vector_;
+	std::vector<std::string> element_names_;
 };
 
 template<typename T, typename U>
