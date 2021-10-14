@@ -1,0 +1,15 @@
+#import "path1"
+#import "path2"
+.
+.
+.
+#import "pathN"
+
+ExampleComponentSpec
+
+type1 var1
+type2 var2
+.
+.
+.
+typeN varN
