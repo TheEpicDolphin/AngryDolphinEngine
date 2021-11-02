@@ -288,13 +288,21 @@ public:
 
 	virtual void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::size_t pointee_id) = 0;
 
-	virtual void DynamicallyAllocateObject() = 0;
+	virtual void DynamicallyAllocateObject(rapidxml::xml_node<>& xml_node) = 0;
 
 	virtual ArchiveDesNodeBase* PointeeNode(Archive& archive, rapidxml::xml_node<>& xml_node) = 0;
 
 protected:
 	std::size_t pointee_id_;
 };
+
+template<class...> using void_t = void;
+
+template<class, class = void>
+struct is_ostreamable : std::false_type {};
+
+template<class T>
+struct is_ostreamable<T, void_t<decltype(std::declval<T*>().DynamicallyAllocatedDerivedObject(std::declval<rapidxml::xml_node<>&>()))>> : std::true_type {};
 
 template<typename T>
 class ArchiveDesPointerNode : public ArchiveDesPointerNodeBase {
@@ -309,9 +317,14 @@ public:
 		pointee_id_ = pointee_id;
 	}
 
-	void DynamicallyAllocateObject() override
+	void DynamicallyAllocateObject(rapidxml::xml_node<>& xml_node) override
 	{
-		object_ptr_ = new T();
+		if () {
+			object_ptr_ = T::DynamicallyAllocatedDerivedObject(xml_node);
+		}
+		else {
+			object_ptr_ = new T();
+		}
 	}
 
 	ArchiveDesNodeBase* PointeeNode(Archive& archive, rapidxml::xml_node<>& xml_node) override

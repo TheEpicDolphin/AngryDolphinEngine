@@ -6,26 +6,35 @@
 #include <functional>
 
 #include <core/utils/set_trie.h>
+#include <core/utils/type_info.h>
+#include <core/serialize/serializable.h>
+#include <core/serialize/deserializable.h>
+#include <core/serialize/archive.h>
+
+#include <config/component_registry.h>
 
 #include "entity.h"
 #include "component.h"
 #include "archetype.h"
 
-class ECS 
-{
+namespace ECS {
 
+class Registry : public ISerializable, public IDeserializable
+{
 public:
+	Registry() 
+	{
+		// This maintains the type ids of components consistent across different compilations.
+		#define REGISTER_COMPONENT(name) component_type_info_.GetTypeId<name>();
+			REGISTERED_ENGINE_COMPONENTS
+			REGISTERED_PROJECT_COMPONENTS
+		#undef REGISTER_COMPONENT
+	}
+
 	template<typename T>
 	void AddComponent(EntityID entity_id, T component)
 	{
-		ComponentTypeID added_component_type = Component<T>::GetTypeId();		 
-		if (!added_component_type) {
-			// We are adding a component of this type for the first time. Register it.
-			
-			// ALSO, if we are registering this component, then it is not possible for 
-			// this entity to already have this component type.
-			added_component_type = RegisterComponent<T>();
-		}
+		ComponentTypeID added_component_type = component_type_info_.GetTypeId<T>();
 
 		if (entity_archetype_map_.find(entity_id) != entity_archetype_map_.end())
 		{
@@ -87,18 +96,12 @@ public:
 				entity_archetype_map_.insert(std::make_pair(entity_id, new_archetype));
 			}
 		}
-
-		component_count_map_[added_component_type] += 1;
 	}
 
 	template<typename T>
 	void RemoveComponent(EntityID entity_id)
 	{
-		ComponentTypeID removed_component_type = Component<T>::GetTypeId();
-		if (!removed_component_type) {
-			throw std::runtime_error("Cannot remove component that has not been registered");
-			return;
-		}
+		ComponentTypeID removed_component_type = component_type_info_.GetTypeId<T>();
 
 		if (entity_archetype_map_.find(entity_id) != entity_archetype_map_.end())
 		{
@@ -152,12 +155,6 @@ public:
 			throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
 			return;
 		}
-		
-		component_count_map_[removed_component_type] -= 1;
-		if (component_count_map_[removed_component_type] == 0) {
-			// No entity owns a component of this type anymore. Unregister it.
-			UnregisterComponent<T>();
-		}
 	}
 
 	template<typename T>
@@ -202,36 +199,45 @@ public:
 		entity_uid_generator_.ReturnId(entity_id);
 	}
 
+	// ISerializable
+
+	std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
+	{
+		return archive.RegisterObjectsForSerialization(
+			{ "archetypes", }, 
+			{ "entity", },
+			{ "entity_uid_generator", entity_uid_generator_ });
+	}
+
+	// IDeserializable
+
+	void ConstructFromDeserializedDependencies() override 
+	{
+		archetype_set_trie_ = SetTrie<ComponentTypeID, Archetype>(restored_archetypes_);
+		restored_archetypes_.clear();
+	}
+
+	std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return archive.RegisterObjectsForDeserialization(
+			{ "archetypes", },
+			{},
+			{ "entity_uid_generator", entity_uid_generator_ });
+	}
+
 private:
 	SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
 	std::unordered_map<EntityID, Archetype *> entity_archetype_map_;
-	std::unordered_map<ComponentTypeID, uint64_t> component_count_map_;
-	UIDGenerator component_uid_generator_;
 	UIDGenerator entity_uid_generator_;
+
+	std::vector<Archetype> restored_archetypes_;
+	TypeInfo component_type_info_;
 
 	template<class... Ts>
 	std::vector<Archetype *> GetArchetypesWithComponents() 
 	{
-		std::vector<ComponentTypeID> component_types = { (Component<Ts>::GetTypeId())... };
+		std::vector<ComponentTypeID> component_types = { (component_type_info_.GetTypeId<Ts>())... };
 		return archetype_set_trie_.FindSuperKeySetValues(component_types);
-	}
-
-	template<typename T>
-	ComponentTypeID RegisterComponent()
-	{
-		ComponentTypeID claimed_type_id = component_uid_generator_.CheckoutNewId();
-		Component<T>::SetTypeId(claimed_type_id);
-		component_count_map_.insert({ claimed_type_id, 0 });
-		return claimed_type_id;
-	}
-
-	template<typename T>
-	void UnregisterComponent() 
-	{
-		ComponentTypeId component_type_id = Component<T>::GetTypeId();
-		Component<T>::ClearTypeId();
-		component_count_map_.erase(component_type_id);
-		component_uid_generator_.ReturnId(component_type_id);
 	}
 
 	void DestroyArchetype(Archetype* archetype) 
@@ -241,3 +247,6 @@ private:
 	}
 
 };
+
+}
+

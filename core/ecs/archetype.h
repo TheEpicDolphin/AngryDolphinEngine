@@ -5,8 +5,18 @@
 #include <unordered_map>
 #include <functional>
 
+#include <config/component_registry.h>
+
 #include "component.h"
 #include "entity.h"
+
+enum ComponentArrayType
+{
+#define REGISTER_COMPONENT(name) nameComponentArrayType,
+	REGISTERED_ENGINE_COMPONENTS
+	REGISTERED_PROJECT_COMPONENTS
+#undef REGISTER_COMPONENT
+}
 
 class ComponentArrayBase
 {
@@ -18,6 +28,17 @@ public:
 	virtual ComponentArrayBase* Empty() 
 	{
 		return nullptr;
+	}
+
+	ComponentArrayBase* DynamicallyAllocatedDerivedObject(rapidxml::xml_node<>& xml_node)
+	{
+		switch () {
+			#define REGISTER_COMPONENT(name) case nameComponentArrayType: \
+				return new name();
+			REGISTERED_ENGINE_COMPONENTS
+			REGISTERED_PROJECT_COMPONENTS
+			#undef REGISTER_COMPONENT
+		}
 	}
 };
 
@@ -67,41 +88,6 @@ typedef std::vector<ComponentTypeID> ArchetypeId;
 
 class Archetype 
 {
-private:
-	ArchetypeId component_types_;
-
-	std::vector<ComponentArrayBase*> component_arrays_;
-
-	std::vector<EntityID> entity_ids_;
-
-	std::unordered_map<EntityID, std::size_t> entity_index_map_;
-
-	std::unordered_map<ComponentTypeID, std::size_t> component_type_index_map_;
-
-	template<class T>
-	ComponentArray<T>* FindComponentArray()
-	{
-		const ComponentTypeID component_type = Component<T>::GetTypeId();
-		const std::unordered_map<ComponentTypeID, std::size_t>::iterator component_array_index_iter = component_type_index_map_.find(component_type);
-		if (component_array_index_iter == component_type_index_map_.end()) {
-			return nullptr;
-		}
-		return static_cast<ComponentArray<T> *>(component_arrays_[component_array_index_iter->second]);
-	}
-
-	template<class... Ts>
-	void AddComponents(Ts... components);
-
-	template<>
-	void AddComponents() {}
-
-	template<class T, class... Ts>
-	void AddComponents(T component, Ts... components) {
-		ComponentArray<T>* component_array = FindComponentArray<T>();
-		component_array->Append(component);
-		AddComponents<Ts...>(components...);
-	}
-
 public:
 
 	Archetype() {
@@ -305,5 +291,40 @@ public:
 				block(entity_ids[e_idx], queried_component_arrays->ComponentAtIndex(e_idx)...);
 			}
 		}(entity_ids_, FindComponentArray<Ts>()...);
+	}
+
+private:
+	ArchetypeId component_types_;
+
+	std::vector<ComponentArrayBase*> component_arrays_;
+
+	std::vector<EntityID> entity_ids_;
+
+	std::unordered_map<EntityID, std::size_t> entity_index_map_;
+
+	std::unordered_map<ComponentTypeID, std::size_t> component_type_index_map_;
+
+	template<class T>
+	ComponentArray<T>* FindComponentArray()
+	{
+		const ComponentTypeID component_type = Component<T>::GetTypeId();
+		const std::unordered_map<ComponentTypeID, std::size_t>::iterator component_array_index_iter = component_type_index_map_.find(component_type);
+		if (component_array_index_iter == component_type_index_map_.end()) {
+			return nullptr;
+		}
+		return static_cast<ComponentArray<T> *>(component_arrays_[component_array_index_iter->second]);
+	}
+
+	template<class... Ts>
+	void AddComponents(Ts... components);
+
+	template<>
+	void AddComponents() {}
+
+	template<class T, class... Ts>
+	void AddComponents(T component, Ts... components) {
+		ComponentArray<T>* component_array = FindComponentArray<T>();
+		component_array->Append(component);
+		AddComponents<Ts...>(components...);
 	}
 };
