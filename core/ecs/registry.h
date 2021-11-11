@@ -180,12 +180,12 @@ public:
 		}
 	}
 
-	EntityID CreateEntity() 
+	void RegisterEntity() 
 	{
-		return entity_uid_generator_.CheckoutNewId();
+		// Do nothing for now.
 	}
 
-	void DestroyEntity(EntityID entity_id) 
+	void UnregisterEntity(EntityID entity_id) 
 	{
 		std::unordered_map<EntityID, Archetype*>::iterator iter = entity_archetype_map_.find(entity_id);
 		if (iter != entity_archetype_map_.end()) {
@@ -196,7 +196,6 @@ public:
 			}
 			entity_archetype_map_.erase(entity_id);
 		}
-		entity_uid_generator_.ReturnId(entity_id);
 	}
 
 	// ISerializable
@@ -205,8 +204,7 @@ public:
 	{
 		return archive.RegisterObjectsForSerialization(
 			{ "archetypes", }, 
-			{ "entity", },
-			{ "entity_uid_generator", entity_uid_generator_ });
+			{ "entity", });
 	}
 
 	// IDeserializable
@@ -221,14 +219,12 @@ public:
 	{
 		return archive.RegisterObjectsForDeserialization(
 			{ "archetypes", },
-			{},
-			{ "entity_uid_generator", entity_uid_generator_ });
+			{}});
 	}
 
 private:
 	SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
 	std::unordered_map<EntityID, Archetype *> entity_archetype_map_;
-	UIDGenerator entity_uid_generator_;
 
 	std::vector<Archetype> restored_archetypes_;
 	TypeInfo component_type_info_;
