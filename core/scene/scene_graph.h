@@ -13,11 +13,11 @@ class SceneGraph {
 public:
 	SceneGraph();
 
-	EntityID CreateEntity(glm::vec3 position = glm::vec3(0.0f), EntityID parent_id = 0);
+	EntityID CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = 0);
 
-	std::vector<EntityID> CreateEntities(std::size_t n, glm::vec3 position = glm::vec3(0.0f), EntityID parent_id = 0);
+	std::vector<EntityID> CreateEntities(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<std::size_t> parent_map = {});
 
-	void DestroyEntity(EntityID id);
+	void DestroyEntity(EntityID entity_id);
 
 	void DestroyEntityGroup(EntityID id);
 	
@@ -32,6 +32,8 @@ public:
 	const EntityID& GetParent(EntityID id);
 
 	void SetParent(EntityID id, EntityID parent_id);
+
+	void PerformBlockForEach(std::vector<EntityID> entity_ids, void (*block)(void* context, EntityID entity_id, Transform& transform));
 
 private:
 
@@ -72,4 +74,6 @@ private:
 	std::vector<std::size_t> entity_to_scene_graph_node_map_;
 	// Recycled Entity IDs that can be reused.
 	std::queue<EntityID> recycled_entity_ids_;
+
+	void SceneGraph::DeleteRecycledChunkWithSwap(std::size_t chunk_size, std::size_t chunk_rank);
 };
