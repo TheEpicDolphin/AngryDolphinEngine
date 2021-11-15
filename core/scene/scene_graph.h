@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <queue>
+#include <map>
 #include <core/ecs/entity.h>
 #include <core/transform/transform.h>
 
@@ -14,7 +15,11 @@ public:
 
 	EntityID CreateEntity(glm::vec3 position = glm::vec3(0.0f), EntityID parent_id = 0);
 
+	std::vector<EntityID> CreateEntities(std::size_t n, glm::vec3 position = glm::vec3(0.0f), EntityID parent_id = 0);
+
 	void DestroyEntity(EntityID id);
+
+	void DestroyEntityGroup(EntityID id);
 	
 	const glm::mat4& GetLocalTransform(EntityID id);
 
@@ -30,25 +35,41 @@ public:
 
 private:
 
-	const struct TransformChunkNode {
-		TransformChunkNode* prev;
-		TransformChunkNode* next;
-		Transform transforms[1 << CHUNK_SIZE_POWER_OF_2];
-		std::uint16_t count;
+	// Using a tagged union to save space.
+
+	enum SceneGraphNodeType {
+		SceneGraphNodeTypeRecycled = 0,
+		SceneGraphNodeTypeTransform,
 	};
 
-	const struct TransformIndex 
-	{
-		std::uint16_t chunk_index;
-		std::uint16_t offset;
+	struct SceneGraphNode {
+		SceneGraphNodeType type;
+		union {
+			struct RecycledNode {
+				std::size_t chunk_size;
+				std::size_t chunk_rank;
+			} recycled_node;
+
+			struct TransformNode {
+				EntityID entity_id;
+				Transform transform;
+				std::size_t parent;
+				std::size_t previous_sibling;
+				std::size_t next_sibling;
+				std::size_t first_child;
+			} transform_node;
+		} value;
 	};
 
-	TransformChunkNode* transform_chunk_node_pool_;
-	std::queue<std::size_t> recycled_chunk_node_indices_;
-	std::vector<std::size_t> entity_transform_key_map_;
-	std::size_t largest_node_index_;
+	SceneGraphNode* scene_graph_node_pool_;
+	std::size_t next_pool_index_;
 
+	// A "chunk" is an interval of contiguous unused transform nodes.
+
+	// Maps chunk size to vector of recycled chunk start indices.
+	std::map<std::size_t, std::vector<std::size_t>> recycled_chunk_map_;
+	// Maps Entity ID to scene graph node index.
+	std::vector<std::size_t> entity_to_scene_graph_node_map_;
+	// Recycled Entity IDs that can be reused.
 	std::queue<EntityID> recycled_entity_ids_;
-
-	Transform& SceneGraph::TransformForKey(std::size_t key);
 };

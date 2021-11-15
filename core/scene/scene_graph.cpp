@@ -1,8 +1,6 @@
 
 #include "scene_graph.h"
 
-#include <queue>
-
 void UpdateDescendantWorldMatrices(Transform* root_transform)
 {
 	std::queue<Transform*> bfs_descendant_queue;
@@ -31,33 +29,107 @@ TransformIndex AdvanceIndex(Transform index, std::size_t n)
 }
 
 SceneGraph::SceneGraph() {
-	transform_chunk_node_pool_ = new TransformChunkNode[(MAX_ENTITY_COUNT >> CHUNK_SIZE_POWER_OF_2) + 1]();
-	largest_node_index_ = 0;
+	scene_graph_node_pool_ = new SceneGraphNode[(MAX_ENTITY_COUNT >> CHUNK_SIZE_POWER_OF_2) + 1]();
+	next_pool_index_ = 0;
 
 	// We create the world entity
 	CreateEntity(glm::vec3(0, 0, 0), -1);
 }
 
-EntityID SceneGraph::CreateEntity(glm::vec3 position = glm::vec3(0.0f), EntityID parent_id = 0)
+EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = 0)
 {
-	const TransformIndex entity_transform_index = ChildEndIndexForParent(parent_id);
-	EntityID id;
+	EntityID entity_id;
 	if (recycled_entity_ids_.empty()) {
-		id = entity_transform_key_map_.size();
-		entity_transform_key_map_.push_back(InsertTransformAtIndex(entity_transform_index, { parent_id, 0, 0, glm::mat4(1.0f), glm::mat4(1.0f) }));
+		entity_id = entity_to_scene_graph_node_map_.size();
+		entity_to_scene_graph_node_map_.push_back(-1);
 	}
 	else {
-		id = recycled_entity_ids_.front();
+		entity_id = recycled_entity_ids_.front();
 		recycled_entity_ids_.pop();
-		entity_transform_key_map_[id] = InsertTransformAtIndex(entity_transform_index, { parent_id, 0, 0, glm::mat4(1.0f), glm::mat4(1.0f) });
 	}
 
-	return id;
+	const std::size_t parent_pool_index = entity_to_scene_graph_node_map_[parent_id];
+	std::map<std::size_t, std::vector<std::size_t>>::iterator iter_begin = recycled_chunk_map_.begin();
+
+	std::size_t pool_index;
+	if (iter_begin != recycled_chunk_map_.end()) {
+		const std::size_t min_chunk_size = iter_begin->first;
+		assert(min_chunk_size > 0);
+
+		pool_index = iter_begin->second.back();
+		iter_begin->second.pop_back();
+
+		if (min_chunk_size > 1) {
+			// If the minimum chunk size found was greater than one, we will split 
+			recycled_chunk_map_.insert(iter_begin, { min_chunk_size - 1, { pool_index + 1 } });
+		}
+
+		if (iter_begin->second.empty()) {
+			// If there are no more chunks with size == min_chunk_size, erase it from the recycled chunk map.
+			recycled_chunk_map_.erase(iter_begin);
+		}
+	}
+	else {
+		pool_index = next_pool_index_++;
+	}
+
+	SceneGraphNode& node = scene_graph_node_pool_[pool_index];
+	node.type = SceneGraphNodeTypeTransform;
+	node.value.transform_node = { entity_id, { TransformUtils.WorldToLocal(world_matrix, parent_id), world_matrix }, parent_pool_index, 0, 0, 0 };
+	entity_to_scene_graph_node_map_[entity_id] = pool_index;
+
+	return entity_id;
+}
+
+std::vector<EntityID> SceneGraph::CreateEntities(std::size_t n, std::vector<glm::mat4> world_matrices = glm::mat4(1.0f), std::vector<std::size_t> parent_map)
+{
+	EntityID entity_id;
+	if (recycled_entity_ids_.empty()) {
+		entity_id = entity_to_scene_graph_node_map_.size();
+		entity_to_scene_graph_node_map_.push_back(-1);
+	}
+	else {
+		entity_id = recycled_entity_ids_.front();
+		recycled_entity_ids_.pop();
+	}
+
+	const std::size_t parent_pool_index = entity_to_scene_graph_node_map_[parent_id];
+	std::map<std::size_t, std::vector<std::size_t>>::iterator iter_begin;
+	if (n == 1) {
+		iter_begin = recycled_chunk_map_.begin();
+	}
+	else {
+		iter_begin = recycled_chunk_map_.lower_bound(n);
+	}
+	
+	std::size_t pool_index;
+	if (iter_begin != recycled_chunk_map_.end()) {
+		const std::size_t min_chunk_size = iter_begin->first;
+		assert(min_chunk_size > 0);
+
+		pool_index = iter_begin->second.back();
+		iter_begin->second.pop_back();
+
+		if (min_chunk_size > n) {
+			// If the minimum chunk size found was greater than n, we will split 
+			recycled_chunk_map_.insert(iter_begin, { min_chunk_size - n, { pool_index + n } });
+		}
+
+		if (iter_begin->second.empty()) {
+			// If there are no more chunks with size == min_chunk_size, erase it from the recycled chunk map.
+			recycled_chunk_map_.erase(iter_begin);
+		}
+	}
+	else {
+		pool_index = next_pool_index_++;
+	}
+
+	return entity_id;
 }
 
 void SceneGraph::DestroyEntity(EntityID id) 
 {
-	RemoveTransformForKey(entity_transform_key_map_[id];);
+	
 	recycled_entity_ids_.push(id);
 }
 

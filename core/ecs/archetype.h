@@ -34,7 +34,7 @@ public:
 	{
 		switch () {
 			#define REGISTER_COMPONENT(name) case nameComponentArrayType: \
-				return new name();
+				return new ComponentArray<name>();
 			REGISTERED_ENGINE_COMPONENTS
 			REGISTERED_PROJECT_COMPONENTS
 			#undef REGISTER_COMPONENT
