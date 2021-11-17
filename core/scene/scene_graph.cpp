@@ -70,7 +70,7 @@ EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), Enti
 	return entity_id;
 }
 
-std::vector<EntityID> SceneGraph::CreateEntities(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<std::size_t> parent_map = {})
+std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<int> parent_map = {})
 {
 	assert(n > 0);
 	assert(world_matrices.size() <= n);
@@ -115,7 +115,8 @@ std::vector<EntityID> SceneGraph::CreateEntities(std::size_t n, std::vector<glm:
 		}
 	}
 	else {
-		pool_index = next_pool_index_++;
+		pool_index = next_pool_index_;
+		next_pool_index_ += n;
 	}
 
 	for (std::size_t i = 0; i < n; i++) {
@@ -123,10 +124,24 @@ std::vector<EntityID> SceneGraph::CreateEntities(std::size_t n, std::vector<glm:
 	}
 
 	for (std::size_t i = 0; i < n; i++) {
-		const std::size_t parent_pool_index = entity_to_scene_graph_node_map_[parent_map[i]];
 		SceneGraphNode& node = scene_graph_node_pool_[pool_index + i];
 		node.type = SceneGraphNodeTypeTransform;
-		node.value.transform_node = { entity_ids[i], { transform_utils.TransformWorldToLocal(world_matrices[i], parent_id), world_matrix }, parent_pool_index, 0, 0, 0 };
+		std::size_t parent_pool_index;
+		if (parent_map[i] < 0) {
+			assert(parent_map[i] >= -n);
+			parent_pool_index = entity_to_scene_graph_node_map_[entity_ids[-parent_map[i] - 1]];
+		}
+		else {
+			parent_pool_index = entity_to_scene_graph_node_map_[parent_map[i]];
+		}
+		TransformNode* parent = &scene_graph_node_pool_[parent_pool_index].value.transform_node;
+		TransformNode* prev_sibling = parent->last_child;
+		node.value.transform_node = { entity_ids[i], { transform_utils.TransformWorldToLocal(world_matrices[i], parent_id), world_matrices[i] }, parent, prev_sibling, nullptr, nullptr, nullptr };
+		prev_sibling->next_sibling = &node.value.transform_node;
+		if (!parent->first_child) {
+			parent->first_child = &node.value.transform_node;
+		}
+		parent->last_child = &node.value.transform_node;
 	}
 
 	return entity_ids;
@@ -140,6 +155,7 @@ void SceneGraph::DestroyEntity(EntityID entity_id)
 	std::vector<std::size_t> new_chunk_pool_indices;
 	SceneGraphNode& prev_node = scene_graph_node_pool_[pool_index - 1];
 	if (prev_node.type == SceneGraphNodeTypeRecycled) {
+		// There is an adjacent recycled chunk before.
 		const std::size_t prev_chunk_size = prev_node.value.recycled_node.chunk_size;
 		const std::size_t prev_chunk_rank = prev_node.value.recycled_node.chunk_rank;
 		const std::size_t prev_chunk_pool_index = recycled_chunk_map_[prev_chunk_size][prev_chunk_rank];
@@ -151,10 +167,27 @@ void SceneGraph::DestroyEntity(EntityID entity_id)
 
 	new_chunk_pool_indices.push_back(pool_index);
 	SceneGraphNode& node = scene_graph_node_pool_[pool_index];
+
+	// Handle removal of node from hierarchy.
+	TransformNode* child = &node.value.transform_node;
+	TransformNode* prev_sibling = node.value.transform_node.previous_sibling;
+	TransformNode* next_sibling = node.value.transform_node.next_sibling;
+	TransformNode* parent = node.value.transform_node.parent;
+	if (parent->first_child == child) {
+		parent->first_child = next_sibling;
+	}
+	if (parent->last_child == child) {
+		parent->last_child = prev_sibling;
+	}
+	prev_sibling->next_sibling = next_sibling;
+	next_sibling->previous_sibling = prev_sibling;
+	
+	// Set node to be recycled
 	node.type = SceneGraphNodeTypeRecycled;
 	
 	SceneGraphNode& next_node = scene_graph_node_pool_[pool_index + 1];
 	if (next_node.type == SceneGraphNodeTypeRecycled){
+		// There is an adjacent recycled chunk after.
 		const std::size_t next_chunk_size = next_node.value.recycled_node.chunk_size;
 		const std::size_t next_chunk_rank = next_node.value.recycled_node.chunk_rank;
 		const std::size_t next_chunk_pool_index = recycled_chunk_map_[next_chunk_size][next_chunk_rank];
@@ -164,6 +197,7 @@ void SceneGraph::DestroyEntity(EntityID entity_id)
 		DeleteRecycledChunkWithSwap(next_chunk_size, next_chunk_rank);
 	}
 
+	// Create new chunk, and merge with any adjacent chunks, if any.
 	const std::size_t new_chunk_size = new_chunk_pool_indices.size();
 	std::size_t new_chunk_rank;
 	if (recycled_chunk_map_.find(new_chunk_size) != recycled_chunk_map_.end()) {

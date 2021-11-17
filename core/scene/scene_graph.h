@@ -13,9 +13,14 @@ class SceneGraph {
 public:
 	SceneGraph();
 
+	/* Creates an entity with given world matrix transformation and parent. If parent_id is 0, the entity's parent is the world.
+	*/
 	EntityID CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = 0);
 
-	std::vector<EntityID> CreateEntities(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<std::size_t> parent_map = {});
+	/* Each parent_map element, x, that is < 0 is assumed to be referring to the (-x)th entity to be created.
+	*  Otherwise, it is assumed to be referring to an existing entity ID.
+	*/
+	std::vector<EntityID> CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<int> parent_map = {});
 
 	void DestroyEntity(EntityID entity_id);
 
@@ -44,22 +49,26 @@ private:
 		SceneGraphNodeTypeTransform,
 	};
 
+	struct RecycledNode {
+		std::size_t chunk_size;
+		std::size_t chunk_rank;
+	};
+
+	struct TransformNode {
+		EntityID entity_id;
+		Transform transform;
+		TransformNode* parent;
+		TransformNode* previous_sibling;
+		TransformNode* next_sibling;
+		TransformNode* first_child;
+		TransformNode* last_child;
+	};
+
 	struct SceneGraphNode {
 		SceneGraphNodeType type;
-		union {
-			struct RecycledNode {
-				std::size_t chunk_size;
-				std::size_t chunk_rank;
-			} recycled_node;
-
-			struct TransformNode {
-				EntityID entity_id;
-				Transform transform;
-				std::size_t parent;
-				std::size_t previous_sibling;
-				std::size_t next_sibling;
-				std::size_t first_child;
-			} transform_node;
+		union NodeValue {
+			RecycledNode recycled_node;
+			TransformNode transform_node;
 		} value;
 	};
 

@@ -16,7 +16,7 @@ enum ComponentArrayType
 	REGISTERED_ENGINE_COMPONENTS
 	REGISTERED_PROJECT_COMPONENTS
 #undef REGISTER_COMPONENT
-}
+};
 
 class ComponentArrayBase
 {
