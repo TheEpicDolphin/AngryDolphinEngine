@@ -4,7 +4,7 @@
 #include <queue>
 #include <map>
 #include <core/ecs/entity.h>
-#include <core/transform/transform.h>
+#include <glm/mat4x4.hpp>
 
 #define MAX_ENTITY_COUNT 16384
 #define CHUNK_SIZE_POWER_OF_2 10
@@ -24,21 +24,21 @@ public:
 
 	void DestroyEntity(EntityID entity_id);
 
-	void DestroyEntityGroup(EntityID id);
+	//void DestroyEntityChunk(EntityID id);
 	
 	const glm::mat4& GetLocalTransform(EntityID id);
 
-	void SetLocalTransform(EntityID id, glm::mat4& local_matrix);
+	void SetLocalTransform(EntityID id, glm::mat4& local_transform_matrix);
 
 	const glm::mat4& GetWorldTransform(EntityID id);
 
-	void SetWorldTransform(EntityID id, glm::mat4& world_matrix);
+	void SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix);
 
 	const EntityID& GetParent(EntityID id);
 
 	void SetParent(EntityID id, EntityID parent_id);
 
-	void PerformBlockForEach(std::vector<EntityID> entity_ids, void (*block)(void* context, EntityID entity_id, Transform& transform));
+	//void PerformBlockForEach(std::vector<EntityID> entity_ids, void (*block)(void* context, EntityID entity_id, Transform& transform));
 
 private:
 
@@ -55,8 +55,13 @@ private:
 	};
 
 	struct TransformNode {
+		// Entity ID
 		EntityID entity_id;
-		Transform transform;
+		// Relative to parent.
+		glm::mat4 local_transform_matrix;
+		// Relative to world.
+		glm::mat4 world_transform_matrix;
+
 		TransformNode* parent;
 		TransformNode* previous_sibling;
 		TransformNode* next_sibling;
@@ -85,4 +90,8 @@ private:
 	std::queue<EntityID> recycled_entity_ids_;
 
 	void SceneGraph::DeleteRecycledChunkWithSwap(std::size_t chunk_size, std::size_t chunk_rank);
+
+	static void SceneGraph::UpdateDescendantWorldTransformationMatrices(SceneGraph::TransformNode& root_transform_node);
+
+	static void SceneGraph::RemoveTransformNodeFromHierarchy(TransformNode* transform_node);
 };
