@@ -11,17 +11,17 @@ using namespace std::chrono;
 class Game {
 
 public:
-	Game() 
-	{
-		rendering_system_ = RenderingSystem(&ecs_);
-		physics_system_ = PhysicsSystem(&ecs_);
-	}
+	Game(const char* initial_scene_path);
+
+	void LoadScene(const char* scene_path);
+
+	void UnloadScene(const char* scene_path);
+
+	// Capture the state of the game. Useful for debugging.
+	void CaptureSnapshot();
 
 	void StartMainLoop();
 
 private:
-	ECS ecs_;
-	RenderingSystem rendering_system_;
-	PhysicsSystem physics_system_;
-	PhysicsInterpolationSystem physics_interp_system_;
+	SceneManager scene_manager_;
 };

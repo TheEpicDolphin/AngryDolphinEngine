@@ -180,7 +180,7 @@ public:
 		}
 	}
 
-	void RegisterEntity() 
+	void RegisterEntity(EntityID entity_id) 
 	{
 		// Do nothing for now.
 	}
@@ -219,7 +219,7 @@ public:
 	{
 		return archive.RegisterObjectsForDeserialization(
 			{ "archetypes", },
-			{}});
+			{});
 	}
 
 private:
@@ -243,6 +243,4 @@ private:
 	}
 
 };
-
-}
 

@@ -14,7 +14,9 @@ void Game::StartMainLoop() {
 
 		while (accumulator >= fixed_dt)
 		{
-			physics_system_.Update(fixed_dt);
+			for (Scene* scene : scene_manager_.ActiveScenes()) {
+				scene->OnFixedUpdate(fixed_dt);
+			}
 			accumulator -= fixed_dt;
 		}
 
@@ -24,5 +26,10 @@ void Game::StartMainLoop() {
 
 		// render
 		rendering_system_.Update();
+
+
+		for (Scene* scene : scene_manager_.ActiveScenes()) {
+			scene->OnUpdate(frame_time, alpha);
+		}
 	}
 }

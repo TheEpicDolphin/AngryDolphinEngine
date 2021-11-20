@@ -24,7 +24,7 @@ public:
 
 	void DestroyEntity(EntityID entity_id);
 
-	//void DestroyEntityChunk(EntityID id);
+	void DestroyEntityChunk(EntityID entity_id, std::size_t n);
 	
 	const glm::mat4& GetLocalTransform(EntityID id);
 

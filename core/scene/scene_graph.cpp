@@ -8,7 +8,7 @@ SceneGraph::SceneGraph() {
 	next_pool_index_ = 0;
 
 	// We create the world entity
-	CreateEntity(glm::mat4(1.0f), -1);
+	CreateEntity(glm::mat4(1.0f), 0);
 }
 
 EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = 0)
@@ -105,11 +105,16 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 
 void SceneGraph::DestroyEntity(EntityID entity_id) 
 {
+	DestroyEntityChunk(entity_id, 1);
+}
+
+void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n) 
+{
 	assert(entity_id > 0);
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id];
-	
+	const std::size_t chunk_start_pool_index = entity_to_scene_graph_node_map_[entity_id];
+
 	std::vector<std::size_t> new_chunk_pool_indices;
-	SceneGraphNode& prev_node = scene_graph_node_pool_[pool_index - 1];
+	SceneGraphNode& prev_node = scene_graph_node_pool_[chunk_start_pool_index - 1];
 	if (prev_node.type == SceneGraphNodeTypeRecycled) {
 		// There is an adjacent recycled chunk before.
 		const std::size_t prev_chunk_size = prev_node.value.recycled_node.chunk_size;
@@ -121,17 +126,23 @@ void SceneGraph::DestroyEntity(EntityID entity_id)
 		DeleteRecycledChunkWithSwap(prev_chunk_size, prev_chunk_rank);
 	}
 
-	new_chunk_pool_indices.push_back(pool_index);
-	SceneGraphNode& node = scene_graph_node_pool_[pool_index];
+	for (std::size_t i = 0; i < n; i++) {
+		const std::size_t pool_index = chunk_start_pool_index + i;
+		new_chunk_pool_indices.push_back(pool_index);
+		SceneGraphNode& node = scene_graph_node_pool_[pool_index];
 
-	// Handle removal of node from hierarchy.
-	RemoveTransformNodeFromHierarchy(&node.value.transform_node);
+		// Handle removal of node from hierarchy.
+		RemoveTransformNodeFromHierarchy(&node.value.transform_node);
+
+		// Set node to be recycled
+		node.type = SceneGraphNodeTypeRecycled;
+
+		// Recycle entity id.
+		recycled_entity_ids_.push(node.value.transform_node.entity_id);
+	}
 	
-	// Set node to be recycled
-	node.type = SceneGraphNodeTypeRecycled;
-	
-	SceneGraphNode& next_node = scene_graph_node_pool_[pool_index + 1];
-	if (next_node.type == SceneGraphNodeTypeRecycled){
+	SceneGraphNode& next_node = scene_graph_node_pool_[chunk_start_pool_index + n];
+	if (next_node.type == SceneGraphNodeTypeRecycled) {
 		// There is an adjacent recycled chunk after.
 		const std::size_t next_chunk_size = next_node.value.recycled_node.chunk_size;
 		const std::size_t next_chunk_rank = next_node.value.recycled_node.chunk_rank;
@@ -158,8 +169,6 @@ void SceneGraph::DestroyEntity(EntityID entity_id)
 	for (std::size_t pool_index : new_chunk_pool_indices) {
 		scene_graph_node_pool_[pool_index].value.recycled_node = { new_chunk_size, new_chunk_rank };
 	}
-
-	recycled_entity_ids_.push(entity_id);
 }
 
 const glm::mat4& SceneGraph::GetLocalTransform(EntityID id) 
