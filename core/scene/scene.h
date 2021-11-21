@@ -1,13 +1,19 @@
 #pragma once
 
-#include "scene_graph.h"
 #include <core/ecs/registry.h>
+#include <core/ecs/system.h>
 #include <core/serialize/serializable.h>
 #include <core/graphics/renderer.h>
+
+#include "scene_graph.h"
+
+// TODO: make IScene interface that systems have access to.
 
 class Scene : ISerializable
 {
 public:
+
+	Scene();
 
 	void DidLoad();
 
@@ -15,21 +21,36 @@ public:
 
 	void OnFixedUpdate(double fixed_delta_time);
 
-	void OnUpdate(double delta_time, double alpha);
+	void OnFrameUpdate(double delta_time, double alpha);
 
 	EntityID CreateEntity();
 
 	void DestroyEntity(EntityID entity_id);
 
+	void RegisterFixedUpdateSystem(IFixedUpdateSystem* system, SystemOrder order);
+
+	void RegisterFrameUpdateSystem(IFrameUpdateSystem* system, SystemOrder order);
+
+	const ISceneGraph*& SceneGraph() {
+		return &scene_graph_;
+	}
+
+	const ecs::Registry& Registry() {
+		return registry_;
+	}
+
+	const IRenderer*& Renderer() {
+		return renderer_;
+	}
+
 private:
 	SceneGraph scene_graph_;
-	ECS::Registry registry_;
+	ecs::Registry registry_;
 	IRenderer *renderer_;
-
-	PhysicsSystem physics_system_;
-	PhysicsInterpolater physics_interpolator_;
 
 	RenderingSystem rendering_system_;
 	PhysicsSystem physics_system_;
-	PhysicsInterpolationSystem physics_interp_system_;
+
+	std::map<> fixedUpdateSystems;
+	std::map<> frameUpdateSystems;
 };

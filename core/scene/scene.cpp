@@ -1,6 +1,8 @@
 
 #include "scene.h"
 
+Scene::Scene() {}
+
 void Scene::DidLoad()
 {
 
@@ -8,6 +10,14 @@ void Scene::DidLoad()
 
 void Scene::DidUnload()
 {
+
+}
+
+void Scene::OnFixedUpdate(double fixed_delta_time) {
+
+}
+
+void Scene::OnFrameUpdate(double delta_time, double alpha) {
 
 }
 

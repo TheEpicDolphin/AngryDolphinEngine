@@ -9,7 +9,23 @@
 #define MAX_ENTITY_COUNT 16384
 #define CHUNK_SIZE_POWER_OF_2 10
 
-class SceneGraph {
+class ISceneGraph {
+	virtual const glm::mat4& GetLocalTransform(EntityID id) = 0;
+
+	virtual void SetLocalTransform(EntityID id, glm::mat4& local_transform_matrix) = 0;
+
+	virtual const glm::mat4& GetWorldTransform(EntityID id) = 0;
+
+	virtual void SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix) = 0;
+
+	virtual const EntityID& GetParent(EntityID id) = 0;
+
+	virtual void SetParent(EntityID id, EntityID parent_id) = 0;
+};
+
+// TODO: move below class into scene_graph_impl file.
+
+class SceneGraph : public ISceneGraph {
 public:
 	SceneGraph();
 
@@ -26,17 +42,17 @@ public:
 
 	void DestroyEntityChunk(EntityID entity_id, std::size_t n);
 	
-	const glm::mat4& GetLocalTransform(EntityID id);
+	const glm::mat4& GetLocalTransform(EntityID id) override;
 
-	void SetLocalTransform(EntityID id, glm::mat4& local_transform_matrix);
+	void SetLocalTransform(EntityID id, glm::mat4& local_transform_matrix) override;
 
-	const glm::mat4& GetWorldTransform(EntityID id);
+	const glm::mat4& GetWorldTransform(EntityID id) override;
 
-	void SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix);
+	void SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix) override;
 
-	const EntityID& GetParent(EntityID id);
+	const EntityID& GetParent(EntityID id) override;
 
-	void SetParent(EntityID id, EntityID parent_id);
+	void SetParent(EntityID id, EntityID parent_id) override;
 
 	//void PerformBlockForEach(std::vector<EntityID> entity_ids, void (*block)(void* context, EntityID entity_id, Transform& transform));
 

@@ -1,26 +1,15 @@
 #pragma once
 
-#include <iostream>
-#include "ecs.h"
+class Scene;
 
-class SystemBase {
-
+class ISystem {
+	virtual void DidActivate(const Scene& scene) {};
 };
 
-template<typename T>
-class System : SystemBase
-{
-public:
-	System() = default;
+class IFixedUpdateSystem : public ISystem {
+	virtual void OnFixedUpdate(double fixed_delta_time, const Scene& scene) = 0;
+};
 
-	System(ECS *ecs) {
-		ecs_ = ecs;
-	}
-
-protected:
-	ECS *ecs_;
-	// TODO: Consider caching archetypes in systems. When a change to the ECS'
-	// Archetype Set Trie is detected (perhaps through some subscriber pattern),
-	// Then the system can fetch the desired archetypes again. 
-	// std::vector<Archetype *> cached_archetypes_;
+class IFrameUpdateSystem : public ISystem {
+	virtual void OnFrameUpdate(double delta_time, double alpha, const Scene& scene) = 0;
 };

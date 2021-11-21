@@ -17,7 +17,7 @@
 #include "component.h"
 #include "archetype.h"
 
-namespace ECS {
+namespace ecs {
 
 class Registry : public ISerializable, public IDeserializable
 {
@@ -228,6 +228,11 @@ private:
 
 	std::vector<Archetype> restored_archetypes_;
 	TypeInfo component_type_info_;
+
+	// TODO: Consider caching archetypes in systems. When a change to the ECS'
+	// Archetype Set Trie is detected (perhaps through some subscriber pattern),
+	// Then the system can fetch the desired archetypes again. 
+	// std::vector<Archetype *> cached_archetypes_;
 
 	template<class... Ts>
 	std::vector<Archetype *> GetArchetypesWithComponents() 

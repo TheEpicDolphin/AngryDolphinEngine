@@ -6,33 +6,29 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <core/ecs/system.h>
-#include <core/ecs/ecs.h>
-#include <core/transform/transform.h>
+#include <core/ecs/registry.h>
+#include <core/scene/scene_graph.h>
 #include <GL/glew.h>
 
 #include "camera.h"
 #include "mesh_renderable.h"
 #include "renderer.h"
 
-class RenderingSystem : public System<RenderingSystem>
+class RenderingSystem : public IFrameUpdateSystem
 {
 public:
 	RenderingSystem() = default;
 
-	RenderingSystem(ECS *ecs) : System<RenderingSystem>(ecs) {
-		
-	}
-
-	void Update() 
+	void OnFrameUpdate(double delta_time, double alpha, ecs::Registry& registry) ()
 	{
 		std::vector<RenderableObjectInfo> renderable_objects;
-		std::function<void(EntityID, MeshRenderable&, Transform&)> block =
-		[&](EntityID entity_id, MeshRenderable& mesh_rend, Transform& trans) {
+		std::function<void(EntityID, MeshRenderable&)> block =
+		[&](EntityID entity_id, MeshRenderable& mesh_rend) {
 			if (mesh_rend.enabled) {
-				renderable_objects.push_back({ mesh_rend.shared_mesh, trans.matrix });
+				renderable_objects.push_back({ mesh_rend.shared_mesh, scene_graph->GetWorldTransform(entity_id) });
 			}
 		};
-		ecs_->EnumerateComponentsWithBlock<MeshRenderable, Transform>(block);
+		registry->EnumerateComponentsWithBlock<MeshRenderable>(block);
 
 		renderer_->RenderFrame(renderable_objects);
 	}
