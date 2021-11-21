@@ -19,20 +19,16 @@ class RenderingSystem : public IFrameUpdateSystem
 public:
 	RenderingSystem() = default;
 
-	void OnFrameUpdate(double delta_time, double alpha, ecs::Registry& registry) ()
+	void OnFrameUpdate(double delta_time, double alpha, const Scene& scene)
 	{
 		std::vector<RenderableObjectInfo> renderable_objects;
 		std::function<void(EntityID, MeshRenderable&)> block =
 		[&](EntityID entity_id, MeshRenderable& mesh_rend) {
 			if (mesh_rend.enabled) {
-				renderable_objects.push_back({ mesh_rend.shared_mesh, scene_graph->GetWorldTransform(entity_id) });
+				renderable_objects.push_back({ mesh_rend.shared_mesh, scene.TransformGraph().GetWorldTransform(entity_id) });
 			}
 		};
-		registry->EnumerateComponentsWithBlock<MeshRenderable>(block);
-
-		renderer_->RenderFrame(renderable_objects);
+		scene.Registry().EnumerateComponentsWithBlock<MeshRenderable>(block);
+		scene.Renderer().RenderFrame(renderable_objects);
 	}
-
-private:
-	IRenderer *renderer_;
 };

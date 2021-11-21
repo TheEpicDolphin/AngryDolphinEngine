@@ -15,20 +15,20 @@ void RigidbodySystem::OnFixedUpdate(double fixed_delta_time, const Scene& scene)
 		rb.previous_position = rb.position;
 		rb.position += rb.velocity * fixed_delta_time;
 	};
-	scene.Registry()->EnumerateComponentsWithBlock<Rigidbody>(block);
+	scene.Registry().EnumerateComponentsWithBlock<Rigidbody>(block);
 }
 
 void RigidbodySystem::OnFrameUpdate(double delta_time, double alpha, const Scene& scene)
 {
 	// Physics interpolation before rendering
 	std::function<void(EntityID, Rigidbody&)> block =
-		[alpha](EntityID entity_id, Rigidbody& rb) {
+		[alpha, scene](EntityID entity_id, Rigidbody& rb) {
 		if (rb.interpolate) {
-			scene.SceneGraph()->SetWorldTransform(entity_id, rb.position * alpha + rb.previous_position * (1.0f - alpha));
+			scene.TransformGraph().SetWorldTransform(entity_id, rb.position * alpha + rb.previous_position * (1.0f - alpha));
 		}
 		else {
-			scene.SceneGraph()->SetWorldTransform(entity_id, rb.position);
+			scene.TransformGraph().SetWorldTransform(entity_id, rb.position);
 		}
 	};
-	scene.Registry()->EnumerateComponentsWithBlock<Rigidbody>(block);
+	scene.Registry().EnumerateComponentsWithBlock<Rigidbody>(block);
 }

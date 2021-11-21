@@ -6,26 +6,12 @@
 #include <core/ecs/entity.h>
 #include <glm/mat4x4.hpp>
 
+#include "interfaces/transform_graph.h"
+
 #define MAX_ENTITY_COUNT 16384
 #define CHUNK_SIZE_POWER_OF_2 10
 
-class ISceneGraph {
-	virtual const glm::mat4& GetLocalTransform(EntityID id) = 0;
-
-	virtual void SetLocalTransform(EntityID id, glm::mat4& local_transform_matrix) = 0;
-
-	virtual const glm::mat4& GetWorldTransform(EntityID id) = 0;
-
-	virtual void SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix) = 0;
-
-	virtual const EntityID& GetParent(EntityID id) = 0;
-
-	virtual void SetParent(EntityID id, EntityID parent_id) = 0;
-};
-
-// TODO: move below class into scene_graph_impl file.
-
-class SceneGraph : public ISceneGraph {
+class SceneGraph : public ITransformGraph {
 public:
 	SceneGraph();
 
@@ -105,9 +91,9 @@ private:
 	// Recycled Entity IDs that can be reused.
 	std::queue<EntityID> recycled_entity_ids_;
 
-	void SceneGraph::DeleteRecycledChunkWithSwap(std::size_t chunk_size, std::size_t chunk_rank);
+	void DeleteRecycledChunkWithSwap(std::size_t chunk_size, std::size_t chunk_rank);
 
-	static void SceneGraph::UpdateDescendantWorldTransformationMatrices(SceneGraph::TransformNode& root_transform_node);
+	static void UpdateDescendantWorldTransformationMatrices(TransformNode& root_transform_node);
 
-	static void SceneGraph::RemoveTransformNodeFromHierarchy(TransformNode* transform_node);
+	static void RemoveTransformNodeFromHierarchy(TransformNode* transform_node);
 };

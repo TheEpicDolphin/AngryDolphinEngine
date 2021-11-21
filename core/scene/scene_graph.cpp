@@ -103,12 +103,12 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 	return entity_ids;
 }
 
-void SceneGraph::DestroyEntity(EntityID entity_id) 
+void SceneGraph::DestroyEntity(EntityID entity_id)
 {
 	DestroyEntityChunk(entity_id, 1);
 }
 
-void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n) 
+void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 {
 	assert(entity_id > 0);
 	const std::size_t chunk_start_pool_index = entity_to_scene_graph_node_map_[entity_id];
@@ -171,7 +171,7 @@ void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 	}
 }
 
-const glm::mat4& SceneGraph::GetLocalTransform(EntityID id) 
+const glm::mat4& SceneGraph::GetLocalTransform(EntityID id)
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
 	return scene_graph_node_pool_[pool_index].value.transform_node.local_transform_matrix;
@@ -189,13 +189,13 @@ void SceneGraph::SetLocalTransform(EntityID id, glm::mat4& local_transform_matri
 	}
 }
 
-const glm::mat4& SceneGraph::GetWorldTransform(EntityID id) 
+const glm::mat4& SceneGraph::GetWorldTransform(EntityID id)
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
 	return scene_graph_node_pool_[pool_index].value.transform_node.world_transform_matrix;
 }
 
-void SceneGraph::SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix) 
+void SceneGraph::SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix)
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
@@ -207,7 +207,7 @@ void SceneGraph::SetWorldTransform(EntityID id, glm::mat4& world_transform_matri
 	}
 }
 
-const EntityID& SceneGraph::GetParent(EntityID id) 
+const EntityID& SceneGraph::GetParent(EntityID id)
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
@@ -267,7 +267,7 @@ void SceneGraph::UpdateDescendantWorldTransformationMatrices(TransformNode& root
 	}
 }
 
-void SceneGraph::RemoveTransformNodeFromHierarchy(TransformNode* transform_node) 
+void SceneGraph::RemoveTransformNodeFromHierarchy(TransformNode* transform_node)
 {
 	TransformNode* prev_sibling = transform_node->previous_sibling;
 	TransformNode* next_sibling = transform_node->next_sibling;

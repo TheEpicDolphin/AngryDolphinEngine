@@ -7,8 +7,6 @@
 
 #include "scene_graph.h"
 
-// TODO: make IScene interface that systems have access to.
-
 class Scene : ISerializable
 {
 public:
@@ -27,19 +25,19 @@ public:
 
 	void DestroyEntity(EntityID entity_id);
 
-	void RegisterFixedUpdateSystem(IFixedUpdateSystem* system, SystemOrder order);
+	//void RegisterFixedUpdateSystem(IFixedUpdateSystem* system, SystemOrder order);
 
-	void RegisterFrameUpdateSystem(IFrameUpdateSystem* system, SystemOrder order);
+	//void RegisterFrameUpdateSystem(IFrameUpdateSystem* system, SystemOrder order);
 
-	const ISceneGraph*& SceneGraph() {
-		return &scene_graph_;
+	const ITransformGraph& TransformGraph() {
+		return scene_graph_;
 	}
 
 	const ecs::Registry& Registry() {
 		return registry_;
 	}
 
-	const IRenderer*& Renderer() {
+	const IRenderer& Renderer() {
 		return renderer_;
 	}
 
@@ -51,6 +49,6 @@ private:
 	RenderingSystem rendering_system_;
 	PhysicsSystem physics_system_;
 
-	std::map<> fixedUpdateSystems;
-	std::map<> frameUpdateSystems;
+	//std::map<> fixedUpdateSystems;
+	//std::map<> frameUpdateSystems;
 };
