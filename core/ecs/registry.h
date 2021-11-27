@@ -11,11 +11,17 @@
 #include <core/serialize/deserializable.h>
 #include <core/serialize/archive.h>
 
-#include <config/component_registry.h>
+#include <config/engine_components.h>
+#include <config/engine_systems.h>
 
 #include "entity.h"
 #include "component.h"
 #include "archetype.h"
+
+enum SystemUpdateType {
+	SystemUpdateTypeFixedTimestep = (1u << 0),
+	SystemUpdateTypeOnFrame = (1u << 1),
+};
 
 namespace ecs {
 
@@ -26,9 +32,16 @@ public:
 	{
 		// This maintains the type ids of components consistent across different compilations.
 		#define REGISTER_COMPONENT(name) component_type_info_.GetTypeId<name>();
-			REGISTERED_ENGINE_COMPONENTS
-			REGISTERED_PROJECT_COMPONENTS
+		    ENGINE_COMPONENTS
+			//PROJECT_COMPONENTS
 		#undef REGISTER_COMPONENT
+
+		std::size_t system_count = 0;
+		#define REGISTER_SYSTEM(name) system_type_info_.GetTypeId<name>(); system_count++;
+			ENGINE_SYSTEMS
+				//PROJECT_SYSTEMS
+		#undef REGISTER_SYSTEM
+		systems_ = std::vector<ISystem*>(system_count);
 	}
 
 	template<typename T>
@@ -198,6 +211,33 @@ public:
 		}
 	}
 
+	template<typename T, class ...Args>
+	void AddSystem(SystemUpdateType type, std::size_t execution_order, Args... args) {
+		ISystem* added_system = new T(args...);
+		systems_[system_type_info_.GetTypeId<T>()] = added_system;
+
+		if (type & SystemUpdateTypeFixedTimestep) {
+			fixed_update_systems_.push_back(added_system);
+		}
+
+		if (type & SystemUpdateTypeOnFrame) {
+			frame_update_systems_.push_back(added_system);
+		}
+	}
+
+	template<typename T>
+	void RemoveSystem() {
+		const std::size_t type_id = system_type_info_.GetTypeId<T>();
+		delete systems_[type_id];
+		systems_[type_id] = nullptr;
+	}
+
+	template<typename T>
+	std::size_t GetSystemExecutionOrder(SystemUpdateType type)
+	{
+
+	}
+
 	// ISerializable
 
 	std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
@@ -224,10 +264,18 @@ public:
 
 private:
 	SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
-	std::unordered_map<EntityID, Archetype *> entity_archetype_map_;
+
+	// TODO: make this a vector instead for faster archetype lookup
+	std::unordered_map<EntityID, Archetype*> entity_archetype_map_;
 
 	std::vector<Archetype> restored_archetypes_;
 	TypeInfo component_type_info_;
+
+	std::vector<ISystem*> systems_;
+	std::list<ISystem*> fixed_update_systems_;
+	std::list<ISystem*> frame_update_systems_;
+	TypeInfo system_type_info_;
+
 
 	// TODO: Consider caching archetypes in systems. When a change to the ECS'
 	// Archetype Set Trie is detected (perhaps through some subscriber pattern),

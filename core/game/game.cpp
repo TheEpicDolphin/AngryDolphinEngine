@@ -1,5 +1,17 @@
 #include "game.h"
 
+void Game::LoadScene(const char* scene_path) {
+
+}
+
+void Game::UnloadScene(const char* scene_path) {
+
+}
+
+void Game::CaptureSnapshot() {
+
+}
+
 void Game::StartMainLoop() {
 	const double fixed_dt = 1 / 60.0;
 	double accumulator = 0.0;

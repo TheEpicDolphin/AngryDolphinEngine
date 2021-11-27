@@ -6,7 +6,7 @@
 
 static const glm::vec3 gravity(0.0f, -9.8f, 0.0f);
 
-class RigidbodySystem : public IFixedUpdateSystem, public IFrameUpdateSystem
+class RigidbodySystem : public ISystem
 {
 public:
 	RigidbodySystem() = default;

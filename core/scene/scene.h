@@ -25,10 +25,6 @@ public:
 
 	void DestroyEntity(EntityID entity_id);
 
-	//void RegisterFixedUpdateSystem(IFixedUpdateSystem* system, SystemOrder order);
-
-	//void RegisterFrameUpdateSystem(IFrameUpdateSystem* system, SystemOrder order);
-
 	const ITransformGraph& TransformGraph() {
 		return scene_graph_;
 	}
@@ -48,7 +44,4 @@ private:
 
 	RenderingSystem rendering_system_;
 	PhysicsSystem physics_system_;
-
-	//std::map<> fixedUpdateSystems;
-	//std::map<> frameUpdateSystems;
 };

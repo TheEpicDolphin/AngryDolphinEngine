@@ -15,7 +15,9 @@ public:
 
 	void LoadScene(const char* scene_path);
 
-	void UnloadScene(const char* scene_path);
+	void UnloadScene(Scene& scene);
+
+	void SaveScene(Scene& scene);
 
 	// Capture the state of the game. Useful for debugging.
 	void CaptureSnapshot();
