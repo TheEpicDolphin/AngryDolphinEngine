@@ -1,25 +1,22 @@
 #pragma once
 
 #include <core/ecs/registry.h>
-#include <core/ecs/system.h>
-#include <core/serialize/serializable.h>
 #include <core/graphics/renderer.h>
+#include <core/serialize/serializable.h>
 
+#include "interfaces/transform_graph.h"
 #include "scene_graph.h"
 
-class Scene : ISerializable
+class IScene : public ISerializable, public IDeserializable
 {
 public:
+	virtual void DidLoad() = 0;
 
-	Scene();
+	virtual void DidUnload() = 0;
 
-	void DidLoad();
+	virtual void OnFixedUpdate(double fixed_delta_time) = 0;
 
-	void DidUnload();
-
-	void OnFixedUpdate(double fixed_delta_time);
-
-	void OnFrameUpdate(double delta_time, double alpha);
+	virtual void OnFrameUpdate(double delta_time, double alpha) = 0;
 
 	EntityID CreateEntity();
 
@@ -41,7 +38,4 @@ private:
 	SceneGraph scene_graph_;
 	ecs::Registry registry_;
 	IRenderer *renderer_;
-
-	RenderingSystem rendering_system_;
-	PhysicsSystem physics_system_;
 };

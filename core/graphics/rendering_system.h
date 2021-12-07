@@ -20,7 +20,7 @@ class RenderingSystem : public ISystem
 public:
 	RenderingSystem() = default;
 
-	void OnFrameUpdate(double delta_time, double alpha, const Scene& scene)
+	void OnFrameUpdate(double delta_time, double alpha, const IScene& scene)
 	{
 		std::vector<RenderableObjectInfo> renderable_objects;
 		std::function<void(EntityID, MeshRenderable&)> block =

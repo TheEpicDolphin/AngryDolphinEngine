@@ -4,6 +4,7 @@
 #include <cstring>
 #include <unordered_map>
 #include <functional>
+#include <list>
 
 #include <core/utils/set_trie.h>
 #include <core/utils/type_info.h>
@@ -17,6 +18,7 @@
 #include "entity.h"
 #include "component.h"
 #include "archetype.h"
+#include "system.h"
 
 enum SystemUpdateType {
 	SystemUpdateTypeFixedTimestep = (1u << 0),
@@ -35,13 +37,6 @@ public:
 		    ENGINE_COMPONENTS
 			//PROJECT_COMPONENTS
 		#undef REGISTER_COMPONENT
-
-		std::size_t system_count = 0;
-		#define REGISTER_SYSTEM(name) system_type_info_.GetTypeId<name>(); system_count++;
-			ENGINE_SYSTEMS
-				//PROJECT_SYSTEMS
-		#undef REGISTER_SYSTEM
-		systems_ = std::vector<ISystem*>(system_count);
 	}
 
 	template<typename T>
@@ -211,33 +206,6 @@ public:
 		}
 	}
 
-	template<typename T, class ...Args>
-	void AddSystem(SystemUpdateType type, std::size_t execution_order, Args... args) {
-		ISystem* added_system = new T(args...);
-		systems_[system_type_info_.GetTypeId<T>()] = added_system;
-
-		if (type & SystemUpdateTypeFixedTimestep) {
-			fixed_update_systems_.push_back(added_system);
-		}
-
-		if (type & SystemUpdateTypeOnFrame) {
-			frame_update_systems_.push_back(added_system);
-		}
-	}
-
-	template<typename T>
-	void RemoveSystem() {
-		const std::size_t type_id = system_type_info_.GetTypeId<T>();
-		delete systems_[type_id];
-		systems_[type_id] = nullptr;
-	}
-
-	template<typename T>
-	std::size_t GetSystemExecutionOrder(SystemUpdateType type)
-	{
-
-	}
-
 	// ISerializable
 
 	std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
@@ -270,12 +238,6 @@ private:
 
 	std::vector<Archetype> restored_archetypes_;
 	TypeInfo component_type_info_;
-
-	std::vector<ISystem*> systems_;
-	std::list<ISystem*> fixed_update_systems_;
-	std::list<ISystem*> frame_update_systems_;
-	TypeInfo system_type_info_;
-
 
 	// TODO: Consider caching archetypes in systems. When a change to the ECS'
 	// Archetype Set Trie is detected (perhaps through some subscriber pattern),

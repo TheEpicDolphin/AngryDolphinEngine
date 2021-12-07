@@ -1,23 +1,17 @@
 #pragma once
 
 #include <chrono>
-#include <core/ecs/ecs.h>
-#include <core/graphics/rendering_system.h>
-#include <core/simulation/physics_system.h>
-#include <core/simulation/physics_interpolation_system.h>
-
-using namespace std::chrono;
+#include <core/scene/scene_manager.h>
 
 class Game {
 
 public:
-	Game(const char* initial_scene_path);
+	Game() {}
 
-	void LoadScene(const char* scene_path);
-
-	void UnloadScene(Scene& scene);
-
-	void SaveScene(Scene& scene);
+	const SceneManager& SceneManager() 
+	{
+		return scene_manager_;
+	}
 
 	// Capture the state of the game. Useful for debugging.
 	void CaptureSnapshot();

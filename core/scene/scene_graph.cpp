@@ -4,7 +4,7 @@
 #include <core/utils/transform_utils.h>
 
 SceneGraph::SceneGraph() {
-	scene_graph_node_pool_ = new SceneGraphNode[(MAX_ENTITY_COUNT >> CHUNK_SIZE_POWER_OF_2) + 1]();
+	scene_graph_node_pool_ = new SceneGraphNode[MAX_ENTITY_COUNT]();
 	next_pool_index_ = 0;
 
 	// We create the world entity

@@ -9,29 +9,31 @@ public:
 	/*
 	 * scene_name: Name of the empty scene to create. The created scene is not loaded.
 	*/
-	Scene& CreateScene(const char* scene_name);
+	IScene& CreateScene(const char* scene_name);
 
 	/*
 	 * scene_path: Path of the Scene to load.
 	*/ 
 	void LoadScene(const char* scene_path);
 
-	void LoadScene(Scene& scene);
+	void LoadScene(IScene& scene);
 
 	/*
 	 * Destroys all entities in the given scene and removes it from the SceneManager.
 	*/
-	void UnloadScene(Scene& scene);
+	void UnloadScene(IScene& scene);
 
 
-	void SaveScene(Scene& scene);
+	void SaveScene(IScene& scene);
 
 
-	Scene& GetLoadedSceneAtIndex(std::size_t index);
+	IScene& GetLoadedSceneAtIndex(std::size_t index);
+
+	const std::vector<IScene*>& LoadedScenes();
 
 private:
 	// Used for serializing/deserializing the scenes
 	Archive archive_;
 
-	std::vector<Scene> loaded_scenes_;
+	std::vector<IScene*> loaded_scenes_;
 };

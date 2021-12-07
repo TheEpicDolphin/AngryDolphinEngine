@@ -9,7 +9,6 @@
 #include "interfaces/transform_graph.h"
 
 #define MAX_ENTITY_COUNT 16384
-#define CHUNK_SIZE_POWER_OF_2 10
 
 class SceneGraph : public ITransformGraph {
 public:
