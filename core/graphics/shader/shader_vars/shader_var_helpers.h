@@ -8,7 +8,9 @@
 
 #define VERTEX_ATTRIBUTE_POSITION_NAME "_position"
 #define VERTEX_ATTRIBUTE_NORMAL_NAME "_normal"
-#define VERTEX_ATTRIBUTE_TEXTURE_COORDINATES_NAME "_texCoords"
+#define VERTEX_ATTRIBUTE_TEX_COORDS_NAME "_texCoords"
+#define VERTEX_ATTRIBUTE_BONE_WEIGHTS_NAME "_boneWeights"
+#define VERTEX_ATTRIBUTE_BONE_INDICES_NAME "_boneIndices"
 
 namespace shader{
 

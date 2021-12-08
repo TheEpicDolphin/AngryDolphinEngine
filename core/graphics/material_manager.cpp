@@ -1,7 +1,6 @@
 
 #include "material_manager.h"
 #include <core/utils/file_helpers.h>
-#include <rapidjson/document.h>
 
 static void SetMaterialPropertiesForMaterial(Material *material, )
 {

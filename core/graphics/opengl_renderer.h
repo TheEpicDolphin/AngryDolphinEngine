@@ -19,7 +19,7 @@ public:
 
 	void UnsetRenderTarget(UID id);
 
-	bool RenderFrame(std::vector<RenderableObjectInfo> ros);
+	bool RenderFrame(const std::vector<RenderableObject>& renderable_objects);
 
 	void Cleanup();
 
@@ -32,17 +32,22 @@ public:
 private:
 	void LoadRenderingAssets();
 
+	struct RenderableObjectInstance {
+		glm::mat4 model_transform;
+		std::vector<glm::mat4> bone_transforms;
+	};
+
 	struct IMeshBatch {
-		std::shared_ptr<Mesh> mesh;
+		Mesh* mesh;
 		GLuint vao;
 		GLuint ibo;
-		std::vector<glm::mat4> model_matrices;
-		virtual void SetupVertexAttributeBuffers();
+		std::vector<RenderableObjectInstance> renderable_object_instances;
+		virtual void SetupVertexAttributeBuffers() = 0;
 	};
 
 	struct DynamicMeshBatch : IMeshBatch {
 		GLuint vbo;
-		DynamicMeshBatch(std::shared_ptr<Mesh> mesh, GLuint vao, GLuint vbo);
+		DynamicMeshBatch(Mesh* mesh, GLuint vao, GLuint vbo);
 		void SetupVertexAttributeBuffers();
 	};
 

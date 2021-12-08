@@ -31,14 +31,7 @@ const std::shared_ptr<Material>& Mesh::GetMaterial()
 }
 
 void Mesh::SetVertexPositions(std::vector<glm::vec3> verts) {
-	if (!position_attribute_index_) {
-		position_attribute_index_ = vertex_attribute_buffers_.size();
-		SetVertexAttributeBuffer<glm::vec3>(VERTEX_ATTRIBUTE_POSITION_NAME, verts);
-	}
-	else {
-		vertex_attribute_buffers_[position_attribute_index_].data = shader::BufferData(verts);
-		vertex_attribute_buffers_[position_attribute_index_].is_dirty = true;
-	}
+	SetVertexAttributeBufferWithCachedIndex<glm::vec3>(VERTEX_ATTRIBUTE_POSITION_NAME, verts, position_attribute_index_);
 }
 
 std::vector<glm::vec3> Mesh::GetVertexPositions() {
@@ -46,6 +39,38 @@ std::vector<glm::vec3> Mesh::GetVertexPositions() {
 	glm::vec3* positions_ptr = reinterpret_cast<glm::vec3*>(buffer.data.data());
 	const std::vector<glm::vec3> positions(positions_ptr, positions_ptr + vertex_count_);
 	return positions;
+}
+
+void Mesh::SetNormals(std::vector<glm::vec3> normals) {
+	SetVertexAttributeBufferWithCachedIndex<glm::vec3>(VERTEX_ATTRIBUTE_NORMAL_NAME, normals, normal_attribute_index_);
+}
+
+std::vector<glm::vec3> Mesh::GetNormals() {
+
+}
+
+void Mesh::SetTexCoords(std::vector<glm::vec2> tex_coords) {
+	SetVertexAttributeBufferWithCachedIndex<glm::vec2>(VERTEX_ATTRIBUTE_TEX_COORDS_NAME, tex_coords, tex_coords_attribute_index_);
+}
+
+std::vector<glm::vec2> Mesh::GetTexCoords() {
+
+}
+
+void Mesh::SetBoneWeights(std::vector<glm::vec4> bone_weights) {
+	SetVertexAttributeBufferWithCachedIndex<glm::vec4>(VERTEX_ATTRIBUTE_BONE_WEIGHTS_NAME, bone_weights, bone_weights_attribute_index_);
+}
+
+std::vector<glm::vec4> Mesh::GetBoneWeights() {
+
+}
+
+void Mesh::SetBoneIndices(std::vector<glm::ivec4> bone_indices) {
+	SetVertexAttributeBufferWithCachedIndex<glm::ivec4>(VERTEX_ATTRIBUTE_BONE_INDICES_NAME, bone_indices, bone_indices_attribute_index_);
+}
+
+std::vector<glm::ivec4> Mesh::GetBoneIndices() {
+
 }
 
 const std::shared_ptr<RenderingPipeline>& Mesh::GetPipeline()

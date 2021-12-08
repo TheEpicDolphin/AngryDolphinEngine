@@ -1,7 +1,6 @@
 
 #include "rendering_pipeline_manager.h"
 #include <core/utils/file_helpers.h>
-#include <rapidjson/document.h>
 
 void RenderingPipelineManager::LoadRenderingPipelines()
 {

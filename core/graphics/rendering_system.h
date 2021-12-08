@@ -13,6 +13,7 @@
 
 #include "camera.h"
 #include "mesh_renderable.h"
+#include "skeletal_mesh_renderable.h"
 #include "renderer.h"
 
 class RenderingSystem : public ISystem
@@ -22,14 +23,31 @@ public:
 
 	void OnFrameUpdate(double delta_time, double alpha, const IScene& scene)
 	{
-		std::vector<RenderableObjectInfo> renderable_objects;
-		std::function<void(EntityID, MeshRenderable&)> block =
+		std::vector<RenderableObject> renderable_objects;
+		// Iterate through mesh renderables.
+		std::function<void(EntityID, MeshRenderable&)> mesh_renderables_block =
 		[&renderable_objects, &scene](EntityID entity_id, MeshRenderable& mesh_rend) {
 			if (mesh_rend.enabled) {
-				renderable_objects.push_back({ mesh_rend.shared_mesh, scene.TransformGraph().GetWorldTransform(entity_id) });
+				const MeshID mesh_id = mesh_rend.unique_mesh ? mesh_rend.unique_mesh->GetInstanceID() : mesh_rend.shared_mesh->GetInstanceID();
+				renderable_objects.push_back({ mesh_id, scene.TransformGraph().GetWorldTransform(entity_id), {} });
 			}
 		};
-		scene.Registry().EnumerateComponentsWithBlock<MeshRenderable>(block);
+		scene.Registry().EnumerateComponentsWithBlock<MeshRenderable>(mesh_renderables_block);
+
+		// Iterate through skeletal mesh renderables.
+		std::function<void(EntityID, SkeletalMeshRenderable&)> skel_mesh_renderables_block =
+		[&renderable_objects, &scene](EntityID entity_id, SkeletalMeshRenderable& skel_mesh_rend) {
+			if (skel_mesh_rend.enabled) {
+				std::vector<glm::mat4> bone_transforms(skel_mesh_rend.bones.size());
+				for (std::size_t i = 0; i < bone_transforms.size(); i++) {
+					bone_transforms[i] = scene.TransformGraph().GetWorldTransform(skel_mesh_rend.bones[i]);
+				}
+				const MeshID mesh_id = skel_mesh_rend.unique_mesh ? skel_mesh_rend.unique_mesh.GetInstanceID() : skel_mesh_rend.shared_mesh.GetInstanceID();
+				renderable_objects.push_back({ mesh_id, scene.TransformGraph().GetWorldTransform(entity_id), bone_transforms });
+			}
+		};
+		scene.Registry().EnumerateComponentsWithBlock<SkeletalMeshRenderable>(skel_mesh_renderables_block);
+
 		scene.Renderer().RenderFrame(renderable_objects);
 	}
 };

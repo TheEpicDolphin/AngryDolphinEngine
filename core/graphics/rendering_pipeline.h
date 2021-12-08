@@ -11,6 +11,8 @@ enum VertexAttributeUsageCategory
 	VertexAttributeUsageCategoryPosition = 0,
 	VertexAttributeUsageCategoryNormal,
 	VertexAttributeUsageCategoryTextureCoordinates,
+	VertexAttributeUsageCategoryBoneWeights,
+	VertexAttributeUsageCategoryBoneIndices,
 	VertexAttributeUsageCategoryCustom,
 };
 

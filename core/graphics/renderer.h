@@ -5,10 +5,11 @@
 
 #include <glm/mat4x4.hpp>
 
-struct RenderableObjectInfo
+struct RenderableObject
 {
-	std::shared_ptr<Mesh> mesh;
+	MeshID mesh_id;
 	glm::mat4 model_matrix;
+	std::vector<glm::mat4> bones;
 };
 
 struct RenderTargetInfo 
@@ -25,7 +26,7 @@ public:
 
 	virtual void UnsetRenderTarget(UID id) = 0;
 	
-	virtual bool RenderFrame(std::vector<RenderableObjectInfo> ros) = 0;
+	virtual bool RenderFrame(const std::vector<RenderableObject>& renderable_objects) = 0;
 
 	virtual void Cleanup() = 0;
 
@@ -33,11 +34,15 @@ public:
 
 	virtual std::shared_ptr<Material> CreateMaterial(MaterialInfo info) = 0;
 
-	virtual std::shared_ptr<Mesh> CreateMesh(MeshInfo info) = 0;
+	virtual std::unique_ptr<Mesh> CreateUniqueMesh(MeshInfo info) = 0;
 
-	virtual std::shared_ptr<RenderingPipeline> LoadRenderingPipeline(int hash);
+	virtual std::unique_ptr<Mesh> CreateUniqueMeshFromShared(std::shared_ptr<Mesh> shared_mesh) = 0;
 
-	virtual std::shared_ptr<Material> LoadMaterial(int hash);
+	virtual std::shared_ptr<Mesh> CreateSharedMesh(MeshInfo info) = 0;
 
-	virtual std::shared_ptr<Mesh> LoadMesh(int hash);
+	virtual std::shared_ptr<RenderingPipeline> LoadRenderingPipeline(int hash) = 0;
+
+	virtual std::shared_ptr<Material> LoadMaterial(int hash) = 0;
+
+	virtual std::shared_ptr<Mesh> LoadMesh(int hash) = 0;
 };

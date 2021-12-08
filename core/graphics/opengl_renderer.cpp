@@ -37,7 +37,7 @@ void OpenGLRenderer::Initialize(int width, int height)
     }
 }
 
-bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
+bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable_objects) {
     if (!glfwWindowShouldClose(window_)) {
         glfwSwapBuffers(window_);
         glfwPollEvents();
@@ -53,7 +53,7 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 			return;
 		}
 
-		const glm::mat4 view_matrix = transform.matrix;
+		const glm::mat4 view_matrix = camera.transform.matrix;
 		glm::mat4 projection_matrix;
 		if (camera.is_orthographic) {
 			// Orthographic projection matrix
@@ -64,6 +64,11 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 			// Projection matrix : 45° Field of View, width:height ratio, display range : 0.1 unit (z near) <-> 100 units (z far)
 			projection_matrix = glm::perspective(glm::radians(45.0f), (float)window_width / (float)window_height, 0.1f, 100.0f);
 		}
+
+		for (RenderableObject renderable_object : renderable_objects) {
+			// TODO: perform culling
+			// TODO: fill out mesh batches
+		}
 		
 		const glm::mat4 vp = view_matrix * projection_matrix;
 		for (auto& p_batch_iter : pipeline_batch_map_) {
@@ -71,6 +76,8 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 			glUseProgram(pipeline_batch.program_id);
 			// Find location of mvp matrix. This uniform is treated differently from the ones in Materials
 			GLint mvp_location = glGetUniformLocation(pipeline_batch.program_id, "mvp");
+			// Find location of bones array, if it exists. This uniform is treated differently from the ones in Materials
+			GLint bones_location = glGetUniformLocation(pipeline_batch.program_id, "bones");
 			for (MeshID& mesh_id : pipeline_batch.mesh_ids) {
 				IMeshBatch* mesh_batch = mesh_batch_map_[mesh_id];
 				glBindVertexArray(mesh_batch->vao);
@@ -85,11 +92,22 @@ bool OpenGLRenderer::RenderFrame(std::vector<RenderableObjectInfo> ros) {
 					shader::opengl::SetUniform(uniform_info.type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
 				}
 				
-				// Iterate model matrices and draw the mesh after each transformation.
-				for (glm::mat4& model_matrix : mesh_batch->model_matrices) {
-					const glm::mat4 mvp = model_matrix * vp;
-					// Insert MVP matrix into shader.
+				// Iterate over instances of mesh and draw each after transforming (and optionally setting bones).
+				for (RenderableObjectInstance& renderable_object_instance : mesh_batch->renderable_object_instances) {
+					const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
+					// Set MVP matrix in shader.
 					glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
+
+					if (bones_location) {
+						// Set bones array in shader.
+						glUniformMatrix4fv(
+							bones_location, 
+							renderable_object_instance.bone_transforms.size(), 
+							GL_FALSE,
+							reinterpret_cast<const GLfloat*>(renderable_object_instance.bone_transforms.data())
+						);
+					}
+
 					// Draw
 					glDrawArrays(GL_TRIANGLES, 0, mesh_batch->mesh->VertexCount());
 				}
@@ -205,15 +223,33 @@ std::shared_ptr<Material> OpenGLRenderer::CreateMaterial(MaterialInfo info)
 	return material;
 }
 
-std::shared_ptr<Mesh> OpenGLRenderer::CreateMesh(MeshInfo info) 
+std::unique_ptr<Mesh> OpenGLRenderer::CreateUniqueMesh(MeshInfo info)
 {
-	const std::shared_ptr<Mesh> mesh = mesh_manager_.CreateMesh(info);
+	const std::unique_ptr<Mesh> mesh = mesh_manager_.CreateUniqueMesh(info);
 	IMeshBatch* mb;
 	if (info.is_static) {
 		// TODO: Create a static mesh batch. 
 	}
 	else {
-		mb = new DynamicMeshBatch(mesh, 0, 0);
+		mb = new DynamicMeshBatch(mesh.get(), 0, 0);
+		mb->SetupVertexAttributeBuffers();
+	}
+
+	mesh_batch_map_[mesh->GetInstanceID()] = mb;
+	PipelineBatch& pipeline_batch = pipeline_batch_map_[mesh->GetPipeline()->GetInstanceID()];
+	pipeline_batch.mesh_ids.push_back(mesh->GetInstanceID());
+	return mesh;
+}
+
+std::shared_ptr<Mesh> OpenGLRenderer::CreateSharedMesh(MeshInfo info) 
+{
+	const std::shared_ptr<Mesh> mesh = mesh_manager_.CreateSharedMesh(info);
+	IMeshBatch* mb;
+	if (info.is_static) {
+		// TODO: Create a static mesh batch. 
+	}
+	else {
+		mb = new DynamicMeshBatch(mesh.get(), 0, 0);
 		mb->SetupVertexAttributeBuffers();
 	}
 	
@@ -223,7 +259,7 @@ std::shared_ptr<Mesh> OpenGLRenderer::CreateMesh(MeshInfo info)
 	return mesh;
 }
 
-OpenGLRenderer::DynamicMeshBatch::DynamicMeshBatch(std::shared_ptr<Mesh> mesh, GLuint vao, GLuint vbo)
+OpenGLRenderer::DynamicMeshBatch::DynamicMeshBatch(Mesh* mesh, GLuint vao, GLuint vbo)
 {
 	this->mesh = mesh;
 	this->vao = vao;
@@ -253,6 +289,14 @@ void OpenGLRenderer::DynamicMeshBatch::SetupVertexAttributeBuffers()
 			//glGenBuffers(1, &tbo);
 			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
 			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+			break;
+		case VertexAttributeUsageCategoryBoneWeights:
+			//glGenBuffers(1, &bwbo);
+			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
+			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+			break;
+		case VertexAttributeUsageCategoryBoneIndices:
+
 			break;
 		case VertexAttributeUsageCategoryCustom:
 			//glGenBuffers(1, &custom_bo[vertex_attribute.name]);
