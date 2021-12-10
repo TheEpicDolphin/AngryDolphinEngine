@@ -36,16 +36,31 @@ public:
 private:
 	void LoadRenderingAssets();
 
-	struct RenderableObjectKey {
+	struct RenderableObjectBatchKey {
 		PipelineID pipeline_id;
 		MeshID mesh_id;
 		MaterialID material_id;
+
+		bool operator <(const RenderableObjectBatchKey& rhs) const
+		{
+			if (pipeline_id == rhs.pipeline_id) {
+				if (mesh_id == rhs.mesh_id) {
+					return material_id < rhs.material_id;
+				}
+				return mesh_id < rhs.mesh_id;
+			}
+			return pipeline_id < rhs.pipeline_id;
+		}
 	};
 
 	struct RenderableObjectInstance {
-		Mesh* mesh;
 		glm::mat4 model_transform;
 		std::vector<glm::mat4> bone_transforms;
+	};
+
+	struct RenderableObjectBatch {
+		Mesh* mesh;
+		std::vector<RenderableObjectInstance> instances;
 	};
 
 	enum MeshDataUsageType {

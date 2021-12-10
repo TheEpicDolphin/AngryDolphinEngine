@@ -44,10 +44,10 @@ bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable
         glfwSwapBuffers(window_);
         glfwPollEvents();
 
-		int* width;
-		int* height;
-		glfwGetFramebufferSize(window_, width, height);
-		glViewport(0, 0, *width, *height);
+		int* window_width;
+		int* window_height;
+		glfwGetFramebufferSize(window_, window_width, window_height);
+		glViewport(0, 0, *window_width, *window_height);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		if (!camera.enabled) {
@@ -67,58 +67,60 @@ bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable
 			projection_matrix = glm::perspective(glm::radians(45.0f), (float)window_width / (float)window_height, 0.1f, 100.0f);
 		}
 
-		std::map<RenderableObjectKey, std::vector<RenderableObjectInstance>> sorted_renderable_objects;
+		std::map<RenderableObjectBatchKey, RenderableObjectBatch> sorted_renderable_batches;
 		for (RenderableObject renderable_object : renderable_objects) {
 			// TODO: perform culling
 			
-			const RenderableObjectKey key = {
+			const RenderableObjectBatchKey batch_key = {
 				renderable_object.mesh->GetPipeline()->GetInstanceID(), 
 				renderable_object.mesh->GetInstanceID(),
 				renderable_object.mesh->GetMaterial()->GetInstanceID()
 			};
 
-			if () {
-				sorted_renderable_objects.insert({ key, { {renderable_object.mesh, renderable_object.model_matrix, renderable_object.bones } } });
+			std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.find(batch_key);
+			if (it == sorted_renderable_batches.end()) {
+				const RenderableObjectBatch batch = { renderable_object.mesh, { {renderable_object.model_matrix, renderable_object.bones} } };
+				sorted_renderable_batches.insert({ batch_key, batch });
 			}
 			else {
-				sorted_renderable_objects[key].push_back({ renderable_object.mesh, renderable_object.model_matrix, renderable_object.bones });
+				it->second.instances.push_back({ renderable_object.model_matrix, renderable_object.bones });
 			}	
 		}
 
 		const glm::mat4 vp = view_matrix * projection_matrix;
-		RenderableObjectKey previous_key = sorted_renderable_objects.begin()->first;
+		RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
 		GLint mvp_location;
 		GLint bones_location;
-		for (std::map<RenderableObjectKey, std::vector<RenderableObjectInstance>>::iterator it = sorted_renderable_objects.begin(); 
-			it != sorted_renderable_objects.end(); 
+		for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
+			it != sorted_renderable_batches.end();
 			it++) {
-			RenderableObjectKey current_key = it->first;
-			if (current_key.pipeline_id != previous_key.pipeline_id) {
+			RenderableObjectBatchKey current_batch_key = it->first;
+			RenderableObjectBatch batch = it->second;
+			if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
 				// Switch rendering pipeline configuration
-				const PipelineConfiguration pipeline_config = pipeline_config_map_[current_key.pipeline_id];
+				const PipelineConfiguration pipeline_config = pipeline_config_map_[current_batch_key.pipeline_id];
 				glUseProgram(pipeline_config.program_id);
 				// Find location of mvp matrix. This uniform is treated differently from the ones in Materials
 				mvp_location = glGetUniformLocation(pipeline_config.program_id, "mvp");
 				// Find location of bones array, if it exists. This uniform is treated differently from the ones in Materials
 				bones_location = glGetUniformLocation(pipeline_config.program_id, "bones");
 			}
-			if (current_key.mesh_id != previous_key.mesh_id) {
+			if (current_batch_key.mesh_id != previous_batch_key.mesh_id) {
 				// Switch mesh configuration
-				const MeshConfiguration mesh_config = mesh_config_map_[current_key.mesh_id];
+				const MeshConfiguration mesh_config = mesh_config_map_[current_batch_key.mesh_id];
 				glBindVertexArray(mesh_config.vao);
-
 			}
-			if (current_key.material_id != previous_key.material_id) {
+			if (current_batch_key.material_id != previous_batch_key.material_id) {
 				// Switch material configuration
 				// Iterate material uniforms and set corresponding uniforms in shaders
-				for (const UniformValue& uniform_value : material->UniformValues()) {
-					const UniformInfo& uniform_info = pipeline->UniformInfoAtIndex(uniform_value.uniform_index);
+				for (const UniformValue& uniform_value : batch.mesh->GetMaterial()->UniformValues()) {
+					const UniformInfo& uniform_info = batch.mesh->GetPipeline()->UniformInfoAtIndex(uniform_value.uniform_index);
 					shader::opengl::SetUniform(uniform_info.type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
 				}
 			}
 
 			// Iterate over instances of mesh and draw each after transforming (and optionally setting bones).
-			for (RenderableObjectInstance& renderable_object_instance : mesh_batch->renderable_object_instances) {
+			for (RenderableObjectInstance& renderable_object_instance : batch.instances) {
 				const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
 				// Set MVP matrix in shader.
 				glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -134,54 +136,10 @@ bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable
 				}
 
 				// Draw
-				glDrawArrays(GL_TRIANGLES, 0, mesh_batch->mesh->VertexCount());
+				glDrawArrays(GL_TRIANGLES, 0, batch.mesh->VertexCount());
 			}
 
-			previous_key = current_key;
-		}
-		
-		const glm::mat4 vp = view_matrix * projection_matrix;
-		for (auto& p_batch_iter : pipeline_batch_map_) {
-			PipelineBatch& pipeline_batch = p_batch_iter.second;
-			glUseProgram(pipeline_batch.program_id);
-			// Find location of mvp matrix. This uniform is treated differently from the ones in Materials
-			GLint mvp_location = glGetUniformLocation(pipeline_batch.program_id, "mvp");
-			// Find location of bones array, if it exists. This uniform is treated differently from the ones in Materials
-			GLint bones_location = glGetUniformLocation(pipeline_batch.program_id, "bones");
-			for (MeshID& mesh_id : pipeline_batch.mesh_ids) {
-				IMeshBatch* mesh_batch = mesh_batch_map_[mesh_id];
-				glBindVertexArray(mesh_batch->vao);
-
-				// TODO: sort meshes by material id to reduce number of times setting material uniforms.
-
-				const std::shared_ptr<RenderingPipeline>& pipeline = mesh_batch->mesh->GetPipeline();
-				const std::shared_ptr<Material>& material = mesh_batch->mesh->GetMaterial();
-				// Iterate material uniforms and set corresponding uniforms in shaders
-				for (const UniformValue& uniform_value : material->UniformValues()) {
-					const UniformInfo& uniform_info = pipeline->UniformInfoAtIndex(uniform_value.uniform_index);
-					shader::opengl::SetUniform(uniform_info.type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
-				}
-				
-				// Iterate over instances of mesh and draw each after transforming (and optionally setting bones).
-				for (RenderableObjectInstance& renderable_object_instance : mesh_batch->renderable_object_instances) {
-					const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
-					// Set MVP matrix in shader.
-					glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
-
-					if (bones_location) {
-						// Set bones array in shader.
-						glUniformMatrix4fv(
-							bones_location, 
-							renderable_object_instance.bone_transforms.size(), 
-							GL_FALSE,
-							reinterpret_cast<const GLfloat*>(renderable_object_instance.bone_transforms.data())
-						);
-					}
-
-					// Draw
-					glDrawArrays(GL_TRIANGLES, 0, mesh_batch->mesh->VertexCount());
-				}
-			}
+			previous_batch_key = current_batch_key;
 		}
 
 		glBindVertexArray(0);
@@ -236,6 +194,7 @@ std::string NameForStageType(ShaderStageType type)
 std::shared_ptr<RenderingPipeline> OpenGLRenderer::CreateRenderingPipeline(RenderingPipelineInfo info)
 {
 	const std::shared_ptr<RenderingPipeline> pipeline = pipeline_manager_.CreatePipeline(info);
+
 	const std::vector<Shader> shader_stages = pipeline->ShaderStages();
 	GLuint program_id = glCreateProgram();
 	std::vector<GLuint> shader_ids;
@@ -312,7 +271,7 @@ std::unique_ptr<Mesh> OpenGLRenderer::CreateUniqueMesh(MeshInfo info)
 	}
 
 	mesh_config_map_[mesh->GetInstanceID()] = mesh_config;
-	return mesh;
+	return std::move(mesh);
 }
 
 std::shared_ptr<Mesh> OpenGLRenderer::CreateSharedMesh(MeshInfo info) 
