@@ -7,7 +7,7 @@
 
 struct RenderableObject
 {
-	MeshID mesh_id;
+	Mesh* mesh;
 	glm::mat4 model_matrix;
 	std::vector<glm::mat4> bones;
 };
@@ -32,11 +32,11 @@ public:
 
 	virtual std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info) = 0;
 
-	virtual std::shared_ptr<Material> CreateMaterial(MaterialInfo info) = 0;
+	virtual std::unique_ptr<Material> CreateUniqueMaterial(MaterialInfo info) = 0;
+
+	virtual std::shared_ptr<Material> CreateSharedMaterial(MaterialInfo info) = 0;
 
 	virtual std::unique_ptr<Mesh> CreateUniqueMesh(MeshInfo info) = 0;
-
-	virtual std::unique_ptr<Mesh> CreateUniqueMeshFromShared(std::shared_ptr<Mesh> shared_mesh) = 0;
 
 	virtual std::shared_ptr<Mesh> CreateSharedMesh(MeshInfo info) = 0;
 

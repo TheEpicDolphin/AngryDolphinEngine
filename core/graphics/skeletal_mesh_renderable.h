@@ -1,7 +1,6 @@
 #pragma once
 
 #include "mesh.h"
-#include "material.h"
 
 struct SkeletalMeshRenderable
 {
@@ -10,7 +9,7 @@ struct SkeletalMeshRenderable
 	// without affecting other SkeletalMeshRenderable.
 	std::unique_ptr<Mesh> unique_mesh;
 
-	// Mesh that is shared by potentially several MeshRenderables
+	// Mesh that is shared by potentially several SkeletalMeshRenderables
 	std::shared_ptr<Mesh> shared_mesh;
 
 	bool enabled;

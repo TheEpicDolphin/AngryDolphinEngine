@@ -15,50 +15,62 @@ class OpenGLRenderer : IRenderer
 public:
 	void Initialize(int width, int height);
 
-	void SetRenderTarget(UID id, RenderTargetInfo info);
+	void SetRenderTarget(UID id, RenderTargetInfo info) override;
 
-	void UnsetRenderTarget(UID id);
+	void UnsetRenderTarget(UID id) override;
 
-	bool RenderFrame(const std::vector<RenderableObject>& renderable_objects);
+	bool RenderFrame(const std::vector<RenderableObject>& renderable_objects) override;
 
-	void Cleanup();
+	void Cleanup() override;
 
-	std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
+	std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info) override;
 
-	std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
+	std::unique_ptr<Material> CreateUniqueMaterial(MaterialInfo info) override;
 
-	std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
+	std::shared_ptr<Material> CreateSharedMaterial(MaterialInfo info) override;
+
+	std::unique_ptr<Mesh> CreateUniqueMesh(MeshInfo info) override;
+
+	std::shared_ptr<Mesh> CreateSharedMesh(MeshInfo info) override;
 
 private:
 	void LoadRenderingAssets();
 
+	struct RenderableObjectKey {
+		PipelineID pipeline_id;
+		MeshID mesh_id;
+		MaterialID material_id;
+	};
+
 	struct RenderableObjectInstance {
+		Mesh* mesh;
 		glm::mat4 model_transform;
 		std::vector<glm::mat4> bone_transforms;
 	};
 
-	struct IMeshBatch {
-		Mesh* mesh;
+	enum MeshDataUsageType {
+		MeshDataUsageTypeStream = 0,
+		MeshDataUsageTypeStatic,
+		MeshDataUsageTypeDynamic,
+	};
+
+	struct MeshConfiguration {
+		MeshDataUsageType data_usage_type;
 		GLuint vao;
 		GLuint ibo;
-		std::vector<RenderableObjectInstance> renderable_object_instances;
-		virtual void SetupVertexAttributeBuffers() = 0;
-	};
-
-	struct DynamicMeshBatch : IMeshBatch {
 		GLuint vbo;
-		DynamicMeshBatch(Mesh* mesh, GLuint vao, GLuint vbo);
-		void SetupVertexAttributeBuffers();
+		void SetupVertexAttributeBuffers(Mesh *mesh);
 	};
 
-	struct PipelineBatch {
+	struct PipelineConfiguration {
 		GLuint program_id;
-		std::vector<MeshID> mesh_ids;
 	};
 
 	GLFWwindow* window_;
-	std::unordered_map<MeshID, IMeshBatch*> mesh_batch_map_;
-	std::unordered_map<PipelineID, PipelineBatch> pipeline_batch_map_;
+
+	std::unordered_map<MeshID, MeshConfiguration> mesh_config_map_;
+	//std::unordered_map<MaterialID, MaterialConfiguration> material_config_map_;
+	std::unordered_map<PipelineID, PipelineConfiguration> pipeline_config_map_;
 
 	MeshManager mesh_manager_;
 	MaterialManager material_manager_;

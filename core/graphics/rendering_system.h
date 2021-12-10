@@ -28,7 +28,7 @@ public:
 		std::function<void(EntityID, MeshRenderable&)> mesh_renderables_block =
 		[&renderable_objects, &scene](EntityID entity_id, MeshRenderable& mesh_rend) {
 			if (mesh_rend.enabled) {
-				const MeshID mesh_id = mesh_rend.unique_mesh ? mesh_rend.unique_mesh->GetInstanceID() : mesh_rend.shared_mesh->GetInstanceID();
+				const MeshID mesh_id = mesh_rend.unique_mesh ? mesh_rend.unique_mesh.get() : mesh_rend.shared_mesh.get();
 				renderable_objects.push_back({ mesh_id, scene.TransformGraph().GetWorldTransform(entity_id), {} });
 			}
 		};
@@ -42,7 +42,7 @@ public:
 				for (std::size_t i = 0; i < bone_transforms.size(); i++) {
 					bone_transforms[i] = scene.TransformGraph().GetWorldTransform(skel_mesh_rend.bones[i]);
 				}
-				const MeshID mesh_id = skel_mesh_rend.unique_mesh ? skel_mesh_rend.unique_mesh.GetInstanceID() : skel_mesh_rend.shared_mesh.GetInstanceID();
+				const MeshID mesh_id = skel_mesh_rend.unique_mesh ? skel_mesh_rend.unique_mesh.get() : skel_mesh_rend.shared_mesh.get();
 				renderable_objects.push_back({ mesh_id, scene.TransformGraph().GetWorldTransform(entity_id), bone_transforms });
 			}
 		};
