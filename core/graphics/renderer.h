@@ -30,19 +30,9 @@ public:
 
 	virtual void Cleanup() = 0;
 
-	virtual std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info) = 0;
+	virtual void RegisterRenderingPipeline(std::shared_ptr<RenderingPipeline> rendering_pipeline) = 0;
 
-	virtual std::unique_ptr<Material> CreateUniqueMaterial(MaterialInfo info) = 0;
+	virtual void RegisterMaterial(std::shared_ptr<Material> material) = 0;
 
-	virtual std::shared_ptr<Material> CreateSharedMaterial(MaterialInfo info) = 0;
-
-	virtual std::unique_ptr<Mesh> CreateUniqueMesh(MeshInfo info) = 0;
-
-	virtual std::shared_ptr<Mesh> CreateSharedMesh(MeshInfo info) = 0;
-
-	virtual std::shared_ptr<RenderingPipeline> LoadRenderingPipeline(int hash) = 0;
-
-	virtual std::shared_ptr<Material> LoadMaterial(int hash) = 0;
-
-	virtual std::shared_ptr<Mesh> LoadMesh(int hash) = 0;
+	virtual void RegisterMesh(std::shared_ptr<Mesh> mesh) = 0;
 };

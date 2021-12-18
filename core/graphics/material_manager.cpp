@@ -1,6 +1,11 @@
 
 #include "material_manager.h"
-#include <core/utils/file_helpers.h>
+
+#include <experimental/filesystem>
+
+#include "rapidxml.hpp"
+
+namespace fs = std::experimental::filesystem;
 
 static void SetMaterialPropertiesForMaterial(Material *material, )
 {
@@ -13,38 +18,34 @@ static void SetMaterialPropertiesForMaterial(Material *material, )
 	}
 }
 
-void MaterialManager::LoadMaterialSpecs() 
-{
-	pipeline_manager_->LoadPipelineSpecs();
-	const std::vector<fs::path> material_spec_files = file_helpers::AllFilePathsInDirectoryWithExtension("//Resources/", ".materialspec");
-	for (fs::path material_spec_file : material_spec_files) {
-		std::vector<char> file_contents = file_helpers::ReadFileWithPath(material_spec_file);
-		rapidjson::Document material_spec_doc;
-		material_spec_doc.Parse(file_contents.data());
-		material_spec_doc["rendering_pipeline_url"];
+std::shared_ptr<Material> MaterialManager::MaterialForResourcePath(const char* resource_path_name) {
+	fs::path resource_path = resource_path_name;
+	assert(resource_path.extension() == "mat");
+	std::vector<char> material_asset = ResourceManager.LoadAsset(resource_path);
+	
+	rapidxml::xml_document<> material_xml_doc;
+	material_xml_doc.parse<0>(material_asset.data());
 
-		material_spec_doc["uniform_settings"];
+	const char* rendering_pipeline_path = material_xml_doc.first_node("rendering_pipeline_path")->value();
+	std::shared_ptr<RenderingPipeline> rendering_pipeline = RenderingPipelineManager.MaterialForResourcePath(rendering_pipeline_path);
 
-		for () {
-
-		}
-
-		const MaterialID material_id = material_id_generator_.CheckoutNewId();
-		const std::shared_ptr<RenderingPipeline>& rendering_pipeline = pipeline_manager_->PipelineForPipelineSpecHash(hash);
-		const int fileHash = MaterialSpecHashForFilePath(material_spec_file);
-		spec_generated_materials_[fileHash] = std::make_shared<Material>(material_id, rendering_pipeline, this);
+	std::unordered_map<std::string, UniformValue> uniform_settings;
+	rapidxml::xml_node<>* uniform_settings_node = material_xml_doc.first_node("uniform_settings");
+	rapidxml::xml_node<>* uniform_setting_node = uniform_settings_node->first_node();
+	while (uniform_setting_node != nullptr) {
+		std::string uniform_name = uniform_setting_node->first_node("name")->value();
+		ShaderDataType shader_data_type = uniform_setting_node->first_node("shader_data_type")->value();
+		std::vector<char> uniform_value_data = shader::ValueData(uniform_setting_node->first_node("value")->value());
+		uniform_settings[uniform_name] = { 0, shader_data_type , uniform_value_data };
+		uniform_setting_node = uniform_setting_node->next_sibling();
 	}
+
+	const MaterialID material_id = material_id_generator_.CheckoutNewId();
+	std::shared_ptr<Material> material = std::make_shared<Material>(material_id, { uniform_settings, rendering_pipeline }, this);
 }
 
-int MaterialManager::MaterialSpecHashForFilePath(std::string)
-{
-	// TODO: implement hashing of file names
-	return 0;
-}
+std::shared_ptr<Material> MaterialManager::CreateMaterial(MaterialInfo info) {
 
-std::shared_ptr<Material> MaterialManager::MaterialForMaterialSpecHash(int hash)
-{
-	return spec_generated_materials_[hash];
 }
 
 void MaterialManager::MaterialDidDestruct(Material *material)

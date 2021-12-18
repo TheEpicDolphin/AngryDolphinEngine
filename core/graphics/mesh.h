@@ -35,10 +35,10 @@ class Mesh
 {
 public:
 	// Structure describing data for a single triangle in the mesh.
-	typedef struct Triangle
+	struct Triangle
 	{
 		size_t indices[3] = { 0, 0, 0 };
-	} Triangle;
+	};
 
 	Mesh(MeshID id);
 
@@ -99,9 +99,10 @@ public:
 
 	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers();
 
-	static Mesh CreateCube(float side_length);
+	static std::shared_ptr<Mesh> CreateCubePrimitive(float side_length);
 
 private:
+
 	MeshID id_;
 
 	std::shared_ptr<Material> material_;

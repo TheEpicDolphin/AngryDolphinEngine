@@ -23,7 +23,7 @@ struct RenderingPipelineDelegate
 
 struct RenderingPipelineInfo
 {
-	std::vector<char> source_code;
+	std::vector<Shader> shader_stages;
 };
 
 struct UniformInfo {

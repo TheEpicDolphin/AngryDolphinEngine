@@ -5,7 +5,8 @@
 
 #include "rendering_pipeline.h"
 
-class RenderingPipelineManager : public RenderingPipelineDelegate
+// Make this a static class
+class ResourceManager
 {
 public:
 	void PipelineDidDestruct(RenderingPipeline* pipeline) override;
@@ -13,10 +14,12 @@ public:
 	std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
 
 	std::shared_ptr<RenderingPipeline> CreateRenderingPipelineWithHash(RenderingPipelineInfo info, int hash);
-	
+
 	std::shared_ptr<RenderingPipeline> LoadPipeline(int hash);
 
+	static 
+
 private:
+	static std::unordered_map<std::string, int> resource_name_to_hash_map_;
 	std::unordered_map<int, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_;
-	UIDGenerator pipeline_id_generator_;
 };

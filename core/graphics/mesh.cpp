@@ -88,11 +88,11 @@ void Mesh::SetTriangles(std::vector<Triangle> tris)
 	tris_ = tris;
 }
 
-const std::vector<Triangle>& Mesh::GetTriangles() {
+const std::vector<Mesh::Triangle>& Mesh::GetTriangles() {
 	return tris_;
 }
 
-Mesh Mesh::CreateCube(float side_length) {
+std::shared_ptr<Mesh> Mesh::CreateCubePrimitive(float side_length) {
 	Mesh mesh;
 	std::vector<glm::vec3> cube_verts =
 	{
@@ -110,6 +110,6 @@ Mesh Mesh::CreateCube(float side_length) {
 		*it = *it * side_length;
 	}
 
-	mesh.SetVertices(cube_verts);
-	return mesh;
+	mesh.SetVertexPositions(cube_verts);
+	return std::make_shared<Mesh>(mesh);
 }

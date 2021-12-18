@@ -11,7 +11,6 @@ enum ShaderStageType {
 
 struct Shader 
 {
-	Shader(ShaderStageType type, std::vector<char> code);
 	ShaderStageType type;
 	std::vector<char> code;
 };

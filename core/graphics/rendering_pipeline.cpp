@@ -8,8 +8,7 @@ RenderingPipeline::RenderingPipeline() {}
 RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info)
 {
 	id_ = pipeline_id;
-
-	shader_stages_ = shader_stages;
+	shader_stages_ = info.shader_stages;
 }
 
 const PipelineID& RenderingPipeline::GetInstanceID()

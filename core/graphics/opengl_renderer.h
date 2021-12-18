@@ -23,15 +23,11 @@ public:
 
 	void Cleanup() override;
 
-	std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info) override;
+	void RegisterRenderingPipeline(std::shared_ptr<RenderingPipeline> rendering_pipeline) override;
 
-	std::unique_ptr<Material> CreateUniqueMaterial(MaterialInfo info) override;
+	void RegisterMaterial(std::shared_ptr<Material> material) override;
 
-	std::shared_ptr<Material> CreateSharedMaterial(MaterialInfo info) override;
-
-	std::unique_ptr<Mesh> CreateUniqueMesh(MeshInfo info) override;
-
-	std::shared_ptr<Mesh> CreateSharedMesh(MeshInfo info) override;
+	void RegisterMesh(std::shared_ptr<Mesh> mesh) override;
 
 private:
 	void LoadRenderingAssets();
