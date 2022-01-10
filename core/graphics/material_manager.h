@@ -5,18 +5,16 @@
 #include <core/resources/resource_manager.h>
 
 #include "material.h"
-#include "rendering_pipeline_manager.h"
 
 class MaterialManager : private MaterialDelegate
 {
 public:
-	static std::shared_ptr<Material> MaterialForResourcePath(const char* resource_path);
+	static std::shared_ptr<Material> CreateMaterialForResourcePath(const char* resource_path);
 
 	static std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
 
 private:
 	void MaterialDidDestruct(Material *material) override;
 
-private:
-	UIDGenerator material_id_generator_;
+	static std::unique_ptr<UIDGenerator> material_id_generator_;
 };

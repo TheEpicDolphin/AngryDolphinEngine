@@ -2,21 +2,20 @@
 
 #include <unordered_map>
 #include <core/utils/uid_generator.h>
+#include <core/resources/resource_manager.h>
 
 #include "rendering_pipeline.h"
 
-class RenderingPipelineManager : public RenderingPipelineDelegate
+class RenderingPipelineManager : private RenderingPipelineDelegate
 {
 public:
-	void PipelineDidDestruct(RenderingPipeline* pipeline) override;
+	static std::shared_ptr<RenderingPipeline> RenderingPipelineForResourcePath(const char* resource_path);
 
-	std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
-
-	std::shared_ptr<RenderingPipeline> CreateRenderingPipelineWithHash(RenderingPipelineInfo info, int hash);
-	
-	std::shared_ptr<RenderingPipeline> LoadPipeline(int hash);
+	static std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
 
 private:
-	std::unordered_map<int, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_;
-	UIDGenerator pipeline_id_generator_;
+	void PipelineDidDestruct(RenderingPipeline* pipeline) override;
+
+	static std::unordered_map<std::string, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_assets_;
+	static std::unique_ptr<UIDGenerator> pipeline_id_generator_;
 };

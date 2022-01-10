@@ -3,12 +3,15 @@
 
 #include "shader/shader_vars/shader_var_helpers.h"
 
-RenderingPipeline::RenderingPipeline() {}
-
-RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info)
+RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info, RenderingPipelineDelegate *delegate)
 {
 	id_ = pipeline_id;
 	shader_stages_ = info.shader_stages;
+	delegate_ = std::make_shared<RenderingPipelineDelegate>(delegate);
+}
+
+RenderingPipeline::~RenderingPipeline() {
+	delegate_->PipelineDidDestruct(this);
 }
 
 const PipelineID& RenderingPipeline::GetInstanceID()

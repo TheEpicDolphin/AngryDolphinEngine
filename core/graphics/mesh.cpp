@@ -1,14 +1,15 @@
 
 #include "mesh.h"
 
-Mesh::Mesh(MeshID id)
+Mesh::Mesh(MeshID id, MeshDelegate *delegate)
 {
 	id_ = id;
+	delegate_ = std::make_shared<MeshDelegate>(delegate);
 }
 
 Mesh::~Mesh()
 {
-
+	delegate_->MeshDidDestruct(this);
 }
 
 const std::size_t& Mesh::VertexCount() {

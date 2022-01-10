@@ -9,11 +9,6 @@
 
 typedef UID MaterialID;
 
-struct MaterialDelegate 
-{
-	virtual void MaterialDidDestruct(Material* material) = 0;
-};
-
 struct UniformValue {
 	std::size_t uniform_index;
 	ShaderDataType type;
@@ -26,10 +21,15 @@ struct MaterialInfo
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
 };
 
+class MaterialDelegate {
+public:
+	virtual void MaterialDidDestruct(Material* material) = 0;
+};
+
 class Material
 {
 public:
-	Material(MaterialID id, MaterialInfo info, MaterialDelegate *delegate)
+	Material(MaterialID id, MaterialInfo info, MaterialDelegate delegate)
 	{
 		id_ = id;
 		rendering_pipeline_ = info.rendering_pipeline;
@@ -38,10 +38,7 @@ public:
 
 	~Material() 
 	{
-		std::shared_ptr<MaterialDelegate> delegate = delegate_.lock();
-		if (delegate) {
-			delegate->MaterialDidDestruct(this);
-		}
+		delegate_->MaterialDidDestruct(this);
 	}
 
 	const MaterialID& GetInstanceID()
@@ -119,5 +116,5 @@ private:
 	std::vector<UniformValue> uniform_values_;
 	std::unordered_map<std::string, std::size_t> uniform_value_index_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
-	std::weak_ptr<MaterialDelegate> delegate_;
+	std::shared_ptr<MaterialDelegate> delegate_;
 };

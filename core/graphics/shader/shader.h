@@ -13,4 +13,9 @@ struct Shader
 {
 	ShaderStageType type;
 	std::vector<char> code;
+
+	Shader(ShaderStageType type, std::vector<char> code) {
+		this->type = type;
+		this->code = code;
+	}
 };

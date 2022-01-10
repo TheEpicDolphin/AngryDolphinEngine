@@ -16,11 +16,6 @@ enum VertexAttributeUsageCategory
 	VertexAttributeUsageCategoryCustom,
 };
 
-struct RenderingPipelineDelegate
-{
-	virtual void PipelineDidDestruct(RenderingPipeline* pipeline) = 0;
-};
-
 struct RenderingPipelineInfo
 {
 	std::vector<Shader> shader_stages;
@@ -52,13 +47,19 @@ struct VertexAttributeInfo {
 	VertexAttributeUsageCategory category;
 };
 
+class RenderingPipelineDelegate
+{
+public:
+	virtual void PipelineDidDestruct(RenderingPipeline* pipeline) = 0;
+};
+
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
 class RenderingPipeline 
 {
 public:
-	RenderingPipeline();
+	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info, RenderingPipelineDelegate *delegate);
 
-	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info);
+	~RenderingPipeline();
 
 	const PipelineID& GetInstanceID();
 
@@ -87,4 +88,6 @@ private:
 	std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
 
 	std::vector<Shader> shader_stages_;
+
+	std::shared_ptr<RenderingPipelineDelegate> delegate_;
 };

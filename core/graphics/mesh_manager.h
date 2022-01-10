@@ -8,14 +8,13 @@
 class MeshManager : private MeshDelegate
 {
 public:
-	static std::shared_ptr<Mesh> MeshForResourcePath(const char* resource_path);
+	static std::shared_ptr<Mesh> CreateMeshForResourcePath(const char* resource_path);
 
 	static std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
 
 private:
-	void MaterialDidDestruct(Material* material) override;
+	void MeshDidDestruct(Mesh* mesh) override;
 
 private:
-	std::unordered_map<AssetID, std::shared_ptr<Mesh>> mesh_assets_;
-	UIDGenerator mesh_id_generator_;
+	static std::unique_ptr<UIDGenerator> mesh_id_generator_;
 };

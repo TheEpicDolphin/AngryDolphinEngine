@@ -14,7 +14,7 @@ typedef UID MeshID;
 
 struct MeshDelegate
 {
-	virtual void MaterialDidDestruct(Mesh* mesh) = 0;
+	virtual void MeshDidDestruct(Mesh* mesh) = 0;
 };
 
 struct VertexAttributeBuffer {
@@ -40,7 +40,7 @@ public:
 		size_t indices[3] = { 0, 0, 0 };
 	};
 
-	Mesh(MeshID id);
+	Mesh(MeshID id, MeshDelegate *delegate);
 
 	~Mesh();
 
@@ -122,7 +122,7 @@ private:
 	
 	std::vector<Triangle> tris_;
 
-	std::weak_ptr<MeshDelegate> delegate_;
+	std::shared_ptr<MeshDelegate> delegate_;
 
 	template<typename T>
 	void SetVertexAttributeBufferWithCachedIndex(std::string name, std::vector<T> buffer, int& cached_va_index)
