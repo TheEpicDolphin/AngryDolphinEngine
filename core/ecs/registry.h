@@ -35,7 +35,7 @@ public:
 		// This maintains the type ids of components consistent across different compilations.
 		#define REGISTER_COMPONENT(name) component_type_info_.GetTypeId<name>();
 		    ENGINE_COMPONENTS
-			//PROJECT_COMPONENTS
+			//GAME_COMPONENTS
 		#undef REGISTER_COMPONENT
 	}
 

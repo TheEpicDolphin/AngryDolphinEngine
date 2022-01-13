@@ -41,7 +41,7 @@ struct VertexAttributeInfo {
 	int location;
 	// Number of components in the data type. For example, vec3 has a dimension of 3.
 	int dimension;
-	// The data type byte size of each component. For example, vec3 has three GL_FLOAT components of size 4 each.
+	// The number of bytes of each component. For example, vec3 has three GL_FLOAT components of size 4 each.
 	int format;
 	// The usage category for this vertex attribute.
 	VertexAttributeUsageCategory category;
