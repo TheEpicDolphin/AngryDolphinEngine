@@ -1,4 +1,12 @@
 import os
+import xml.etree.ElementTree as ET
+
+from enum import Enum
+class ShaderStageType(Enum):
+    SHADER_STAGE_TYPE_VERTEX = 0
+    SHADER_STAGE_TYPE_GEOMETRY = 1
+    SHADER_STAGE_TYPE_FRAGMENT = 2
+    SHADER_STAGE_TYPE_COMPUTE = 3
 
 class Uniform:
     name = ""
@@ -38,19 +46,19 @@ class ShaderDataType:
         return None
         
 
-class ShaderScalarDataType(ShaderDataType):
-    __glm_data_type = ""
+class ShaderFundamentalDataType(ShaderDataType):
+    __cpp_data_type = ""
     __size = 0
     
-    def __init__(self, __glm_data_type : str, size : int):
-        self.__glm_data_type = __glm_data_type
+    def __init__(self, cpp_data_type : str, size : int):
+        self.__cpp_data_type = cpp_data_type
         self.__size = size
         
     def size():
         return self.__size
     
     def type_name():
-        return self.__glm_data_type
+        return self.__cpp_data_type
 
 class ShaderArrayDataType(ShaderDataType):
     __elements = []
@@ -74,7 +82,7 @@ class ShaderArrayDataType(ShaderDataType):
 class ShaderStructDataType(ShaderDataType):
     __type_name = ""
     __members = []
-    def __init__(self, type_name : str, members : [ShaderDataType]):
+    def __init__(self, type_name : str, members : [(str, ShaderDataType)]):
         self.__type_name = type_name
         self.__members = members
         
@@ -112,44 +120,103 @@ class ShaderStructDataType(ShaderDataType):
         return output
             
 
-built_in_glsl_data_types_map =
+fundamental_glsl_data_types_map = \
 {
-    "bool" :  ShaderScalarDataType("bool", 1),
-    "bvec2" : ShaderScalarDataType("glm::bvec2", 8),
-    "bvec3" : ShaderScalarDataType("glm::bvec3", 12),
-    "bvec4" : ShaderScalarDataType("glm::bvec4", 16),
+    "bool" :  ShaderFundamentalDataType("bool", 1),
+    "bvec2" : ShaderFundamentalDataType("glm::bvec2", 8),
+    "bvec3" : ShaderFundamentalDataType("glm::bvec3", 12),
+    "bvec4" : ShaderFundamentalDataType("glm::bvec4", 16),
     
-    "float" : ShaderScalarDataType("float", 4),
-    "vec2" : ShaderScalarDataType("glm::vec2", 8),
-    "vec3" : ShaderScalarDataType("glm::vec3", 12),
-    "vec4" : ShaderScalarDataType("glm::vec4", 16),
+    "float" : ShaderFundamentalDataType("float", 4),
+    "vec2" : ShaderFundamentalDataType("glm::vec2", 8),
+    "vec3" : ShaderFundamentalDataType("glm::vec3", 12),
+    "vec4" : ShaderFundamentalDataType("glm::vec4", 16),
     
-    "int" : ShaderScalarDataType("int", 4),
-    "ivec2" : ShaderScalarDataType("glm::ivec2", 8),
-    "ivec3" : ShaderScalarDataType("glm::ivec3", 12),
-    "ivec4" : ShaderScalarDataType("glm::ivec4", 16),
+    "int" : ShaderFundamentalDataType("int", 4),
+    "ivec2" : ShaderFundamentalDataType("glm::ivec2", 8),
+    "ivec3" : ShaderFundamentalDataType("glm::ivec3", 12),
+    "ivec4" : ShaderFundamentalDataType("glm::ivec4", 16),
     
-    "uint" : ShaderScalarDataType("uint", 4),
-    "uvec2" : ShaderScalarDataType("glm::uvec2", 8),
-    "uvec3" : ShaderScalarDataType("glm::uvec3", 12),
-    "uvec4" : ShaderScalarDataType("glm::uvec4", 16),
+    "uint" : ShaderFundamentalDataType("uint", 4),
+    "uvec2" : ShaderFundamentalDataType("glm::uvec2", 8),
+    "uvec3" : ShaderFundamentalDataType("glm::uvec3", 12),
+    "uvec4" : ShaderFundamentalDataType("glm::uvec4", 16),
 }
-        
 
-class ShaderVarNode:
-    type_name = ""
-    var_name = ""
-    children = []
+storage_qualifiers = {"uniform", "in", "out", "buffer"}
+
+special_tokens_map = \
+{
+    "COMMA" : ",",
+    "SEMICOLON" : ";",
+    "LEFT_PAREN" : "(",
+    "RIGHT_PAREN" : ")",
+    "LEFT_BRACKET" : "[",
+    "RIGHT_BACKET" : "]",
+    "LEFT_BRACE" : "{",
+    "RIGHT_BRACE" : "}"
+}
+
+def tokenized_line(line : str):
+    if (line == None):
+        return None
+    return line.split()
+
+def is_grammar_fragment_declaration(tokens : [str]):
+    return len(tokens) == 2 && tokens[-1] == ':'
+
+def load_shader_language_grammar(filepath : str):
+    grammar = []
+    grammar_fragment_id_map = {}
+    #reverse_grammar_fragment_lookup = []
+
+    grammar_file = open(filepath, 'r')
+    grammar_file_line = grammar_file.readline()
+    while(grammar_file_line):
+        line_tokens = tokenized_line(grammar_file_line)
+        if (is_grammar_fragment_declaration(line_tokens)):
+            # Start of a new grammar fragment
+            fragment_id = len(grammar_fragment_id_map)
+            grammar_fragment_id_map[line_tokens[0]] = fragment_id
+            assert len(grammar) == fragment_id , "Fragment id must match index in grammar."
+            grammar.append([])
+
+            grammar_fragment_line_tokens = tokenized_line(grammar_file.readline())
+            while (not is_grammar_fragment_declaration(grammar_fragment_line_tokens) and len(grammar_fragment_line_tokens) > 0):
+                grammar[-1].append(grammar_fragment_line_tokens)
+                grammar_fragment_line_tokens = tokenized_line(grammar_file.readline())
+        else:
+            grammar_file_line = grammar_file.readline()
+    
+    grammar_file.close()
+
+    # Iterate through grammar fragments and replace fragment names with ids and special token names with corresponding characters.
+    for i in range(len(grammar)):
+        grammar_fragment = grammer[i]
+        for j in range(len(grammar_fragment)):
+            token = grammar_fragment[j]
+            if (token.isupper()):
+                if (token is in special_tokens_map):
+                    grammar[i][j] = special_tokens_map[token]
+                else:
+                    grammar[i][j] = token.lower()
+            else:
+                grammar[i][j] = grammar_fragment_id_map[token]             
+    return grammar
 
 def find_all_filepaths_in_directory_with_extension(root_path, extension, recursive=True):
     filepaths = []
     if(recursive):
-
+        #TODO
     else:
-        
+        #TODO
     return None
 
-def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path):
+def parse_shader_code_syntax(shader_code : str, grammar):
+    # TODO
+    return None
+
+def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path : str, grammar):
     """
     Uniforms may be declared in any of the shaders stages.
 
@@ -157,19 +224,24 @@ def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_p
     be modified by the game engine renderer.
     """
     
-    ast = parse_shader_ast(rendering_pipeline_path)
-    rendering_pipeline_file = open(rendering_pipeline_path, 'r')
-    while():
-        shader_line = component_spec_file.readline()
+    rendering_pipeline_xml_tree = ET.parse(rendering_pipeline_path)
+    root = rendering_pipeline_xml_tree.getroot()
 
-    rendering_pipeline_file.close()
+    for shader_stage_node in shader_stages:
+        shader_stage_type = shader_stage_node["stage_type"]
+        shader_stage_code = shader_stage_node["code"]
+
+        syntax_tree = parse_shader_code_syntax(shader_stage_code, grammar)
+                    
+                
         
 def generate_cpp_structs_from_rendering_pipelines(engine_resources_path, game_resources_path):
+    grammar = load_shader_language_grammer("./shader_language_grammar.txt")
     rendering_pipelines_filepaths = [find_all_file_paths_in_directory_with_extension(engine_resources_path, "rp")]
     rendering_pipelines_filepaths.extend(find_all_file_paths_in_directory_with_extension(game_resources_path, "rp"))
 
     for rendering_pipeline_path in rendering_pipelines_filepaths:
-        uniforms, vertex_attributes = parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path)
+        uniforms, vertex_attributes = parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path, grammar)
 
 """
 def build_component_from_spec(component_spec_filepath, component_type_id):
