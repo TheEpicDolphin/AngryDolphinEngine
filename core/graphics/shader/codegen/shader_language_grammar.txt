@@ -1,3 +1,7 @@
+declarations :
+	single_declaration
+	declarations single_declaration
+
 single_declaration :
 	fully_specified_type SEMICOLON
 	fully_specified_type identifier SEMICOLON

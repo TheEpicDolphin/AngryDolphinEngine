@@ -1,5 +1,6 @@
 import os
 import xml.etree.ElementTree as ET
+import deque
 
 from enum import Enum
 class ShaderStageType(Enum):
@@ -7,6 +8,13 @@ class ShaderStageType(Enum):
     SHADER_STAGE_TYPE_GEOMETRY = 1
     SHADER_STAGE_TYPE_FRAGMENT = 2
     SHADER_STAGE_TYPE_COMPUTE = 3
+
+class GrammarOperatorType(Enum):
+    CONCATENATION = 0
+    ALTERNATION = 1
+    OPTIONAL = 2
+    REPETITION = 3
+    GROUPING = 4
 
 class Uniform:
     name = ""
@@ -24,25 +32,25 @@ class VertexAttribute:
 
 class ShaderDataType:
     # Size of data type, in bytes
-    def size() -> int:
+    def size(self) -> int:
         return None
 
     # Name of the data type
-    def type_name() -> str:
+    def type_name(self) -> str:
         return None
     
     # List of tuples of (variable name, ShaderDataType) pairs
-    def members() -> [(str, ShaderDataType)]:
+    def members(self) -> [(str, ShaderDataType)]:
         return None
 
     # Returns a non-None int if data type is an array.
-    def array_length() -> int:
+    def array_length(self) -> int:
         return None
     
-    def array_elements() -> [ShaderDataType]:
+    def array_elements(self) -> [ShaderDataType]:
         return None
 
-    def cpp_write() -> str:
+    def cpp_write(self) -> str:
         return None
         
 
@@ -54,10 +62,10 @@ class ShaderFundamentalDataType(ShaderDataType):
         self.__cpp_data_type = cpp_data_type
         self.__size = size
         
-    def size():
+    def size(self):
         return self.__size
     
-    def type_name():
+    def type_name(self):
         return self.__cpp_data_type
 
 class ShaderArrayDataType(ShaderDataType):
@@ -67,16 +75,16 @@ class ShaderArrayDataType(ShaderDataType):
         # TODO: constrain each element to be of same data type
         self.__elements = elements
 
-    def type_name():
+    def type_name(self):
         return self.__elements[0].type_name()
         
-    def size():
+    def size(self):
         return self.array_length() * self.__elements[0].size()
 
-    def array_length():
+    def array_length(self):
         return len(self.__elements)
 
-    def array_elements():
+    def array_elements(self):
         return self.__elements
 
 class ShaderStructDataType(ShaderDataType):
@@ -86,19 +94,19 @@ class ShaderStructDataType(ShaderDataType):
         self.__type_name = type_name
         self.__members = members
         
-    def size():
+    def size(self):
         return None
     
-    def type_name():
+    def type_name(self):
         return self.__type_name
     
-    def members():
+    def members(self):
         return self.__members
 
-    def array_length():
+    def array_length(self):
         return len(elements)
 
-    def cpp_write():
+    def cpp_write(self):
         output = "struct {0}\n{\n".format(self.type_name())
         for member in self.members():
             member_name = member[0]
@@ -143,67 +151,6 @@ fundamental_glsl_data_types_map = \
     "uvec4" : ShaderFundamentalDataType("glm::uvec4", 16),
 }
 
-storage_qualifiers = {"uniform", "in", "out", "buffer"}
-
-special_tokens_map = \
-{
-    "COMMA" : ",",
-    "SEMICOLON" : ";",
-    "LEFT_PAREN" : "(",
-    "RIGHT_PAREN" : ")",
-    "LEFT_BRACKET" : "[",
-    "RIGHT_BACKET" : "]",
-    "LEFT_BRACE" : "{",
-    "RIGHT_BRACE" : "}"
-}
-
-def tokenized_line(line : str):
-    if (line == None):
-        return None
-    return line.split()
-
-def is_grammar_fragment_declaration(tokens : [str]):
-    return len(tokens) == 2 && tokens[-1] == ':'
-
-def load_shader_language_grammar(filepath : str):
-    grammar = []
-    grammar_fragment_id_map = {}
-    #reverse_grammar_fragment_lookup = []
-
-    grammar_file = open(filepath, 'r')
-    grammar_file_line = grammar_file.readline()
-    while(grammar_file_line):
-        line_tokens = tokenized_line(grammar_file_line)
-        if (is_grammar_fragment_declaration(line_tokens)):
-            # Start of a new grammar fragment
-            fragment_id = len(grammar_fragment_id_map)
-            grammar_fragment_id_map[line_tokens[0]] = fragment_id
-            assert len(grammar) == fragment_id , "Fragment id must match index in grammar."
-            grammar.append([])
-
-            grammar_fragment_line_tokens = tokenized_line(grammar_file.readline())
-            while (not is_grammar_fragment_declaration(grammar_fragment_line_tokens) and len(grammar_fragment_line_tokens) > 0):
-                grammar[-1].append(grammar_fragment_line_tokens)
-                grammar_fragment_line_tokens = tokenized_line(grammar_file.readline())
-        else:
-            grammar_file_line = grammar_file.readline()
-    
-    grammar_file.close()
-
-    # Iterate through grammar fragments and replace fragment names with ids and special token names with corresponding characters.
-    for i in range(len(grammar)):
-        grammar_fragment = grammer[i]
-        for j in range(len(grammar_fragment)):
-            token = grammar_fragment[j]
-            if (token.isupper()):
-                if (token is in special_tokens_map):
-                    grammar[i][j] = special_tokens_map[token]
-                else:
-                    grammar[i][j] = token.lower()
-            else:
-                grammar[i][j] = grammar_fragment_id_map[token]             
-    return grammar
-
 def find_all_filepaths_in_directory_with_extension(root_path, extension, recursive=True):
     filepaths = []
     if(recursive):
@@ -212,8 +159,254 @@ def find_all_filepaths_in_directory_with_extension(root_path, extension, recursi
         #TODO
     return None
 
-def parse_shader_code_syntax(shader_code : str, grammar):
-    # TODO
+def is_matching(nodes, grammar_rule : [str]):
+    return None
+
+def has_suffix_partial_grammar_match(stack : [SyntaxTreeNode], grammar):
+    for i in range(1, len(stack)):
+        for nonterminal_definition in grammar:
+            for grammar_rule in nonterminal_definition[1]:
+                if (is_matching(stack[-i:], grammar_rule[:i])):
+                    return True
+    return False
+
+class ProductionRuleSymbolNode:
+    # Either a single terminal character, or a number representing a nonterminal id
+    __symbol = None
+    __left_nodes = []
+    __right_nodes = []
+    
+    def __init__(self, symbol : str, left_nodes : [ProductionRuleSymbolNode], right_nodes : [ProductionRuleSymbolNode]):
+        self.__symbol = symbol
+        self.__left_nodes = left_nodes
+        self.__right_nodes = right_nodes
+        
+    def is_match(self, symbol):
+        return self.__symbol == symbol
+
+    def is_left_endpoint(self):
+        return len(self.__left_nodes) == 0
+
+    def is_right_endpoint(self):
+        return len(self.__right_nodes) == 0
+
+    def left_nodes(self):
+        return self.__left_nodes
+
+    def right_nodes(self):
+        return self.__right_nodes
+
+    def set_left_nodes(self, left_nodes):
+        self.__left_nodes = left_nodes
+
+    def set_right_nodes(self, right_nodes):
+        self.__right_nodes = right_nodes
+
+class Grammar:
+    nonterminal_id_map = {}
+    #reverse_grammar_fragment_lookup = []
+    
+    def __init__(self):
+        return None
+
+    def define_nonterminal(self, nonterminal_name : str, rule_start_node : LexicalSymbolNode, rule_end_node : ConnectorNode):
+        
+        return None
+
+    def first_node_with_lexical_symbol(self, target_terminal_value : str):
+        return None
+
+    def find_descendant_nodes_with_nonterminal(self, root_node : SyntaxTreeNode, nonterminal : str) -> [SyntaxTreeNode]:
+        bfs_queue = deque(root_node)
+        matching_nonterminal_nodes = [root_node] if root_node.nonterminal_id == nonterminal_id else []
+        
+        while (len(bfs_queue) > 0)):
+            node = bfs_queue.pop_front()
+            if (node.nonterminal_id() == nonterminal_id):
+                matching_nonterminal_nodes.append(node)
+            for child_node in nodes.children():
+                bfs_queue.push_back(child_node)
+        return matching_nonterminal_nodes
+        
+    
+
+# Using Extended Backus-Naur Form (EBNF)
+
+def is_matching(nodes, grammar_rule : [str]):
+    return None
+
+def has_suffix_partial_grammar_match(stack : [SyntaxTreeNode], grammar):
+    for i in range(1, len(stack)):
+        for nonterminal_definition in grammar:
+            for grammar_rule in nonterminal_definition[1]:
+                if (is_matching(stack[-i:], grammar_rule[:i])):
+                    return True
+    return False
+
+def tokenized_line(line : str):
+    if (line == None):
+        return None
+    return line.split()
+
+def is_grammar_nonterminal_definition_start(tokens : [str]):
+    return len(tokens) >= 4 && tokens[1] == ':'
+
+def is_grammar_nonterminal_definition_termination(tokens : [str]):
+    return tokens[-1] == ';'
+
+def is_terminal(token):
+    return (token[0] == "'" and token[-1] == "'") or (token[0] == "\"" and token[-1] == "\"")
+
+def parse_terminal(token) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+    first_node = ProductionRuleSymbolNode(token[0], [], [])
+    current_node = first_node
+    for character in token[1:]:
+        next_node = ProductionRuleSymbolNode(character, [current_node], [])
+        current_node.set_right_nodes([next_node])
+        current_node = next_node
+    return ([first_node], [current_node])
+
+def construct_concatenations(operands : [([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])]) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+    for i in range(len(operands)):
+        for left_node in operands[i]:
+            
+    return None
+
+def construct_alternations(operands: [([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])]) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+    return None
+
+def construct_repetition(operand : ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+    return None
+
+def construct_optional(operand : ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+    return ([None] + operand[0], [None] + operand[1])
+
+def parse_alternations_and_concatenations(tokens):
+    alternation_operands_tokens = []
+    for token in tokens:
+        if (token == "|"):
+            alternated_operands_tokens.append([])
+        else:
+            if (len(alternated_operands_tokens[-1]) % 2 == 1):
+                assert token == ",", "Concatenated tokens must be separated by a ','"
+            else:
+                alternated_operands_tokens[-1].append(token)
+            
+    alternation_operands = []
+    for alternation_operand_tokens in alternation_operands_tokens:
+        alternation_operands.append(construct_concatenations(alternation_operand_tokens))
+    return construct_alternations(alternation_operands)
+
+def parse_production_rule(rule_tokens):
+    grouping_stack = [(GrammarOperatorType.GROUPING, [])]
+    for token in rule_tokens:
+        if (is_terminal(token)):
+            grouping_stack[-1][1].append(parse_terminal(token))
+        elif (token == "("):
+            grouping_stack.append((GrammarOperatorType.GROUPING, []))
+        elif (token == "{"):
+            grouping_stack.append((GrammarOperatorType.REPETITION, []))
+        elif (token == "["):
+            grouping_stack.append((GrammarOperatorType.OPTIONAL, []))
+        elif(token == ")"):
+            operator_type, group_tokens = grouping_stack.pop()
+            assert operator_type == GrammarOperatorType.GROUPING
+            grouping_stack[-1][1].append(parse_alternations_and_concatenations(group_tokens))
+        elif (token == "}"):
+            operator_type, repetition_tokens = grouping_stack.pop()
+            assert operator_type == GrammarOperatorType.REPETITION
+            repetition_left_right_nodes = parse_alternations_and_concatenations(repetition_tokens)
+            grouping_stack[-1][1].append(construct_repetition(repetition_left_right_nodes))
+        elif (token == "]"):
+            operator_type, optional_tokens = grouping_stack.pop()
+            assert operator_type == GrammarOperatorType.OPTIONAL
+            optional_left_right_nodes = parse_alternations_and_concatenations(optional_tokens)
+            grouping_stack[-1][1].append(construct_optional(optional_left_right_nodes))
+        else:
+            grouping_stack[-1][1].append(token)
+    
+    assert(len(grouping_stack) == 1)
+    return parse_alternations_and_concatenations(grouping_stack[0][1])
+
+def load_shader_language_ebnf_grammar(filepath : str):
+    grammar = Grammar()
+
+    grammar_file = open(filepath, 'r')
+    grammar_file_line = grammar_file.readline()
+    while(grammar_file_line):
+        line_tokens = tokenized_line(grammar_file_line)
+        if (is_grammar_nonterminal_definition_start(line_tokens)):
+            # Start of a new grammar nonterminal definition
+            grammar.append([])
+
+            # Find semicolon terminating the nonterminal definition.
+            nonterminal_definition_tokens = line_tokens
+            while (not is_grammar_nonterminal_definition_termination(nonterminal_definition_tokens)):
+                nonterminal_definition_tokens.extend(tokenized_line(grammar_file.readline()))
+
+            nonterminal_name = nonterminal_definition_tokens[0]
+            rule_start_node, rule_end_node = parse_production_rule(nonterminal_definition_tokens[2:-1])
+        else:
+            grammar_file_line = grammar_file.readline()
+    
+    grammar_file.close()
+
+    # Iterate through grammar fragments and replace nonterminal names with ids and special token names with corresponding characters.
+    for grammar_nonterminal_rules in grammar:
+        for rule in grammar_nonterminal_rules:
+            for token_index, token in enumerate(rule):
+                if (token.isupper()):
+                    # Terminal token
+                    if (token is in special_tokens_map):
+                        rule[token_index] = special_tokens_map[token]
+                    else:
+                        rule[token_index] = token.lower()
+                else:
+                    # Nonterminal token
+                    rule[token_index] = grammar_fragment_id_map[token]             
+    return grammar
+
+def reduce_suffix(stack : [SyntaxTreeNode], grammar):
+    partial_matching_grammar = [(nonterminal_id, grammar_rules) for nonterminal_id, grammar_rules in enumerate(grammar)]
+    for i in range(1, len(stack)):
+        suffix = stack[-i:]
+        updated_partial_matching_grammar = []
+        for nonterminal_definition in partial_matching_grammar:
+            partial_matching_grammar_rules = []
+            for grammar_rule in nonterminal_definition[1]:
+                if (len(suffix) == len(grammar_rule)
+                    && is_matching(suffix, grammar_rule)):
+                    # We have a match. Reduce
+                    stack[-i] = SyntaxTreeNonTerminalNode()
+                    return True    
+                elif (len(suffix) < len(grammar_rule)
+                      && len(stack) >= len(grammar_rule)
+                      && is_matching(suffix, grammar_rule[-len(suffix):])):
+                    # Potential candidate for matching later one
+                    partial_matching_grammar_rules.append(grammar_rule)
+            if (len(candidate_grammar_rules) > 0):
+                updated_partial_matching_grammar.append((nonterminal_definition[0], partial_matching_grammar_rules))
+        partial_matching_grammar = updated_partial_matching_grammar
+    return False
+
+def reduce(stack : [SyntaxTreeNode], grammar):
+    while (True):
+        if (not reduce_suffix(stack, grammar)):
+            return;
+
+def shift_reduce_parse_shader_code_syntax(shader_code : str, grammar):
+    tokenized_shader_code = shader_code.split()
+    stack = [tokenized_shader_code[0]]
+    shift_offset = 1
+    while(shift_offset < len(tokenized_shader_code))
+        lookahead = tokenized_shader_code[shift_offset]
+        if (has_suffix_partial_grammar_match(stack + [lookahead], grammar)):
+            # shift
+            stack.append(lookahead)
+            shift_offset += 1
+        else:
+            # reduce
+            reduce(stack, grammar)
     return None
 
 def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path : str, grammar):
@@ -231,7 +424,7 @@ def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_p
         shader_stage_type = shader_stage_node["stage_type"]
         shader_stage_code = shader_stage_node["code"]
 
-        syntax_tree = parse_shader_code_syntax(shader_stage_code, grammar)
+        syntax_tree = shift_reduce_parse_shader_code_syntax(shader_stage_code, grammar)
                     
                 
         
