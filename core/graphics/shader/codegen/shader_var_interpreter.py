@@ -151,67 +151,8 @@ fundamental_glsl_data_types_map = \
     "uvec4" : ShaderFundamentalDataType("glm::uvec4", 16),
 }
 
-def find_all_filepaths_in_directory_with_extension(root_path, extension, recursive=True):
-    filepaths = []
-    if(recursive):
-        #TODO
-    else:
-        #TODO
-    return None
-
-def is_matching(nodes, grammar_rule : [str]):
-    return None
-
-def has_suffix_partial_grammar_match(stack : [SyntaxTreeNode], grammar):
-    for i in range(1, len(stack)):
-        for nonterminal_definition in grammar:
-            for grammar_rule in nonterminal_definition[1]:
-                if (is_matching(stack[-i:], grammar_rule[:i])):
-                    return True
-    return False
-
-class ProductionRuleSymbolNode:
-    # Either a single terminal character, or a number representing a nonterminal id
-    __symbol = None
-    __left_nodes = []
-    __right_nodes = []
-    
-    def __init__(self, symbol : str, left_nodes : [ProductionRuleSymbolNode], right_nodes : [ProductionRuleSymbolNode]):
-        self.__symbol = symbol
-        self.__left_nodes = left_nodes
-        self.__right_nodes = right_nodes
-        
-    def is_match(self, symbol):
-        return self.__symbol == symbol
-
-    def is_left_endpoint(self):
-        return len(self.__left_nodes) == 0
-
-    def is_right_endpoint(self):
-        return len(self.__right_nodes) == 0
-
-    def left_nodes(self):
-        return self.__left_nodes
-
-    def right_nodes(self):
-        return self.__right_nodes
-
-    def set_left_nodes(self, left_nodes):
-        self.__left_nodes = left_nodes
-
-    def set_right_nodes(self, right_nodes):
-        self.__right_nodes = right_nodes
-
-class Grammar:
-    nonterminal_id_map = {}
-    #reverse_grammar_fragment_lookup = []
-    
-    def __init__(self):
-        return None
-
-    def define_nonterminal(self, nonterminal_name : str, rule_start_node : LexicalSymbolNode, rule_end_node : ConnectorNode):
-        
-        return None
+class LexicalSymbolNode:
+    __children = []
 
     def first_node_with_lexical_symbol(self, target_terminal_value : str):
         return None
@@ -227,10 +168,216 @@ class Grammar:
             for child_node in nodes.children():
                 bfs_queue.push_back(child_node)
         return matching_nonterminal_nodes
-        
-    
 
-# Using Extended Backus-Naur Form (EBNF)
+class LexicalSymbolTerminalNode(LexicalSymbolNode):
+    __symbol = None
+
+class LexicalSymbolNonTerminalNode(LexicalSymbolNode):
+    __nonterminal_name = None
+    __nonterminal_id = None
+    __children = []
+
+# Extended Backus-Naur Form (EBNF) Grammar
+class EBNFGrammar:
+    __nonterminal_id_map = {}
+    __nonterminal_production_rules = []
+    #reverse_grammar_fragment_lookup = []
+
+    class _ProductionRuleSymbolNode:
+        # Either a single terminal character, or a number representing a nonterminal id
+        __symbol = None
+        __left_nodes = []
+        __right_nodes = []
+        
+        def __init__(self, symbol : str, left_nodes : [ProductionRuleSymbolNode], right_nodes : [ProductionRuleSymbolNode]):
+            self.__symbol = symbol
+            self.__left_nodes = left_nodes
+            self.__right_nodes = right_nodes
+            
+        def is_match(self, symbol):
+            return self.__symbol == symbol
+
+        def is_left_endpoint(self):
+            return len(self.__left_nodes) == 0
+
+        def is_right_endpoint(self):
+            return len(self.__right_nodes) == 0
+
+        def left_nodes(self):
+            return self.__left_nodes
+
+        def right_nodes(self):
+            return self.__right_nodes
+
+        def set_left_nodes(self, left_nodes):
+            self.__left_nodes = left_nodes
+
+        def set_right_nodes(self, right_nodes):
+            self.__right_nodes = right_nodes
+    
+    def __init__(self, grammar_filepath : str):
+        self.load_grammar_file(grammar_filepath)
+
+    def tokenized_line(line : str):
+    if (line == None):
+        return None
+    return line.split()
+
+    def is_grammar_nonterminal_definition_start(tokens : [str]):
+        return len(tokens) >= 4 && tokens[1] == ':'
+
+    def is_grammar_nonterminal_definition_termination(tokens : [str]):
+        return tokens[-1] == ';'
+
+    def is_terminal(token):
+        return (token[0] == "'" and token[-1] == "'") or (token[0] == "\"" and token[-1] == "\"")
+
+    def is_nonterminal(self, token):
+        return token is in self.__nonterminal_id_map
+
+    def parse_terminal(token) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        first_node = ProductionRuleSymbolNode(token[0], [], [])
+        current_node = first_node
+        for character in token[1:]:
+            next_node = _ProductionRuleSymbolNode(character, [current_node], [])
+            current_node.set_right_nodes([next_node])
+            current_node = next_node
+        return ([first_node], [current_node])
+
+    def parse_nonterminal(self, token) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+        node = _ProductionRuleSymbolNode(self.__nonterminal_id_map[token], [], [])
+        return ([node], [node])
+        
+    def construct_concatenations(operands : [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        concatenation = ([], operands[-1][1])
+
+        # Handle the case of an optional operand on the far left
+        for operand in operands:
+            operand_is_optional = False
+            for left_node in operand[0]:
+                if (left_node):
+                    concatenation[0].append(left_node)
+                else:
+                    # This operand is optional
+                    operand_is_optional = True
+            if (not operand_is_optional):
+                break;
+
+        # Connect adjacent operand nodes
+        for i in range(0, len(operands) - 1):
+            left_operand = operands[i]
+            for right_node in left_operand[1]:
+                left_operand_right_nodes = left_operand.right_nodes()
+                for right_operand in operands[i + 1:]:
+                    right_operand_is_optional = False
+                    for left_node in right_operand[0]:
+                        if (left_node):
+                            left_node.set_left_nodes(left_operand.right_nodes())
+                            left_operand_right_nodes.append(left_node)
+                        else:
+                            # This right_operand is optional
+                            right_operand_is_optional = True
+                    if (not right_operand_is_optional):
+                        break;
+                left_operand.set_right_nodes(left_operand_right_nodes)
+                        
+        return concatenation
+
+    def construct_alternations(operands: [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        left_nodes = []
+        right_nodes = []
+        for operand in operands:
+            left_nodes.extend(operand[0])
+            right_nodes.extend(operand[1])
+        return (left_nodes, right_nodes)
+
+    def construct_repetition(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        for right_node in operand[1]:
+            right_node.set_right_nodes(operand[0])
+            
+        for left_node in operand[0]:
+            # Note that 'None' can only appear as a left node
+            if (left_node):
+                left_node.set_left_nodes(operand[1])
+
+        return ([None] + operand[0], operand[1])
+
+    def construct_optional(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        # If there are any 'None's left after the parsing, then the production rule incorrectly allows an empty string match.
+        return ([None] + operand[0], operand[1])
+
+    def parse_any_alternations_and_concatenations(tokens):
+        alternation_operands_tokens = []
+        for token in tokens:
+            if (token == "|"):
+                alternated_operands_tokens.append([])
+            else:
+                if (len(alternated_operands_tokens[-1]) % 2 == 1):
+                    assert token == ",", "Concatenated tokens must be separated by a \',\'"
+                else:
+                    alternated_operands_tokens[-1].append(token)
+                
+        alternation_operands = []
+        for alternation_operand_tokens in alternation_operands_tokens:
+            alternation_operands.append(construct_concatenations(alternation_operand_tokens))
+        return construct_alternations(alternation_operands)
+
+    def parse_production_rule(rule_tokens):
+        grouping_stack = [(GrammarOperatorType.GROUPING, [])]
+        for token in rule_tokens:
+            if (is_terminal(token)):
+                grouping_stack[-1][1].append(parse_terminal(token))
+            elif(self.is_nonterminal(token)):
+                grouping_stack[-1][1].append(parse_nonterminal(token))
+            elif (token == "("):
+                grouping_stack.append((GrammarOperatorType.GROUPING, []))
+            elif (token == "{"):
+                grouping_stack.append((GrammarOperatorType.REPETITION, []))
+            elif (token == "["):
+                grouping_stack.append((GrammarOperatorType.OPTIONAL, []))
+            elif(token == ")"):
+                operator_type, group_tokens = grouping_stack.pop()
+                assert operator_type == GrammarOperatorType.GROUPING
+                grouping_stack[-1][1].append(parse_any_alternations_and_concatenations(group_tokens))
+            elif (token == "}"):
+                operator_type, repetition_tokens = grouping_stack.pop()
+                assert operator_type == GrammarOperatorType.REPETITION
+                repetition_left_right_nodes = parse_any_alternations_and_concatenations(repetition_tokens)
+                grouping_stack[-1][1].append(construct_repetition(repetition_left_right_nodes))
+            elif (token == "]"):
+                operator_type, optional_tokens = grouping_stack.pop()
+                assert operator_type == GrammarOperatorType.OPTIONAL
+                optional_left_right_nodes = parse_any_alternations_and_concatenations(optional_tokens)
+                grouping_stack[-1][1].append(construct_optional(optional_left_right_nodes))
+            else:
+                grouping_stack[-1][1].append(token)
+        
+        assert(len(grouping_stack) == 1)
+        return parse_any_alternations_and_concatenations(grouping_stack[0][1])
+
+    def load_grammar_file(self, filepath : str):
+        nonterminal_definitions = []
+        grammar_file = open(filepath, 'r')
+        grammar_file_line = grammar_file.readline()
+        while(grammar_file_line):
+            line_tokens = tokenized_line(grammar_file_line)
+            if (is_grammar_nonterminal_definition_start(line_tokens)):
+                # Start of a new grammar nonterminal definition
+                # Find semicolon terminating the nonterminal definition.
+                nonterminal_definition_tokens = line_tokens
+                while (not is_grammar_nonterminal_definition_termination(nonterminal_definition_tokens)):
+                    nonterminal_definition_tokens.extend(tokenized_line(grammar_file.readline()))
+
+                nonterminal_name = nonterminal_definition_tokens[0]
+                nonterminal_id = len(__nonterminal_id_map)
+                __nonterminal_id_map[nonterminal_name] = nonterminal_id
+                nonterminal_definitions.append((nonterminal_name, nonterminal_definition_tokens[2:-1]))
+            else:
+                grammar_file_line = grammar_file.readline()
+        grammar_file.close()
+
+        for (nonterminal_name, nonterminal_production_rule_tokens) in nonterminal_definitions:
+            __nonterminal_production_rules.append(parse_production_rule(nonterminal_production_rule_tokens))
 
 def is_matching(nodes, grammar_rule : [str]):
     return None
@@ -243,130 +390,8 @@ def has_suffix_partial_grammar_match(stack : [SyntaxTreeNode], grammar):
                     return True
     return False
 
-def tokenized_line(line : str):
-    if (line == None):
-        return None
-    return line.split()
-
-def is_grammar_nonterminal_definition_start(tokens : [str]):
-    return len(tokens) >= 4 && tokens[1] == ':'
-
-def is_grammar_nonterminal_definition_termination(tokens : [str]):
-    return tokens[-1] == ';'
-
-def is_terminal(token):
-    return (token[0] == "'" and token[-1] == "'") or (token[0] == "\"" and token[-1] == "\"")
-
-def parse_terminal(token) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
-    first_node = ProductionRuleSymbolNode(token[0], [], [])
-    current_node = first_node
-    for character in token[1:]:
-        next_node = ProductionRuleSymbolNode(character, [current_node], [])
-        current_node.set_right_nodes([next_node])
-        current_node = next_node
-    return ([first_node], [current_node])
-
-def construct_concatenations(operands : [([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])]) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
-    for i in range(len(operands)):
-        for left_node in operands[i]:
-            
-    return None
-
-def construct_alternations(operands: [([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])]) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
-    return None
-
-def construct_repetition(operand : ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
-    return None
-
-def construct_optional(operand : ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode])) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
-    return ([None] + operand[0], [None] + operand[1])
-
-def parse_alternations_and_concatenations(tokens):
-    alternation_operands_tokens = []
-    for token in tokens:
-        if (token == "|"):
-            alternated_operands_tokens.append([])
-        else:
-            if (len(alternated_operands_tokens[-1]) % 2 == 1):
-                assert token == ",", "Concatenated tokens must be separated by a ','"
-            else:
-                alternated_operands_tokens[-1].append(token)
-            
-    alternation_operands = []
-    for alternation_operand_tokens in alternation_operands_tokens:
-        alternation_operands.append(construct_concatenations(alternation_operand_tokens))
-    return construct_alternations(alternation_operands)
-
-def parse_production_rule(rule_tokens):
-    grouping_stack = [(GrammarOperatorType.GROUPING, [])]
-    for token in rule_tokens:
-        if (is_terminal(token)):
-            grouping_stack[-1][1].append(parse_terminal(token))
-        elif (token == "("):
-            grouping_stack.append((GrammarOperatorType.GROUPING, []))
-        elif (token == "{"):
-            grouping_stack.append((GrammarOperatorType.REPETITION, []))
-        elif (token == "["):
-            grouping_stack.append((GrammarOperatorType.OPTIONAL, []))
-        elif(token == ")"):
-            operator_type, group_tokens = grouping_stack.pop()
-            assert operator_type == GrammarOperatorType.GROUPING
-            grouping_stack[-1][1].append(parse_alternations_and_concatenations(group_tokens))
-        elif (token == "}"):
-            operator_type, repetition_tokens = grouping_stack.pop()
-            assert operator_type == GrammarOperatorType.REPETITION
-            repetition_left_right_nodes = parse_alternations_and_concatenations(repetition_tokens)
-            grouping_stack[-1][1].append(construct_repetition(repetition_left_right_nodes))
-        elif (token == "]"):
-            operator_type, optional_tokens = grouping_stack.pop()
-            assert operator_type == GrammarOperatorType.OPTIONAL
-            optional_left_right_nodes = parse_alternations_and_concatenations(optional_tokens)
-            grouping_stack[-1][1].append(construct_optional(optional_left_right_nodes))
-        else:
-            grouping_stack[-1][1].append(token)
-    
-    assert(len(grouping_stack) == 1)
-    return parse_alternations_and_concatenations(grouping_stack[0][1])
-
-def load_shader_language_ebnf_grammar(filepath : str):
-    grammar = Grammar()
-
-    grammar_file = open(filepath, 'r')
-    grammar_file_line = grammar_file.readline()
-    while(grammar_file_line):
-        line_tokens = tokenized_line(grammar_file_line)
-        if (is_grammar_nonterminal_definition_start(line_tokens)):
-            # Start of a new grammar nonterminal definition
-            grammar.append([])
-
-            # Find semicolon terminating the nonterminal definition.
-            nonterminal_definition_tokens = line_tokens
-            while (not is_grammar_nonterminal_definition_termination(nonterminal_definition_tokens)):
-                nonterminal_definition_tokens.extend(tokenized_line(grammar_file.readline()))
-
-            nonterminal_name = nonterminal_definition_tokens[0]
-            rule_start_node, rule_end_node = parse_production_rule(nonterminal_definition_tokens[2:-1])
-        else:
-            grammar_file_line = grammar_file.readline()
-    
-    grammar_file.close()
-
-    # Iterate through grammar fragments and replace nonterminal names with ids and special token names with corresponding characters.
-    for grammar_nonterminal_rules in grammar:
-        for rule in grammar_nonterminal_rules:
-            for token_index, token in enumerate(rule):
-                if (token.isupper()):
-                    # Terminal token
-                    if (token is in special_tokens_map):
-                        rule[token_index] = special_tokens_map[token]
-                    else:
-                        rule[token_index] = token.lower()
-                else:
-                    # Nonterminal token
-                    rule[token_index] = grammar_fragment_id_map[token]             
-    return grammar
-
 def reduce_suffix(stack : [SyntaxTreeNode], grammar):
+    # TODO: find largest reduction (greedy)
     partial_matching_grammar = [(nonterminal_id, grammar_rules) for nonterminal_id, grammar_rules in enumerate(grammar)]
     for i in range(1, len(stack)):
         suffix = stack[-i:]
@@ -409,7 +434,7 @@ def shift_reduce_parse_shader_code_syntax(shader_code : str, grammar):
             reduce(stack, grammar)
     return None
 
-def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path : str, grammar):
+def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path : str, grammar : EBNFGrammar):
     """
     Uniforms may be declared in any of the shaders stages.
 
@@ -426,10 +451,16 @@ def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_p
 
         syntax_tree = shift_reduce_parse_shader_code_syntax(shader_stage_code, grammar)
                     
-                
+def find_all_filepaths_in_directory_with_extension(root_path, extension, recursive=True):
+    filepaths = []
+    if(recursive):
+        #TODO
+    else:
+        #TODO
+    return None
         
 def generate_cpp_structs_from_rendering_pipelines(engine_resources_path, game_resources_path):
-    grammar = load_shader_language_grammer("./shader_language_grammar.txt")
+    grammar = EBNFGrammar("./shader_language_grammar.txt")
     rendering_pipelines_filepaths = [find_all_file_paths_in_directory_with_extension(engine_resources_path, "rp")]
     rendering_pipelines_filepaths.extend(find_all_file_paths_in_directory_with_extension(game_resources_path, "rp"))
 
