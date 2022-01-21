@@ -1,82 +1,66 @@
-declarations :
-	single_declaration
-	declarations single_declaration
+declarations = single_declaration , { single_declaration } ;
 
-single_declaration :
-	fully_specified_type SEMICOLON
-	fully_specified_type identifier SEMICOLON
-	fully_specified_type identifier array_specifier SEMICOLON
+single_declaration = ( fully_specified_type | fully_specified_type , identifier | fully_specified_type , identifier , array_specifier ) , ';' ;
 
-fully_specified_type :
-	type_specifier
-	type_qualifier type_specifier
+fully_specified_type = [ type_qualifier ] , type_specifier ;
 
-type_qualifier :
-	single_type_qualifier
-	type_qualifier single_type_qualifier
+type_qualifier = single_type_qualifier , { single_type_qualifier } ;
 
-single_type_qualifier :
-	storage_qualifier
-	layout_qualifier
-	precision_qualifier
-	interpolation_qualifier
-	invariant_qualifier
-	precise_qualifier
+single_type_qualifier = 
+	storage_qualifier | 
+	layout_qualifier | 
+	precision_qualifier | 
+	interpolation_qualifier | 
+	invariant_qualifier | 
+	precise_qualifier ;
 
-storage_qualifier :
-	CONST
-	IN
-	OUT
-	INOUT
-	CENTROID
-	PATCH
-	SAMPLE
-	UNIFORM
-	BUFFER
-	SHARED
-	COHERENT
-	VOLATILE
-	RESTRICT
-	READONLY
-	WRITEONLY
+storage_qualifier =
+	'const' |
+	'in' |
+	'out' |
+	'inout' |
+	'centroid' |
+	'patch' |
+	'sample' |
+	'uniform' |
+	'buffer' |
+	'shared' |
+	'coherent' |
+	'volatile' |
+	'restrict' |
+	'readonly' |
+	'writeonly' ;
 
-layout_qualifier :
-	LAYOUT LEFT_PAREN layout_qualifier_id_list RIGHT_PAREN
+layout_qualifier = 'layout' , '(' , layout_qualifier_id_list , ')' ;
 
-layout_qualifier_id_list :
-	layout_qualifier_id
-	layout_qualifier_id_list COMMA layout_qualifier_id
+layout_qualifier_id_list = layout_qualifier_id , { ',' , layout_qualifier_id } ;
 
-layout_qualifier_id :
-	identifier
-	identifier = constant_expression
-	SHARED
+layout_qualifier_id =
+	identifier |
+	identifier , whitespace, '=' , whitespace , constant_expression |
+	'shared' ;
 
-precision_qualifier :
-	HIGH_PRECISION
-	MEDIUM_PRECISION
-	LOW_PRECISION
+precision_qualifier =
+	'highp' |
+	'mediump' |
+	'lowp' ;
 
-interpolation_qualifier :
-	SMOOTH
-	FLAT
-	NOPERSPECTIVE
+interpolation_qualifier =
+	'smooth' |
+	'flat' |
+	'nonperspective' ;
 
-invariant_qualifier :
-	INVARIANT
+invariant_qualifier = 'invariant' ;
 
-precise_qualifier :
-	PRECISE
+precise_qualifier = 'precise' ;
 
-type_specifier :
-	type_specifier_nonarray
-	type_specifier_nonarray array_specifier
+type_specifier = type_specifier_nonarray , [ array_specifier ] ;
 
-array_specifier :
-	LEFT_BRACKET unsigned_integer RIGHT_BRACKET
-	array_specifier LEFT_BRACKET unsigned_integer RIGHT_BRACKET
+array_specifier = array_specifier_1d , { array_specifier_1d } ;
 
-type_specifier_nonarray :
+array_specifier_1d = '[' , unsigned_integer , ']'
+
+type_specifier_nonarray =
 	VOID
 	FLOAT
 	DOUBLE
@@ -196,101 +180,87 @@ type_specifier_nonarray :
 	IMAGE2DMSARRAY
 	IIMAGE2DMSARRAY
 	UIMAGE2DMSARRAY
-	struct_specifier
-	identifier
+	struct_specifier |
+	identifier ;
 
-struct_specifier :
-	STRUCT identifier LEFT_BRACE struct_member_list RIGHT_BRACE
+struct_specifier = 'struct' identifier '{' struct_member_list '}' ;
 
-struct_member_list :
-	struct_member_declaration
-	struct_member_list struct_member_declaration
+struct_member_list = struct_member_declaration , { struct_member_declaration } ;
 
-struct_member_declaration :
-	type_specifier struct_member_declarators SEMICOLON
+struct_member_declaration = type_specifier struct_member_declarators ';' ;
 
-struct_member_declarators :
-	struct_member_declarator
-	struct_member_declarators COMMA struct_member_declarator
+struct_member_declarators = struct_member_declarator , { ',' , struct_member_declarator } ;
 
-struct_member_declarator :
-	identifier
-	identifier array_specifier
+struct_member_declarator = identifier , [ array_specifier ] ;
 
-unsigned_integer :
-	digit
-	unsigned_integer digit
+unsigned_integer = digit , { digit } ;
 
-digit : 
-	0
-	1
-	2
-	3
-	4
-	5
-	6
-	7
-	8
-	9
+digit = 
+	'0' |
+	'1' |
+	'2' |
+	'3' |
+	'4' |
+	'5' |
+	'6' |
+	'7' |
+	'8' |
+	'9' ;
 
-identifier :
-	letter
-	_
-	identifier letter
-	identifier letter _
-	identifier digit
-	identifier digit _
+identifier = ( letter | '_' ) , { letter | digit | '_' } ;
 
-letter :
-	A
-	B
-	C
-	D
-	E
-	F
-	G
-	H
-	I
-	J
-	K
-	L
-	M
-	N
-	O
-	P
-	Q
-	R
-	S
-	T
-	U
-	V
-	W
-	X
-	Y
-	Z
-	a
-	b
-	c
-	d
-	e
-	f
-	g
-	h
-	i
-	j
-	k
-	l
-	m
-	n
-	o
-	p
-	q
-	r
-	s
-	t
-	u
-	v
-	w
-	x
-	y
-	z
+letter =
+	'A' |
+	'B' |
+	'C' |
+	'D' |
+	'E' |
+	'F' |
+	'G' |
+	'H' |
+	'I' |
+	'J' |
+	'K' |
+	'L' |
+	'M' |
+	'N' |
+	'O' |
+	'P' |
+	'Q' |
+	'R' |
+	'S' |
+	'T' |
+	'U' |
+	'V' |
+	'W' |
+	'X' |
+	'Y' |
+	'Z' |
+	'a' |
+	'b' |
+	'c' |
+	'd' |
+	'e' |
+	'f' |
+	'g' |
+	'h' |
+	'i' |
+	'j' |
+	'k' |
+	'l' |
+	'm' |
+	'n' |
+	'o' |
+	'p' |
+	'q' |
+	'r' |
+	's' |
+	't' |
+	'u' |
+	'v' |
+	'w' |
+	'x' |
+	'y' |
+	'z' ;
+
+whitespace = { ' ' | '\t' | '\n' | '\v' | '\f' | '\r' } ;

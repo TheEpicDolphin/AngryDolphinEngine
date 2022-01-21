@@ -186,34 +186,22 @@ class EBNFGrammar:
     class _ProductionRuleSymbolNode:
         # Either a single terminal character, or a number representing a nonterminal id
         __symbol = None
-        __left_nodes = []
-        __right_nodes = []
+        left_nodes = []
+        right_nodes = []
         
         def __init__(self, symbol : str, left_nodes : [ProductionRuleSymbolNode], right_nodes : [ProductionRuleSymbolNode]):
             self.__symbol = symbol
-            self.__left_nodes = left_nodes
-            self.__right_nodes = right_nodes
+            self.left_nodes = left_nodes
+            self.right_nodes = right_nodes
             
         def is_match(self, symbol):
             return self.__symbol == symbol
 
         def is_left_endpoint(self):
-            return len(self.__left_nodes) == 0
+            return len(self.left_nodes) == 0
 
         def is_right_endpoint(self):
-            return len(self.__right_nodes) == 0
-
-        def left_nodes(self):
-            return self.__left_nodes
-
-        def right_nodes(self):
-            return self.__right_nodes
-
-        def set_left_nodes(self, left_nodes):
-            self.__left_nodes = left_nodes
-
-        def set_right_nodes(self, right_nodes):
-            self.__right_nodes = right_nodes
+            return len(self.right_nodes) == 0
     
     def __init__(self, grammar_filepath : str):
         self.load_grammar_file(grammar_filepath)
@@ -235,16 +223,16 @@ class EBNFGrammar:
     def is_nonterminal(self, token):
         return token is in self.__nonterminal_id_map
 
-    def parse_terminal(token) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+    def parse_terminal(token : str) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
         first_node = ProductionRuleSymbolNode(token[0], [], [])
         current_node = first_node
         for character in token[1:]:
             next_node = _ProductionRuleSymbolNode(character, [current_node], [])
-            current_node.set_right_nodes([next_node])
+            current_node.right_nodes = [next_node]
             current_node = next_node
         return ([first_node], [current_node])
 
-    def parse_nonterminal(self, token) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+    def parse_nonterminal(self, token : str) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
         node = _ProductionRuleSymbolNode(self.__nonterminal_id_map[token], [], [])
         return ([node], [node])
         
@@ -266,39 +254,37 @@ class EBNFGrammar:
         # Connect adjacent operand nodes
         for i in range(0, len(operands) - 1):
             left_operand = operands[i]
-            for right_node in left_operand[1]:
-                left_operand_right_nodes = left_operand.right_nodes()
+            for right_end_node in left_operand[1]:
                 for right_operand in operands[i + 1:]:
                     right_operand_is_optional = False
-                    for left_node in right_operand[0]:
-                        if (left_node):
-                            left_node.set_left_nodes(left_operand.right_nodes())
-                            left_operand_right_nodes.append(left_node)
+                    for left_end_node in right_operand[0]:
+                        if (left_end_node):
+                            left_end_node.left_nodes.extend(left_operand[1])
+                            right_end_node.right_nodes.append(left_end_node)
                         else:
                             # This right_operand is optional
                             right_operand_is_optional = True
                     if (not right_operand_is_optional):
                         break;
-                left_operand.set_right_nodes(left_operand_right_nodes)
                         
         return concatenation
 
     def construct_alternations(operands: [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
-        left_nodes = []
-        right_nodes = []
+        left_end_nodes = []
+        right_end_nodes = []
         for operand in operands:
-            left_nodes.extend(operand[0])
-            right_nodes.extend(operand[1])
+            left_end_nodes.extend(operand[0])
+            right_end_nodes.extend(operand[1])
         return (left_nodes, right_nodes)
 
     def construct_repetition(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
-        for right_node in operand[1]:
-            right_node.set_right_nodes(operand[0])
+        for right_end_node in operand[1]:
+            right_end_node.extend(operand[0])
             
-        for left_node in operand[0]:
-            # Note that 'None' can only appear as a left node
-            if (left_node):
-                left_node.set_left_nodes(operand[1])
+        for left_end_node in operand[0]:
+            # Note that 'None' can only appear as a left end node
+            if (left_end_node):
+                left_end_node.left_nodes.extend(operand[1])
 
         return ([None] + operand[0], operand[1])
 
