@@ -1,20 +1,13 @@
 import os
 import xml.etree.ElementTree as ET
 import deque
-
 from enum import Enum
+
 class ShaderStageType(Enum):
     SHADER_STAGE_TYPE_VERTEX = 0
     SHADER_STAGE_TYPE_GEOMETRY = 1
     SHADER_STAGE_TYPE_FRAGMENT = 2
     SHADER_STAGE_TYPE_COMPUTE = 3
-
-class GrammarOperatorType(Enum):
-    CONCATENATION = 0
-    ALTERNATION = 1
-    OPTIONAL = 2
-    REPETITION = 3
-    GROUPING = 4
 
 class Uniform:
     name = ""
@@ -49,10 +42,6 @@ class ShaderDataType:
     
     def array_elements(self) -> [ShaderDataType]:
         return None
-
-    def cpp_write(self) -> str:
-        return None
-        
 
 class ShaderFundamentalDataType(ShaderDataType):
     __cpp_data_type = ""
@@ -103,10 +92,7 @@ class ShaderStructDataType(ShaderDataType):
     def members(self):
         return self.__members
 
-    def array_length(self):
-        return len(elements)
-
-    def cpp_write(self):
+    def cpp_write(self) -> str:
         output = "struct {0}\n{\n".format(self.type_name())
         for member in self.members():
             member_name = member[0]
@@ -151,13 +137,20 @@ fundamental_glsl_data_types_map = \
     "uvec4" : ShaderFundamentalDataType("glm::uvec4", 16),
 }
 
-class LexicalSymbolNode:
+class NonTerminalSymbolNode:
+    __nonterminal_name = None
+    __nonterminal_id = None
     __children = []
 
-    def first_node_with_lexical_symbol(self, target_terminal_value : str):
+    def __init__(self, nonterminal_name : str, nonterminal_id : int, children):
+        self.__nonterminal_name = nonterminal_name
+        self.__nonterminal_id = nonterminal_id
+        self.__children = children
+
+    def first_node_with_terminal_symbol(self, terminal_symbol : str):
         return None
 
-    def find_descendant_nodes_with_nonterminal(self, root_node : SyntaxTreeNode, nonterminal : str) -> [SyntaxTreeNode]:
+    def find_descendant_nodes_with_nonterminal_symbol(self, root_node : SyntaxTreeNode, nonterminal : str) -> [SyntaxTreeNode]:
         bfs_queue = deque(root_node)
         matching_nonterminal_nodes = [root_node] if root_node.nonterminal_id == nonterminal_id else []
         
@@ -169,19 +162,27 @@ class LexicalSymbolNode:
                 bfs_queue.push_back(child_node)
         return matching_nonterminal_nodes
 
-class LexicalSymbolTerminalNode(LexicalSymbolNode):
-    __symbol = None
-
-class LexicalSymbolNonTerminalNode(LexicalSymbolNode):
-    __nonterminal_name = None
-    __nonterminal_id = None
-    __children = []
+    def nonterminal_name(self):
+        return self.__nonterminal_name
+    
+    def nonterminal_id(self):
+        return self.__nonterminal_id
+    
+    def children(self):
+        return self.__children
 
 # Extended Backus-Naur Form (EBNF) Grammar
 class EBNFGrammar:
     __nonterminal_id_map = {}
+    __nonterminal_name_lookup = []
     __nonterminal_production_rules = []
-    #reverse_grammar_fragment_lookup = []
+
+    class _GrammarOperatorType(Enum):
+        CONCATENATION = 0
+        ALTERNATION = 1
+        OPTIONAL = 2
+        REPETITION = 3
+        GROUPING = 4
 
     class _ProductionRuleSymbolNode:
         # Either a single terminal character, or a number representing a nonterminal id
@@ -206,24 +207,32 @@ class EBNFGrammar:
     def __init__(self, grammar_filepath : str):
         self.load_grammar_file(grammar_filepath)
 
-    def tokenized_line(line : str):
+    def __tokenized_line(line : str):
     if (line == None):
         return None
     return line.split()
 
-    def is_grammar_nonterminal_definition_start(tokens : [str]):
+    def __is_grammar_nonterminal_definition_start(tokens : [str]):
         return len(tokens) >= 4 && tokens[1] == ':'
 
-    def is_grammar_nonterminal_definition_termination(tokens : [str]):
+    def __is_grammar_nonterminal_definition_termination(tokens : [str]):
         return tokens[-1] == ';'
 
-    def is_terminal(token):
-        return (token[0] == "'" and token[-1] == "'") or (token[0] == "\"" and token[-1] == "\"")
+    def __is_terminal(token):
+        return len(token) == 3 and ((token[0] == "'" and token[-1] == "'") or (token[0] == "\"" and token[-1] == "\""))
 
-    def is_nonterminal(self, token):
+    def __is_terminal_sequence(token):
+        return len(token) > 3 and ((token[0] == "'" and token[-1] == "'") or (token[0] == "\"" and token[-1] == "\""))
+
+    def __is_nonterminal(self, token):
         return token is in self.__nonterminal_id_map
 
-    def parse_terminal(token : str) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+    def __parse_terminal(token : str) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        assert len(token) == 1
+        return ProductionRuleSymbolNode(token[0], [], [])
+
+    def __parse_terminal_sequence(token : str) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+        assert len(token) > 1
         first_node = ProductionRuleSymbolNode(token[0], [], [])
         current_node = first_node
         for character in token[1:]:
@@ -232,11 +241,12 @@ class EBNFGrammar:
             current_node = next_node
         return ([first_node], [current_node])
 
-    def parse_nonterminal(self, token : str) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
+
+    def __parse_nonterminal(self, token : str) -> ([ProductionRuleSymbolNode], [ProductionRuleSymbolNode]):
         node = _ProductionRuleSymbolNode(self.__nonterminal_id_map[token], [], [])
         return ([node], [node])
         
-    def construct_concatenations(operands : [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+    def __construct_concatenations(operands : [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
         concatenation = ([], operands[-1][1])
 
         # Handle the case of an optional operand on the far left
@@ -269,7 +279,7 @@ class EBNFGrammar:
                         
         return concatenation
 
-    def construct_alternations(operands: [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+    def __construct_alternations(operands: [([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])]) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
         left_end_nodes = []
         right_end_nodes = []
         for operand in operands:
@@ -277,7 +287,7 @@ class EBNFGrammar:
             right_end_nodes.extend(operand[1])
         return (left_nodes, right_nodes)
 
-    def construct_repetition(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+    def __construct_repetition(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
         for right_end_node in operand[1]:
             right_end_node.extend(operand[0])
             
@@ -288,11 +298,11 @@ class EBNFGrammar:
 
         return ([None] + operand[0], operand[1])
 
-    def construct_optional(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
+    def __construct_optional(operand : ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode])) -> ([_ProductionRuleSymbolNode], [_ProductionRuleSymbolNode]):
         # If there are any 'None's left after the parsing, then the production rule incorrectly allows an empty string match.
         return ([None] + operand[0], operand[1])
 
-    def parse_any_alternations_and_concatenations(tokens):
+    def __parse_any_alternations_and_concatenations(tokens):
         alternation_operands_tokens = []
         for token in tokens:
             if (token == "|"):
@@ -305,41 +315,43 @@ class EBNFGrammar:
                 
         alternation_operands = []
         for alternation_operand_tokens in alternation_operands_tokens:
-            alternation_operands.append(construct_concatenations(alternation_operand_tokens))
-        return construct_alternations(alternation_operands)
+            alternation_operands.append(__construct_concatenations(alternation_operand_tokens))
+        return __construct_alternations(alternation_operands)
 
-    def parse_production_rule(rule_tokens):
-        grouping_stack = [(GrammarOperatorType.GROUPING, [])]
+    def __parse_production_rule(self, rule_tokens):
+        grouping_stack = [(_GrammarOperatorType.GROUPING, [])]
         for token in rule_tokens:
-            if (is_terminal(token)):
-                grouping_stack[-1][1].append(parse_terminal(token))
-            elif(self.is_nonterminal(token)):
-                grouping_stack[-1][1].append(parse_nonterminal(token))
+            if (__is_terminal(token)):
+                grouping_stack[-1][1].append(__parse_terminal(token[1:-1]))
+            elif(__is_terminal_sequence(token)):
+                grouping_stack[-1][1].append(__parse_terminal_sequence(token[1:-1]))
+            elif(self.__is_nonterminal(token)):
+                grouping_stack[-1][1].append(__parse_nonterminal(token))
             elif (token == "("):
-                grouping_stack.append((GrammarOperatorType.GROUPING, []))
+                grouping_stack.append((_GrammarOperatorType.GROUPING, []))
             elif (token == "{"):
-                grouping_stack.append((GrammarOperatorType.REPETITION, []))
+                grouping_stack.append((_GrammarOperatorType.REPETITION, []))
             elif (token == "["):
-                grouping_stack.append((GrammarOperatorType.OPTIONAL, []))
+                grouping_stack.append((_GrammarOperatorType.OPTIONAL, []))
             elif(token == ")"):
                 operator_type, group_tokens = grouping_stack.pop()
-                assert operator_type == GrammarOperatorType.GROUPING
-                grouping_stack[-1][1].append(parse_any_alternations_and_concatenations(group_tokens))
+                assert operator_type == _GrammarOperatorType.GROUPING
+                grouping_stack[-1][1].append(__parse_any_alternations_and_concatenations(group_tokens))
             elif (token == "}"):
                 operator_type, repetition_tokens = grouping_stack.pop()
-                assert operator_type == GrammarOperatorType.REPETITION
-                repetition_left_right_nodes = parse_any_alternations_and_concatenations(repetition_tokens)
-                grouping_stack[-1][1].append(construct_repetition(repetition_left_right_nodes))
+                assert operator_type == _GrammarOperatorType.REPETITION
+                repetition_left_right_nodes = __parse_any_alternations_and_concatenations(repetition_tokens)
+                grouping_stack[-1][1].append(__construct_repetition(repetition_left_right_nodes))
             elif (token == "]"):
                 operator_type, optional_tokens = grouping_stack.pop()
-                assert operator_type == GrammarOperatorType.OPTIONAL
-                optional_left_right_nodes = parse_any_alternations_and_concatenations(optional_tokens)
-                grouping_stack[-1][1].append(construct_optional(optional_left_right_nodes))
+                assert operator_type == _GrammarOperatorType.OPTIONAL
+                optional_left_right_nodes = self.__parse_any_alternations_and_concatenations(optional_tokens)
+                grouping_stack[-1][1].append(__construct_optional(optional_left_right_nodes))
             else:
                 grouping_stack[-1][1].append(token)
         
         assert(len(grouping_stack) == 1)
-        return parse_any_alternations_and_concatenations(grouping_stack[0][1])
+        return __parse_any_alternations_and_concatenations(grouping_stack[0][1])
 
     def load_grammar_file(self, filepath : str):
         nonterminal_definitions = []
@@ -347,63 +359,75 @@ class EBNFGrammar:
         grammar_file_line = grammar_file.readline()
         while(grammar_file_line):
             line_tokens = tokenized_line(grammar_file_line)
-            if (is_grammar_nonterminal_definition_start(line_tokens)):
+            if (__is_grammar_nonterminal_definition_start(line_tokens)):
                 # Start of a new grammar nonterminal definition
                 # Find semicolon terminating the nonterminal definition.
                 nonterminal_definition_tokens = line_tokens
-                while (not is_grammar_nonterminal_definition_termination(nonterminal_definition_tokens)):
+                while (not __is_grammar_nonterminal_definition_termination(nonterminal_definition_tokens)):
                     nonterminal_definition_tokens.extend(tokenized_line(grammar_file.readline()))
 
                 nonterminal_name = nonterminal_definition_tokens[0]
-                nonterminal_id = len(__nonterminal_id_map)
-                __nonterminal_id_map[nonterminal_name] = nonterminal_id
+                nonterminal_id = len(self.__nonterminal_id_map)
+                self.__nonterminal_id_map[nonterminal_name] = nonterminal_id
+                assert len(self.__nonterminal_name_lookup) == nonterminal_id
+                self.__nonterminal_name_lookup.append(nonterminal_name)
                 nonterminal_definitions.append((nonterminal_name, nonterminal_definition_tokens[2:-1]))
             else:
                 grammar_file_line = grammar_file.readline()
         grammar_file.close()
 
         for (nonterminal_name, nonterminal_production_rule_tokens) in nonterminal_definitions:
-            __nonterminal_production_rules.append(parse_production_rule(nonterminal_production_rule_tokens))
+            self.__nonterminal_production_rules.append(self.__parse_production_rule(nonterminal_production_rule_tokens))
 
-def is_matching(nodes, grammar_rule : [str]):
-    return None
+        return;
 
-def has_suffix_partial_grammar_match(stack : [SyntaxTreeNode], grammar):
-    for i in range(1, len(stack)):
-        for nonterminal_definition in grammar:
-            for grammar_rule in nonterminal_definition[1]:
-                if (is_matching(stack[-i:], grammar_rule[:i])):
-                    return True
-    return False
+    def find_shortest_nonterminal_production_rule_suffix_match(self, symbol_sequence) -> NonTerminalSymbolNode:
+        # TODO: figure out why/how to do this
+        for i in range(1, len(symbol_sequence)):
+            for nonterminal_definition in grammar:
+                for grammar_rule in nonterminal_definition[1]:
+                    if (is_matching(stack[-i:], grammar_rule[:i])):
+                        return True
+        return;
 
-def reduce_suffix(stack : [SyntaxTreeNode], grammar):
-    # TODO: find largest reduction (greedy)
-    partial_matching_grammar = [(nonterminal_id, grammar_rules) for nonterminal_id, grammar_rules in enumerate(grammar)]
-    for i in range(1, len(stack)):
-        suffix = stack[-i:]
-        updated_partial_matching_grammar = []
-        for nonterminal_definition in partial_matching_grammar:
-            partial_matching_grammar_rules = []
-            for grammar_rule in nonterminal_definition[1]:
-                if (len(suffix) == len(grammar_rule)
-                    && is_matching(suffix, grammar_rule)):
-                    # We have a match. Reduce
-                    stack[-i] = SyntaxTreeNonTerminalNode()
-                    return True    
-                elif (len(suffix) < len(grammar_rule)
-                      && len(stack) >= len(grammar_rule)
-                      && is_matching(suffix, grammar_rule[-len(suffix):])):
-                    # Potential candidate for matching later one
-                    partial_matching_grammar_rules.append(grammar_rule)
-            if (len(candidate_grammar_rules) > 0):
-                updated_partial_matching_grammar.append((nonterminal_definition[0], partial_matching_grammar_rules))
-        partial_matching_grammar = updated_partial_matching_grammar
-    return False
+    def find_longest_nonterminal_production_rule_suffix_match(self, symbol_sequence) -> NonTerminalSymbolNode:
+        longest_suffix_matching_nonterminal_prod_rule_candidates = [(nonterminal_id, [(end_node, []) for end_node in production_rule_graph[1]]) for nonterminal_id, production_rule_graph in enumerate(self.__nonterminal_production_rules)]
+        longest_matched_nonterminal = None
+        for i in range(1, len(symbol_sequence)):
+            current_symbol = symbol_sequence[-i]
+            new_candidates = []
+            for nonterminal_id, intermediate_production_rule_nodes in longest_suffix_matching_nonterminal_prod_rule_candidates:
+                next_intermediate_production_rule_nodes = []
+                for intermediate_node, progress in intermediate_production_rule_nodes:
+                    is_match = (isinstance(current_symbol, NonTerminalSymbolNode) and intermediate_node.is_match(current_symbol.nonterminal_id)) or intermediate_node.is_match(current_symbol)
+                    if (is_match):
+                        progress.append(current_symbol)
+                        if (not intermediate_node.is_left_endpoint()):
+                            # This intermediate node still has connections to the left. We add its
+                            # left nodes as candidates for matching the next symbol.
+                            next_intermediate_production_rule_nodes.extend((left_node, progress) for left_node in intermediate_node.left_nodes())
+                        else:
+                            # We are done progressing along this chain of nodes. This nonterminal's
+                            # production rule has been fully matched, but it may not be the longest.
+                            # This is a greedy matching algorithm, so we may still keep searching.
+                            longest_matched_nonterminal = NonTerminalSymbolNode(nonterminal_id, self.__nonterminal_name_lookup[nonterminal_id], reversed(progress))
+                if (len(next_intermediate_production_rule_nodes) > 0):
+                    new_candidates.append((nonterminal_id, next_intermediate_production_rule_nodes))
+            if (len(new_candidates) == 0):
+                break;
+            longest_suffix_matching_nonterminal_prod_rule_candidates = new_candidates
+        return longest_matched_nonterminal
+        
 
 def reduce(stack : [SyntaxTreeNode], grammar):
     while (True):
-        if (not reduce_suffix(stack, grammar)):
+        nonterminal_node = grammar.find_longest_nonterminal_production_rule_suffix_match(stack)
+        if (not nonterminal_node):
+            # No more reductions are possible. We have finished reducing.
             return;
+        stack = stack[:-len(nonterminal_node.children())]
+        stack.append(nonterminal_node)
+    return;
 
 def shift_reduce_parse_shader_code_syntax(shader_code : str, grammar):
     tokenized_shader_code = shader_code.split()
@@ -411,13 +435,19 @@ def shift_reduce_parse_shader_code_syntax(shader_code : str, grammar):
     shift_offset = 1
     while(shift_offset < len(tokenized_shader_code))
         lookahead = tokenized_shader_code[shift_offset]
-        if (has_suffix_partial_grammar_match(stack + [lookahead], grammar)):
+        if (not grammar.find_shortest_nonterminal_production_rule_suffix_match(stack + [lookahead])):
             # shift
             stack.append(lookahead)
             shift_offset += 1
         else:
             # reduce
             reduce(stack, grammar)
+
+    assert len(stack) == 1
+    return stack[0]
+
+def get_shader_code_between_comment_markings(shader_code):
+
     return None
 
 def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_path : str, grammar : EBNFGrammar):
@@ -435,7 +465,8 @@ def parse_rendering_pipeline_uniforms_and_vertex_attributes(rendering_pipeline_p
         shader_stage_type = shader_stage_node["stage_type"]
         shader_stage_code = shader_stage_node["code"]
 
-        syntax_tree = shift_reduce_parse_shader_code_syntax(shader_stage_code, grammar)
+        syntax_tree = shift_reduce_parse_shader_code_syntax(get_shader_code_between_comment_markings(shader_stage_code), grammar)
+        
                     
 def find_all_filepaths_in_directory_with_extension(root_path, extension, recursive=True):
     filepaths = []

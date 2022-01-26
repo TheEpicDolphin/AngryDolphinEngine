@@ -58,128 +58,128 @@ type_specifier = type_specifier_nonarray , [ array_specifier ] ;
 
 array_specifier = array_specifier_1d , { array_specifier_1d } ;
 
-array_specifier_1d = '[' , unsigned_integer , ']'
+array_specifier_1d = '[' , unsigned_integer , ']' ;
 
 type_specifier_nonarray =
-	VOID
-	FLOAT
-	DOUBLE
-	INT
-	UINT
-	BOOL
-	VEC2
-	VEC3
-	VEC4
-	DVEC2
-	DVEC3
-	DVEC4
-	BVEC2
-	BVEC3
-	BVEC4
-	IVEC2
-	IVEC3
-	IVEC4
-	UVEC2
-	UVEC3
-	UVEC4
-	MAT2
-	MAT3
-	MAT4
-	MAT2X2
-	MAT2X3
-	MAT2X4
-	MAT3X2
-	MAT3X3
-	MAT3X4
-	MAT4X2
-	MAT4X3
-	MAT4X4
-	DMAT2
-	DMAT3
-	DMAT4
-	DMAT2X2
-	DMAT2X3
-	DMAT2X4
-	DMAT3X2
-	DMAT3X3
-	DMAT3X4
-	DMAT4X2
-	DMAT4X3
-	DMAT4X4
-	ATOMIC_UINT
-	SAMPLER2D
-	SAMPLER3D
-	SAMPLERCUBE
-	SAMPLER2DSHADOW
-	SAMPLERCUBESHADOW
-	SAMPLER2DARRAY
-	SAMPLER2DARRAYSHADOW
-	SAMPLERCUBEARRAY
-	SAMPLERCUBEARRAYSHADOW
-	ISAMPLER2D
-	ISAMPLER3D
-	ISAMPLERCUBE
-	ISAMPLER2DARRAY
-	ISAMPLERCUBEARRAY
-	USAMPLER2D
-	USAMPLER3D
-	USAMPLERCUBE
-	USAMPLER2DARRAY
-	USAMPLERCUBEARRAY
-	SAMPLER1D
-	SAMPLER1DSHADOW
-	SAMPLER1DARRAY
-	SAMPLER1DARRAYSHADOW
-	ISAMPLER1D
-	ISAMPLER1DARRAY
-	USAMPLER1D
-	USAMPLER1DARRAY
-	SAMPLER2DRECT
-	SAMPLER2DRECTSHADOW
-	ISAMPLER2DRECT
-	USAMPLER2DRECT
-	SAMPLERBUFFER
-	ISAMPLERBUFFER
-	USAMPLERBUFFER
-	SAMPLER2DMS
-	ISAMPLER2DMS
-	USAMPLER2DMS
-	SAMPLER2DMSARRAY
-	ISAMPLER2DMSARRAY
-	USAMPLER2DMSARRAY
-	IMAGE2D
-	IIMAGE2D
-	UIMAGE2D
-	IMAGE3D
-	IIMAGE3D
-	UIMAGE3D
-	IMAGECUBE
-	IIMAGECUBE
-	UIMAGECUBE
-	IMAGEBUFFER
-	IIMAGEBUFFER
-	UIMAGEBUFFER
-	IMAGE1D
-	IIMAGE1D
-	UIMAGE1D
-	IMAGE1DARRAY
-	IIMAGE1DARRAY
-	UIMAGE1DARRAY
-	IMAGE2DRECT
-	IIMAGE2DRECT
-	UIMAGE2DRECT
-	IMAGE2DARRAY
-	IIMAGE2DARRAY
-	UIMAGE2DARRAY
-	IMAGECUBEARRAY
-	IIMAGECUBEARRAY
-	UIMAGECUBEARRAY
-	IMAGE2DMS
-	IIMAGE2DMS
-	UIMAGE2DMS
-	IMAGE2DMSARRAY
-	IIMAGE2DMSARRAY
-	UIMAGE2DMSARRAY
+	'void' |
+	'float' |
+	'double' |
+	'int' |
+	'uint' |
+	'bool' |
+	'vec2' |
+	'vec3' |
+	'vec4' |
+	'dvec2' |
+	'dvec3' |
+	'dvec4' |
+	'bvec2' |
+	'bvec3' |
+	'bvec4' |
+	'ivec2' |
+	'ivec3' |
+	'ivec4' |
+	'uvec2' |
+	'uvec3' |
+	'uvec4' |
+	'mat2' |
+	'mat3' |
+	'mat4' |
+	'mat2x2' |
+	'mat2x3' |
+	'mat2x4' |
+	'mat3x2' |
+	'mat3x3' |
+	'mat3x4' |
+	'mat4x2' |
+	'mat4x3' |
+	'mat4x4' |
+	'dmat2' |
+	'dmat3' |
+	'dmat4' |
+	'dmat2x2' |
+	'dmat2x3' |
+	'dmat2x4' |
+	'dmat3x2' |
+	'dmat3x3' |
+	'dmat3x4' |
+	'dmat4x2' |
+	'dmat4x3' |
+	'dmat4x4' |
+	'atomic_uint' |
+	'sampler2d' |
+	'sampler3d' |
+	'samplercube' |
+	'sampler2dshadow' |
+	'samplercubeshadow' |
+	'sampler2darray' |
+	'sampler2darrayshadow' |
+	'samplercubearray' |
+	'samplercubearrayshadow' |
+	'isampler2d' |
+	'isampler3d' |
+	'isamplercube' |
+	'isampler2darray' |
+	'isamplercubearray' |
+	'usampler2d' |
+	'usampler3d' |
+	'usamplercube' |
+	'usampler2darray' |
+	'usamplercubearray' |
+	'sampler1d' |
+	'sampler1dshadow' |
+	'sampler1darray' |
+	'sampler1darrayshadow' |
+	'isampler1d' |
+	'isampler1darray' |
+	'usampler1d' |
+	'usampler1darray' |
+	'sampler2drect' |
+	'sampler2drectshadow' |
+	'isampler2drect' |
+	'usampler2drect' |
+	'samplerbuffer' |
+	'isamplerbuffer' |
+	'usamplerbuffer' |
+	'sampler2dms' |
+	'isampler2dms' |
+	'usampler2dms' |
+	'sampler2dmsarray' |
+	'isampler2dmsarray' |
+	'usampler2dmsarray' |
+	'image2d' |
+	'iimage2d' |
+	'uimage2d' |
+	'image3d' |
+	'iimage3d' |
+	'uimage3d' |
+	'imagecube' |
+	'iimagecube' |
+	'uimagecube' |
+	'imagebuffer' |
+	'iimagebuffer' |
+	'uimagebuffer' |
+	'image1d' |
+	'iimage1d' |
+	'uimage1d' |
+	'image1darray' |
+	'iimage1darray' |
+	'uimage1darray' |
+	'image2drect' |
+	'iimage2drect' |
+	'uimage2drect' |
+	'image2darray' |
+	'iimage2darray' |
+	'uimage2darray' |
+	'imagecubearray' |
+	'iimagecubearray' |
+	'uimagecubearray' |
+	'image2dms' |
+	'iimage2dms' |
+	'uimage2dms' |
+	'image2dmsarray' |
+	'iimage2dmsarray' |
+	'uimage2dmsarray' |
 	struct_specifier |
 	identifier ;
 
