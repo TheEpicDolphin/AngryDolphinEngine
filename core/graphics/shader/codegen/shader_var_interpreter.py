@@ -1,6 +1,6 @@
 import os
 import xml.etree.ElementTree as ET
-import deque
+from collections import deque
 from enum import Enum
 
 class ShaderStageType(Enum):
@@ -381,16 +381,23 @@ class EBNFGrammar:
 
         return;
 
-    def find_shortest_nonterminal_production_rule_suffix_match(self, symbol_sequence) -> NonTerminalSymbolNode:
-        # TODO: figure out why/how to do this
+    def has_partial_nonterminal_match_with_suffix_of_sequence(self, symbol_sequence) -> bool:
         for i in range(1, len(symbol_sequence)):
-            for nonterminal_definition in grammar:
-                for grammar_rule in nonterminal_definition[1]:
-                    if (is_matching(stack[-i:], grammar_rule[:i])):
-                        return True
-        return;
+            suffix = stack[-i:]
+            for symbol in suffix:
+                # Breadth-first search
+                bfs_queue = deque([start_node for production_rule_graph in self.__nonterminal_production_rules for start_node in production_rule_graph[1]])
+                while (len(bfs_queue) > 0)):
+                    intermediate_node = bfs_queue.popleft()
+                    is_match = (isinstance(symbol, NonTerminalSymbolNode) and intermediate_node.is_match(symbol.nonterminal_id)) or intermediate_node.is_match(symbol)
+                    if (is_match):
+                        if (intermediate_node.is_right_endpoint()):
+                            return True
+                        for next_intermediate_node in intermediate_node.right_nodes():
+                            bfs_queue.append(next_intermediate_node)
+        return False
 
-    def find_longest_nonterminal_production_rule_suffix_match(self, symbol_sequence) -> NonTerminalSymbolNode:
+    def find_longest_nonterminal_match_with_suffix_of_sequence(self, symbol_sequence) -> NonTerminalSymbolNode:
         longest_suffix_matching_nonterminal_prod_rule_candidates = [(nonterminal_id, [(end_node, []) for end_node in production_rule_graph[1]]) for nonterminal_id, production_rule_graph in enumerate(self.__nonterminal_production_rules)]
         longest_matched_nonterminal = None
         for i in range(1, len(symbol_sequence)):
@@ -419,9 +426,10 @@ class EBNFGrammar:
         return longest_matched_nonterminal
         
 
+
 def reduce(stack : [SyntaxTreeNode], grammar):
     while (True):
-        nonterminal_node = grammar.find_longest_nonterminal_production_rule_suffix_match(stack)
+        nonterminal_node = grammar.find_longest_nonterminal_match_with_suffix_of_sequence(stack)
         if (not nonterminal_node):
             # No more reductions are possible. We have finished reducing.
             return;
@@ -435,7 +443,7 @@ def shift_reduce_parse_shader_code_syntax(shader_code : str, grammar):
     shift_offset = 1
     while(shift_offset < len(tokenized_shader_code))
         lookahead = tokenized_shader_code[shift_offset]
-        if (not grammar.find_shortest_nonterminal_production_rule_suffix_match(stack + [lookahead])):
+        if (not grammar.has_partial_nonterminal_match_with_suffix_of_sequence(stack + [lookahead])):
             # shift
             stack.append(lookahead)
             shift_offset += 1
