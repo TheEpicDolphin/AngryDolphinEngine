@@ -1,18 +1,7 @@
 #include "rapidxml.hpp"
 #include "mesh_manager.h"
 
-static void SetMaterialPropertiesForMaterial(Material* material, )
-{
-	for () {
-		switch (property_type)
-		{
-		default:
-			break;
-		}
-	}
-}
-
-std::shared_ptr<Material> MaterialManager::CreateMaterialForResourcePath(const char* resource_path_name) {
+std::shared_ptr<Mesh> MeshManager::CreateMeshForResourcePath(const char* resource_path_name) {
 	std::vector<char> material_asset = ResourceManager::LoadAsset(resource_path_name, "mat");
 
 	rapidxml::xml_document<> material_xml_doc;
@@ -32,15 +21,9 @@ std::shared_ptr<Material> MaterialManager::CreateMaterialForResourcePath(const c
 		uniform_setting_node = uniform_setting_node->next_sibling();
 	}
 
-	const MaterialID material_id = material_id_generator_->CheckoutNewId();
-	std::shared_ptr<Material> material = std::make_shared<Material>(material_id, { uniform_settings, rendering_pipeline }, this);
+	std::shared_ptr<Material> material = std::make_shared<Material>(++next_mesh_id_, { uniform_settings, rendering_pipeline });
 }
 
-std::shared_ptr<Material> MaterialManager::CreateMaterial(MaterialInfo info) {
-
-}
-
-void MaterialManager::MaterialDidDestruct(Material* material)
-{
-	material_id_generator_->ReturnId(material->GetInstanceID());
+std::shared_ptr<Mesh> MeshManager::CreateMesh(MeshInfo info) {
+	return std::make_shared<Mesh>(++next_mesh_id_, { info.uniform_settings, info.rendering_pipeline });
 }

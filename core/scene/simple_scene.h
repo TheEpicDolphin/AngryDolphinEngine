@@ -5,7 +5,7 @@
 
 #include "scene.h"
 
-class SimpleScene : IScene {
+class SimpleScene : SceneBase {
 public:
 	void DidLoad() override {}
 

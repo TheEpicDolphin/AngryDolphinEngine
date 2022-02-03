@@ -14,8 +14,8 @@ struct RenderableObject
 
 struct RenderTargetInfo 
 {
-	Rect viewport_rect;
-	CameraParams camParams;
+	//Rect viewport_rect;
+	//CameraParams camParams;
 };
 
 class IRenderer {

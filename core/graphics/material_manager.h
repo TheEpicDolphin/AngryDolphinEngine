@@ -6,7 +6,7 @@
 
 #include "material.h"
 
-class MaterialManager : private MaterialDelegate
+class MaterialManager
 {
 public:
 	static std::shared_ptr<Material> CreateMaterialForResourcePath(const char* resource_path);
@@ -14,7 +14,5 @@ public:
 	static std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
 
 private:
-	void MaterialDidDestruct(Material *material) override;
-
-	static std::unique_ptr<UIDGenerator> material_id_generator_;
+	static std::uint32_t next_material_id_;
 };

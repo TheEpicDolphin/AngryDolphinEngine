@@ -3,8 +3,7 @@
 #include "rapidxml.hpp"
 
 std::shared_ptr<RenderingPipeline> RenderingPipelineManager::CreateRenderingPipeline(RenderingPipelineInfo info) {
-	const PipelineID pipeline_id = pipeline_id_generator_->CheckoutNewId();
-	return std::make_shared<RenderingPipeline>(pipeline_id, info.shader_stages, this);
+	return std::make_shared<RenderingPipeline>(++next_pipeline_id_, info.shader_stages);
 }
 
 std::shared_ptr<RenderingPipeline> RenderingPipelineManager::RenderingPipelineForResourcePath(const char* resource_path)
@@ -33,15 +32,8 @@ std::shared_ptr<RenderingPipeline> RenderingPipelineManager::RenderingPipelineFo
 		shader_stage_node = shader_stage_node->next_sibling();
 	}
 
-	const PipelineID pipeline_id = pipeline_id_generator_->CheckoutNewId();
-	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(pipeline_id, { stages }, this);
+	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(++next_pipeline_id_, { stages });
 	loaded_rendering_pipelines_assets_[resource_path] = pipeline;
 	return pipeline;
 }
-
-void RenderingPipelineManager::PipelineDidDestruct(RenderingPipeline* pipeline)
-{
-	pipeline_id_generator_->ReturnId(pipeline->GetInstanceID());
-}
-
 

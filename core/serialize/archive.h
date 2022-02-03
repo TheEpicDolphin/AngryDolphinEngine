@@ -208,7 +208,7 @@ public:
 			std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator first_node_pair_iter = pointee_id_to_des_pointer_nodes_map_.begin();
 			const std::size_t object_id = first_node_pair_iter->first;
 			ArchiveDesPointerNodeBase* dynamic_memory_pointer_node = first_node_pair_iter->second.front();
-			dynamic_memory_pointer_node->DynamicallyAllocateObject();
+			dynamic_memory_pointer_node->DynamicallyAllocateObject(*dynamic_memory_child_xml_node);
 			ArchiveDesNodeBase* pointee_node = dynamic_memory_pointer_node->PointeeNode(*this, *dynamic_memory_child_xml_node);
 			// Calling PointeeNode should have removed this dynamically-allocated node from pointee_to_pointer_node_map_.
 			assert(pointee_id_to_des_pointer_nodes_map_.find(object_id) == pointee_id_to_des_pointer_nodes_map_.end());

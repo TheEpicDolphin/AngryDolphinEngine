@@ -4,10 +4,12 @@
 #include <glm/vec3.hpp>
 #include <vector>
 
+#include <core/utils/uid_generator.h>
+
 #include "shader/shader_vars/shader_var_helpers.h"
 #include "rendering_pipeline.h"
 
-typedef UID MaterialID;
+typedef std::uint32_t MaterialID;
 
 struct UniformValue {
 	std::size_t uniform_index;
@@ -21,25 +23,17 @@ struct MaterialInfo
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
 };
 
-class MaterialDelegate {
-public:
-	virtual void MaterialDidDestruct(Material* material) = 0;
-};
-
 class Material
 {
 public:
-	Material(MaterialID id, MaterialInfo info, MaterialDelegate delegate)
+	Material(MaterialID id, MaterialInfo info)
 	{
 		id_ = id;
 		rendering_pipeline_ = info.rendering_pipeline;
-		delegate_ = std::make_shared<MaterialDelegate>(delegate);
 	}
 
 	~Material() 
-	{
-		delegate_->MaterialDidDestruct(this);
-	}
+	{}
 
 	const MaterialID& GetInstanceID()
 	{
@@ -116,5 +110,4 @@ private:
 	std::vector<UniformValue> uniform_values_;
 	std::unordered_map<std::string, std::size_t> uniform_value_index_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
-	std::shared_ptr<MaterialDelegate> delegate_;
 };

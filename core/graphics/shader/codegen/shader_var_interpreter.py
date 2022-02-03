@@ -381,51 +381,51 @@ class EBNFGrammar:
 
         return;
 
-    def has_partial_nonterminal_match_with_suffix_of_sequence(self, symbol_sequence) -> bool:
+    def has_partial_nonterminal_match_with_suffix_of_sequence(self, symbol_sequence, memo) -> bool:
+        # TODO: dynamic programming. Consider putting the shift_reduce_parse_shader_code_syntax method in the EBNFGrammar class.
         for i in range(1, len(symbol_sequence)):
             suffix = stack[-i:]
+            intermediate_nodes = [start_node for production_rule_graph in self.__nonterminal_production_rules for start_node in production_rule_graph[1]]
             for symbol in suffix:
-                # Breadth-first search
-                bfs_queue = deque([start_node for production_rule_graph in self.__nonterminal_production_rules for start_node in production_rule_graph[1]])
-                while (len(bfs_queue) > 0)):
-                    intermediate_node = bfs_queue.popleft()
+                new_intermediate_nodes = []
+                for intermediate_node in intermediate_nodes:
                     is_match = (isinstance(symbol, NonTerminalSymbolNode) and intermediate_node.is_match(symbol.nonterminal_id)) or intermediate_node.is_match(symbol)
-                    if (is_match):
-                        if (intermediate_node.is_right_endpoint()):
-                            return True
-                        for next_intermediate_node in intermediate_node.right_nodes():
-                            bfs_queue.append(next_intermediate_node)
+                    if (is_match and not intermediate_node.is_right_endpoint()):
+                        new_intermediate_nodes.extend(intermediate_node.right_nodes())
+                if (len(new_intermediate_nodes) == 0):
+                    break;
+                intermediate_nodes = new_intermediate_nodes
+            if (len(intermediate_nodes) > 0):
+                return True
         return False
 
-    def find_longest_nonterminal_match_with_suffix_of_sequence(self, symbol_sequence) -> NonTerminalSymbolNode:
-        longest_suffix_matching_nonterminal_prod_rule_candidates = [(nonterminal_id, [(end_node, []) for end_node in production_rule_graph[1]]) for nonterminal_id, production_rule_graph in enumerate(self.__nonterminal_production_rules)]
+    def find_longest_nonterminal_match_with_suffix_of_sequence(self, symbol_sequence, memo) -> NonTerminalSymbolNode:
+        longest_suffix_matching_nonterminal_prod_rule_candidates = [(nonterminal_id, [end_node for end_node in production_rule_graph[1]]) for nonterminal_id, production_rule_graph in enumerate(self.__nonterminal_production_rules)]
         longest_matched_nonterminal = None
         for i in range(1, len(symbol_sequence)):
+            suffix = symbol_sequence[-i:]
             current_symbol = symbol_sequence[-i]
             new_candidates = []
             for nonterminal_id, intermediate_production_rule_nodes in longest_suffix_matching_nonterminal_prod_rule_candidates:
                 next_intermediate_production_rule_nodes = []
-                for intermediate_node, progress in intermediate_production_rule_nodes:
+                for intermediate_node in intermediate_production_rule_nodes:
                     is_match = (isinstance(current_symbol, NonTerminalSymbolNode) and intermediate_node.is_match(current_symbol.nonterminal_id)) or intermediate_node.is_match(current_symbol)
                     if (is_match):
-                        progress.append(current_symbol)
                         if (not intermediate_node.is_left_endpoint()):
                             # This intermediate node still has connections to the left. We add its
                             # left nodes as candidates for matching the next symbol.
-                            next_intermediate_production_rule_nodes.extend((left_node, progress) for left_node in intermediate_node.left_nodes())
+                            next_intermediate_production_rule_nodes.extend(intermediate_node.left_nodes())
                         else:
-                            # We are done progressing along this chain of nodes. This nonterminal's
+                            # We are done progressing along this branch of nodes. This nonterminal's
                             # production rule has been fully matched, but it may not be the longest.
                             # This is a greedy matching algorithm, so we may still keep searching.
-                            longest_matched_nonterminal = NonTerminalSymbolNode(nonterminal_id, self.__nonterminal_name_lookup[nonterminal_id], reversed(progress))
+                            longest_matched_nonterminal = NonTerminalSymbolNode(nonterminal_id, self.__nonterminal_name_lookup[nonterminal_id], suffix)
                 if (len(next_intermediate_production_rule_nodes) > 0):
                     new_candidates.append((nonterminal_id, next_intermediate_production_rule_nodes))
             if (len(new_candidates) == 0):
                 break;
             longest_suffix_matching_nonterminal_prod_rule_candidates = new_candidates
         return longest_matched_nonterminal
-        
-
 
 def reduce(stack : [SyntaxTreeNode], grammar):
     while (True):

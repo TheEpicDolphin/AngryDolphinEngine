@@ -1,11 +1,10 @@
 #pragma once
 
 #include <unordered_map>
-#include <core/utils/uid_generator.h>
 
 #include "mesh.h"
 
-class MeshManager : private MeshDelegate
+class MeshManager
 {
 public:
 	static std::shared_ptr<Mesh> CreateMeshForResourcePath(const char* resource_path);
@@ -13,8 +12,5 @@ public:
 	static std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
 
 private:
-	void MeshDidDestruct(Mesh* mesh) override;
-
-private:
-	static std::unique_ptr<UIDGenerator> mesh_id_generator_;
+	static std::uint32_t next_mesh_id_;
 };

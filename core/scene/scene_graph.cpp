@@ -3,17 +3,19 @@
 
 #include <core/utils/transform_utils.h>
 
+using namespace ecs;
+
 SceneGraph::SceneGraph() {
 	scene_graph_node_pool_ = new SceneGraphNode[MAX_ENTITY_COUNT]();
 	next_pool_index_ = 0;
 
 	// We create the world entity
-	CreateEntity(glm::mat4(1.0f), 0);
+	CreateEntity(glm::mat4(1.0f), { 0 });
 }
 
-EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = 0)
+EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = {})
 {
-	return CreateEntityChunk(1, { world_matrix }, { (int)parent_id })[0];
+	return CreateEntityChunk(1, { world_matrix }, { (int)parent_id.index })[0];
 }
 
 std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<int> parent_map = {})
@@ -25,11 +27,13 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 	std::vector<EntityID> entity_ids;
 	for (std::size_t i = 0; i < n; i++) {
 		if (recycled_entity_ids_.empty()) {
-			entity_ids.push_back(entity_to_scene_graph_node_map_.size());
+			entity_ids.push_back({ 0, entity_to_scene_graph_node_map_.size() });
 			entity_to_scene_graph_node_map_.push_back(-1);
 		}
 		else {
-			entity_ids.push_back(recycled_entity_ids_.front());
+			EntityID recycled_entity_id = recycled_entity_ids_.front();
+			// We must increase the version number every time this entity id is reused!
+			entity_ids.push_back({ ++recycled_entity_id.version, recycled_entity_id.index });
 			recycled_entity_ids_.pop();
 		}
 	}
@@ -66,7 +70,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 	}
 
 	for (std::size_t i = 0; i < n; i++) {
-		entity_to_scene_graph_node_map_[entity_ids[i]] = pool_index + i;
+		entity_to_scene_graph_node_map_[entity_ids[i].index] = pool_index + i;
 	}
 
 	for (std::size_t i = 0; i < n; i++) {
@@ -75,7 +79,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 		std::size_t parent_pool_index;
 		if (parent_map[i] < 0) {
 			assert(parent_map[i] >= -n);
-			parent_pool_index = entity_to_scene_graph_node_map_[entity_ids[-parent_map[i] - 1]];
+			parent_pool_index = entity_to_scene_graph_node_map_[entity_ids[-parent_map[i] - 1].index];
 		}
 		else {
 			parent_pool_index = entity_to_scene_graph_node_map_[parent_map[i]];
@@ -84,7 +88,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 		TransformNode* prev_sibling = parent->last_child;
 		node.value.transform_node = 
 		{ 
-			entity_ids[i], 
+			entity_ids[i],
 			transform_utils::TransformWorldToLocal(world_matrices[i], 
 			parent->world_transform_matrix), world_matrices[i], 
 			parent, 
@@ -110,8 +114,8 @@ void SceneGraph::DestroyEntity(EntityID entity_id)
 
 void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 {
-	assert(entity_id > 0);
-	const std::size_t chunk_start_pool_index = entity_to_scene_graph_node_map_[entity_id];
+	assert(entity_id != null_entity_id);
+	const std::size_t chunk_start_pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 
 	std::vector<std::size_t> new_chunk_pool_indices;
 	SceneGraphNode& prev_node = scene_graph_node_pool_[chunk_start_pool_index - 1];
@@ -171,15 +175,15 @@ void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 	}
 }
 
-const glm::mat4& SceneGraph::GetLocalTransform(EntityID id)
+const glm::mat4& SceneGraph::GetLocalTransform(EntityID entity_id)
 {
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	return scene_graph_node_pool_[pool_index].value.transform_node.local_transform_matrix;
 }
 
-void SceneGraph::SetLocalTransform(EntityID id, glm::mat4& local_transform_matrix)
+void SceneGraph::SetLocalTransform(EntityID entity_id, glm::mat4& local_transform_matrix)
 {
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
 	if (local_transform_matrix != transform_node.local_transform_matrix) {
 		transform_node.local_transform_matrix = local_transform_matrix;
@@ -189,15 +193,15 @@ void SceneGraph::SetLocalTransform(EntityID id, glm::mat4& local_transform_matri
 	}
 }
 
-const glm::mat4& SceneGraph::GetWorldTransform(EntityID id)
+const glm::mat4& SceneGraph::GetWorldTransform(EntityID entity_id)
 {
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	return scene_graph_node_pool_[pool_index].value.transform_node.world_transform_matrix;
 }
 
-void SceneGraph::SetWorldTransform(EntityID id, glm::mat4& world_transform_matrix)
+void SceneGraph::SetWorldTransform(EntityID entity_id, glm::mat4& world_transform_matrix)
 {
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
 	if (world_transform_matrix != transform_node.world_transform_matrix) {
 		transform_node.world_transform_matrix = world_transform_matrix;
@@ -207,21 +211,21 @@ void SceneGraph::SetWorldTransform(EntityID id, glm::mat4& world_transform_matri
 	}
 }
 
-const EntityID& SceneGraph::GetParent(EntityID id)
+const EntityID& SceneGraph::GetParent(EntityID entity_id)
 {
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
 	return transform_node.parent->entity_id;
 }
 
-void SceneGraph::SetParent(EntityID id, EntityID parent_id)
+void SceneGraph::SetParent(EntityID entity_id, EntityID parent_id)
 {
-	const std::size_t pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
 	// Remove transform node from previous parent
 	RemoveTransformNodeFromHierarchy(&transform_node);
 
-	const std::size_t new_parent_pool_index = entity_to_scene_graph_node_map_[id];
+	const std::size_t new_parent_pool_index = entity_to_scene_graph_node_map_[parent_id.index];
 	TransformNode& new_parent_transform_node = scene_graph_node_pool_[new_parent_pool_index].value.transform_node;
 
 	// Add transform node to new parent

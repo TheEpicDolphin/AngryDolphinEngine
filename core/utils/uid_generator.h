@@ -1,7 +1,5 @@
 #pragma once
 
-#include <queue>
-
 typedef std::uint32_t UID;
 
 class UIDGenerator {

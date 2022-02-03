@@ -7,9 +7,7 @@
 #include "interfaces/transform_graph.h"
 #include "scene_graph.h"
 
-class IScene : public ISerializable, public IDeserializable
-{
-public:
+class IScene {
 	virtual void DidLoad() = 0;
 
 	virtual void DidUnload() = 0;
@@ -18,19 +16,47 @@ public:
 
 	virtual void OnFrameUpdate(double delta_time, double alpha) = 0;
 
-	EntityID CreateEntity();
+	virtual ecs::EntityID CreateEntity() = 0;
 
-	void DestroyEntity(EntityID entity_id);
+	virtual void DestroyEntity(ecs::EntityID entity_id) = 0;
 
-	const ITransformGraph& TransformGraph() {
+	virtual const ITransformGraph& TransformGraph() = 0;
+
+	virtual const ecs::Registry& ComponentRegistry() = 0;
+
+	virtual const IRenderer& Renderer() = 0;
+};
+
+class SceneBase : public IScene, public ISerializable, public IDeserializable
+{
+public:
+	void DidLoad() override {};
+
+	void DidUnload() override {};
+
+	void OnFixedUpdate(double fixed_delta_time) override {};
+
+	void OnFrameUpdate(double delta_time, double alpha) override {};
+
+	ecs::EntityID CreateEntity() override {
+		ecs::EntityID entity_id = scene_graph_.CreateEntity();
+		registry_.RegisterEntity(entity_id);
+	}
+
+	void DestroyEntity(ecs::EntityID entity_id) override {
+		registry_.UnregisterEntity(entity_id);
+		scene_graph_.DestroyEntity(entity_id);
+	}
+
+	const ITransformGraph& TransformGraph() override {
 		return scene_graph_;
 	}
 
-	const ecs::Registry& Registry() {
+	const ecs::Registry& ComponentRegistry() override {
 		return registry_;
 	}
 
-	const IRenderer& Renderer() {
+	const IRenderer& Renderer() override {
 		return renderer_;
 	}
 

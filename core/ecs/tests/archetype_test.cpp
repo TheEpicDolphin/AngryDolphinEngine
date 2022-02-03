@@ -5,7 +5,10 @@
 #include <iostream>
 
 #include <core/utils/gtest_helpers.h>
+#include <core/utils/type_info.h>
 #include "../archetype.h"
+
+using namespace ecs;
 
 static const std::string a_name_0 = "A0";
 static const std::string a_name_1 = "A1";
@@ -48,31 +51,33 @@ struct C
 
 TEST(archetype_test_suite, adding_entity_test)
 {
-    Component<A>::SetTypeId(1);
-    Component<B>::SetTypeId(2);
-    Component<C>::SetTypeId(3);
+    TypeInfo component_type_info;
+    component_type_info.GetTypeId<A>();
+    component_type_info.GetTypeId<B>();
+    component_type_info.GetTypeId<C>();
  
-    Archetype *archetype = Archetype::ArchetypeWithComponentTypes<A, B, C>();
-    archetype->AddEntity<B, C, A>(1, { b_name_0 }, { c_name_0 }, { a_name_0 });
-    B *b = archetype->GetComponentForEntity<B>(1);
+    Archetype *archetype = Archetype::ArchetypeWithComponentTypes<A, B, C>(&component_type_info);
+    archetype->AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
+    B *b = archetype->GetComponentForEntity<B>({ 0, 1 });
     ASSERT_EQ(b->name, b_name_0);
 
     const std::vector<EntityID> entities = archetype->Entities();
-    const std::vector<EntityID> expected_entities = { 1 };
+    const std::vector<EntityID> expected_entities = { { 0, 1 } };
     ASSERT_CONTAINERS_EQ(entities, entities.size(), expected_entities, expected_entities.size());
 }
 
 TEST(archetype_test_suite, removing_entity_test)
 {
-    Component<A>::SetTypeId(1);
-    Component<B>::SetTypeId(2);
-    Component<C>::SetTypeId(3);
+    TypeInfo component_type_info;
+    component_type_info.GetTypeId<A>();
+    component_type_info.GetTypeId<B>();
+    component_type_info.GetTypeId<C>();
 
-    Archetype* archetype = Archetype::ArchetypeWithComponentTypes<A, B, C>();
-    archetype->AddEntity<B, C, A>(1, { b_name_0 }, { c_name_0 }, { a_name_0 });
-    archetype->AddEntity<B, C, A>(2, { b_name_1 }, { c_name_1 }, { a_name_1 });
+    Archetype* archetype = Archetype::ArchetypeWithComponentTypes<A, B, C>(&component_type_info);
+    archetype->AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
+    archetype->AddEntity<B, C, A>({ 0, 2 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
-    std::vector<EntityID> expected_entities = { 1, 2 };
+    std::vector<EntityID> expected_entities = { {0, 1}, {0, 2} };
     std::vector<C> expected_c_components = { { c_name_0 }, { c_name_1 } };
     std::vector<B> expected_b_components = { { b_name_0 }, { b_name_1 } };
     std::vector<A> expected_a_components = { { a_name_0 }, { a_name_1 } };
@@ -88,8 +93,8 @@ TEST(archetype_test_suite, removing_entity_test)
 
     archetype->EnumerateComponentsWithBlock<C, B, A>(test_block);
 
-    archetype->RemoveEntity(1);
-    expected_entities = { 2 };
+    archetype->RemoveEntity({ 0, 1 });
+    expected_entities = { {0, 2} };
     expected_c_components = { { c_name_1 } };
     expected_b_components = { { b_name_1 } };
     expected_a_components = { { a_name_1 } };
@@ -104,19 +109,21 @@ struct D
 
 TEST(archetype_test_suite, creating_archetype_with_added_component_type)
 {
-    Component<A>::SetTypeId(1);
-    Component<B>::SetTypeId(2);
-    Component<C>::SetTypeId(3);
-    Component<D>::SetTypeId(4);
 
-    Archetype* archetype_abc = Archetype::ArchetypeWithComponentTypes<A, B, C>();
-    archetype_abc->AddEntity<B, C, A>(1, { b_name_0 }, { c_name_0 }, { a_name_0 });
-    archetype_abc->AddEntity<B, C, A>(2, { b_name_1 }, { c_name_1 }, { a_name_1 });
+    TypeInfo component_type_info;
+    component_type_info.GetTypeId<A>();
+    component_type_info.GetTypeId<B>();
+    component_type_info.GetTypeId<C>();
+    component_type_info.GetTypeId<D>();
+
+    Archetype* archetype_abc = Archetype::ArchetypeWithComponentTypes<A, B, C>(&component_type_info);
+    archetype_abc->AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
+    archetype_abc->AddEntity<B, C, A>({ 0, 2 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
     Archetype* archetype_abcd = archetype_abc->EmptyWithAddedComponentType<D>();
-    archetype_abcd->AddEntity<D, B, C, A>(3, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
 
-    std::vector<EntityID> expected_entities = { 3 };
+    std::vector<EntityID> expected_entities = { { 0, 3 } };
     std::vector<A> expected_a_components = { { a_name_2 } };
     std::vector<B> expected_b_components = { { b_name_2 } };
     std::vector<C> expected_c_components = { { c_name_2 } };
@@ -138,19 +145,20 @@ TEST(archetype_test_suite, creating_archetype_with_added_component_type)
 
 TEST(archetype_test_suite, creating_archetype_with_removed_component_type)
 {
-    Component<A>::SetTypeId(1);
-    Component<B>::SetTypeId(2);
-    Component<C>::SetTypeId(3);
-    Component<D>::SetTypeId(4);
+    TypeInfo component_type_info;
+    component_type_info.GetTypeId<A>();
+    component_type_info.GetTypeId<B>();
+    component_type_info.GetTypeId<C>();
+    component_type_info.GetTypeId<D>();
 
-    Archetype* archetype_abcd = Archetype::ArchetypeWithComponentTypes<A, B, C, D>();
-    archetype_abcd->AddEntity<D, B, C, A>(1, { d_name_0 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
-    archetype_abcd->AddEntity<D, B, C, A>(2, { d_name_1 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
+    Archetype* archetype_abcd = Archetype::ArchetypeWithComponentTypes<A, B, C, D>(&component_type_info);
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 1 }, { d_name_0 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 2 }, { d_name_1 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
     Archetype* archetype_acd = archetype_abcd->EmptyWithRemovedComponentType<B>();
-    archetype_acd->AddEntity<D, C, A>(3, { d_name_2 }, { c_name_2 }, { a_name_2 });
+    archetype_acd->AddEntity<D, C, A>({ 0, 3 }, { d_name_2 }, { c_name_2 }, { a_name_2 });
 
-    std::vector<EntityID> expected_entities = { 3 };
+    std::vector<EntityID> expected_entities = { { 0, 3 } };
     std::vector<A> expected_a_components = { { a_name_2 } };
     std::vector<C> expected_c_components = { { c_name_2 } };
     std::vector<D> expected_d_components = { { d_name_2 } };
@@ -166,27 +174,28 @@ TEST(archetype_test_suite, creating_archetype_with_removed_component_type)
     };
 
     archetype_acd->EnumerateComponentsWithBlock<A, C, D>(test_block);
-    B *b = archetype_acd->GetComponentForEntity<B>(3);
+    B *b = archetype_acd->GetComponentForEntity<B>({ 0, 3 });
     ASSERT_EQ(b, nullptr);
 }
 
 TEST(archetype_test_suite, moving_entity_to_super_archetype)
 {
-    Component<A>::SetTypeId(1);
-    Component<B>::SetTypeId(2);
-    Component<C>::SetTypeId(3);
-    Component<D>::SetTypeId(4);
+    TypeInfo component_type_info;
+    component_type_info.GetTypeId<A>();
+    component_type_info.GetTypeId<B>();
+    component_type_info.GetTypeId<C>();
+    component_type_info.GetTypeId<D>();
 
-    Archetype* archetype_abc = Archetype::ArchetypeWithComponentTypes<A, B, C>();
-    archetype_abc->AddEntity<A, B, C>(1, { a_name_0 }, { b_name_0 }, { c_name_0 });
-    archetype_abc->AddEntity<A, B, C>(2, { a_name_1 }, { b_name_1 }, { c_name_1 });
+    Archetype* archetype_abc = Archetype::ArchetypeWithComponentTypes<A, B, C>(&component_type_info);
+    archetype_abc->AddEntity<A, B, C>({ 0, 1 }, { a_name_0 }, { b_name_0 }, { c_name_0 });
+    archetype_abc->AddEntity<A, B, C>({ 0, 2 }, { a_name_1 }, { b_name_1 }, { c_name_1 });
 
-    Archetype* archetype_abcd = Archetype::ArchetypeWithComponentTypes<A, B, C, D>();
-    archetype_abcd->AddEntity<D, B, C, A>(3, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
-    archetype_abcd->AddEntity<D, B, C, A>(4, { d_name_3 }, { b_name_3 }, { c_name_3 }, { a_name_3 });
+    Archetype* archetype_abcd = Archetype::ArchetypeWithComponentTypes<A, B, C, D>(&component_type_info);
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 4 }, { d_name_3 }, { b_name_3 }, { c_name_3 }, { a_name_3 });
 
-    archetype_abc->MoveEntityToSuperArchetype<D>(1, *archetype_abcd, { d_name_0 });
-    std::vector<EntityID> expected_entities = { 2 };
+    archetype_abc->MoveEntityToSuperArchetype<D>({ 0, 1 }, *archetype_abcd, { d_name_0 });
+    std::vector<EntityID> expected_entities = { { 0, 2 } };
     std::vector<A> expected_a_components = { { a_name_1 } };
     std::vector<A> expected_b_components = { { b_name_1 } };
     std::vector<C> expected_c_components = { { c_name_1 } };
@@ -201,7 +210,7 @@ TEST(archetype_test_suite, moving_entity_to_super_archetype)
     };
     archetype_abc->EnumerateComponentsWithBlock<A, B, C>(abc_test_block);
 
-    expected_entities = { 3, 4, 1 };
+    expected_entities = { { 0, 3 }, { 0, 4 }, { 0, 1 } };
     expected_a_components = { { a_name_2 }, { a_name_3 }, { a_name_0 } };
     expected_b_components = { { b_name_2 }, { b_name_3 }, { b_name_0 } };
     expected_c_components = { { c_name_2 }, { c_name_3 }, { c_name_0 } };
@@ -221,22 +230,23 @@ TEST(archetype_test_suite, moving_entity_to_super_archetype)
 
 TEST(archetype_test_suite, moving_entity_to_sub_archetype)
 {
-    Component<A>::SetTypeId(1);
-    Component<B>::SetTypeId(2);
-    Component<C>::SetTypeId(3);
-    Component<D>::SetTypeId(4);
+    TypeInfo component_type_info;
+    component_type_info.GetTypeId<A>();
+    component_type_info.GetTypeId<B>();
+    component_type_info.GetTypeId<C>();
+    component_type_info.GetTypeId<D>();
 
-    Archetype* archetype_abc = Archetype::ArchetypeWithComponentTypes<A, B, C>();
-    archetype_abc->AddEntity<A, B, C>(1, { a_name_0 }, { b_name_0 }, { c_name_0 });
-    archetype_abc->AddEntity<A, B, C>(2, { a_name_1 }, { b_name_1 }, { c_name_1 });
+    Archetype* archetype_abc = Archetype::ArchetypeWithComponentTypes<A, B, C>(&component_type_info);
+    archetype_abc->AddEntity<A, B, C>({ 0, 1 }, { a_name_0 }, { b_name_0 }, { c_name_0 });
+    archetype_abc->AddEntity<A, B, C>({ 0, 2 }, { a_name_1 }, { b_name_1 }, { c_name_1 });
 
-    Archetype* archetype_abcd = Archetype::ArchetypeWithComponentTypes<A, B, C, D>();
-    archetype_abcd->AddEntity<D, B, C, A>(3, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
-    archetype_abcd->AddEntity<D, B, C, A>(4, { d_name_3 }, { b_name_3 }, { c_name_3 }, { a_name_3 });
-    archetype_abcd->AddEntity<D, B, C, A>(5, { d_name_4 }, { b_name_4 }, { c_name_4 }, { a_name_4 });
+    Archetype* archetype_abcd = Archetype::ArchetypeWithComponentTypes<A, B, C, D>(&component_type_info);
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 4 }, { d_name_3 }, { b_name_3 }, { c_name_3 }, { a_name_3 });
+    archetype_abcd->AddEntity<D, B, C, A>({ 0, 5 }, { d_name_4 }, { b_name_4 }, { c_name_4 }, { a_name_4 });
 
-    archetype_abcd->MoveEntityToSubArchetype<D>(3, *archetype_abc);
-    std::vector<EntityID> expected_entities = { 1, 2, 3 };
+    archetype_abcd->MoveEntityToSubArchetype<D>({ 0, 3 }, *archetype_abc);
+    std::vector<EntityID> expected_entities = { { 0, 1 }, { 0, 2 }, { 0, 3 } };
     std::vector<A> expected_a_components = { { a_name_0 }, { a_name_1 }, { a_name_2 } };
     std::vector<A> expected_b_components = { { b_name_0 }, { b_name_1 }, { b_name_2 } };
     std::vector<C> expected_c_components = { { c_name_0 }, { c_name_1 }, { c_name_2 } };
@@ -251,7 +261,7 @@ TEST(archetype_test_suite, moving_entity_to_sub_archetype)
     };
     archetype_abc->EnumerateComponentsWithBlock<A, B, C>(abc_test_block);
 
-    expected_entities = { 5, 4 };
+    expected_entities = { { 0, 5 }, { 0, 4 } };
     expected_a_components = { { a_name_4 }, { a_name_3 } };
     expected_b_components = { { b_name_4 }, { b_name_3 } };
     expected_c_components = { { c_name_4 }, { c_name_3 } };

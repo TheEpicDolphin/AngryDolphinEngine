@@ -1,10 +1,12 @@
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <unordered_map>
+
 #include "shader/shader.h"
 
-typedef UID PipelineID;
+typedef std::uint32_t PipelineID;
 
 enum VertexAttributeUsageCategory
 {
@@ -47,17 +49,11 @@ struct VertexAttributeInfo {
 	VertexAttributeUsageCategory category;
 };
 
-class RenderingPipelineDelegate
-{
-public:
-	virtual void PipelineDidDestruct(RenderingPipeline* pipeline) = 0;
-};
-
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
 class RenderingPipeline 
 {
 public:
-	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info, RenderingPipelineDelegate *delegate);
+	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info);
 
 	~RenderingPipeline();
 
@@ -88,6 +84,4 @@ private:
 	std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
 
 	std::vector<Shader> shader_stages_;
-
-	std::shared_ptr<RenderingPipelineDelegate> delegate_;
 };

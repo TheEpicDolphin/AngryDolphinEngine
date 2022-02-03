@@ -2,10 +2,10 @@ file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
 add_library (scene ${SOURCES})
 
-target_link_libraries(scene glm::glm)
-target_link_libraries(scene ecs)
-target_link_libraries(scene utils)
-target_link_libraries(scene graphics)
+target_link_libraries(scene PUBLIC glm::glm)
+target_link_libraries(scene PUBLIC ecs)
+target_link_libraries(scene PUBLIC utils)
+target_link_libraries(scene PUBLIC graphics)
 
 set_target_properties(scene PROPERTIES
     CXX_STANDARD 14

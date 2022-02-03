@@ -4,8 +4,9 @@
 #include "rapidxml.hpp"
 #include "rendering_pipeline_manager.h"
 
-static void SetMaterialPropertiesForMaterial(Material *material, )
+static void SetMaterialPropertiesForMaterial(Material *material)
 {
+	/*
 	for () {
 		switch (property_type)
 		{
@@ -13,6 +14,7 @@ static void SetMaterialPropertiesForMaterial(Material *material, )
 			break;
 		}
 	}
+	*/
 }
 
 std::shared_ptr<Material> MaterialManager::CreateMaterialForResourcePath(const char* resource_path_name) {
@@ -35,15 +37,9 @@ std::shared_ptr<Material> MaterialManager::CreateMaterialForResourcePath(const c
 		uniform_setting_node = uniform_setting_node->next_sibling();
 	}
 
-	const MaterialID material_id = material_id_generator_->CheckoutNewId();
-	std::shared_ptr<Material> material = std::make_shared<Material>(material_id, { uniform_settings, rendering_pipeline }, this);
+	std::shared_ptr<Material> material = std::make_shared<Material>(++next_material_id_, { uniform_settings, rendering_pipeline });
 }
 
 std::shared_ptr<Material> MaterialManager::CreateMaterial(MaterialInfo info) {
-
-}
-
-void MaterialManager::MaterialDidDestruct(Material *material)
-{
-	material_id_generator_->ReturnId(material->GetInstanceID());
+	return std::make_shared<Material>(++next_material_id_, info);
 }

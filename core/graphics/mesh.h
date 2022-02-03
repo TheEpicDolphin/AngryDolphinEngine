@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include <core/utils/uid_generator.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -10,12 +9,7 @@
 #include "rendering_pipeline.h"
 #include "material.h"
 
-typedef UID MeshID;
-
-struct MeshDelegate
-{
-	virtual void MeshDidDestruct(Mesh* mesh) = 0;
-};
+typedef uint32_t MeshID;
 
 struct VertexAttributeBuffer {
 	std::size_t attribute_index;
@@ -40,7 +34,7 @@ public:
 		size_t indices[3] = { 0, 0, 0 };
 	};
 
-	Mesh(MeshID id, MeshDelegate *delegate);
+	Mesh(MeshID id);
 
 	~Mesh();
 
@@ -121,8 +115,6 @@ private:
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 	
 	std::vector<Triangle> tris_;
-
-	std::shared_ptr<MeshDelegate> delegate_;
 
 	template<typename T>
 	void SetVertexAttributeBufferWithCachedIndex(std::string name, std::vector<T> buffer, int& cached_va_index)
