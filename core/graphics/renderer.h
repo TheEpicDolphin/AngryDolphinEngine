@@ -1,38 +1,38 @@
 #pragma once
 
-#include "mesh_renderable.h"
+#include "mesh.h"
+#include "material.h"
 #include "rendering_pipeline.h"
 
 #include <glm/mat4x4.hpp>
+#include <core/utils/rect.h>
 
 struct RenderableObject
 {
 	Mesh* mesh;
+	Material* material;
 	glm::mat4 model_matrix;
 	std::vector<glm::mat4> bones;
 };
 
-struct RenderTargetInfo 
-{
-	//Rect viewport_rect;
-	//CameraParams camParams;
+struct CameraParams {
+	bool is_orthographic;
+	// In degrees.
+	float vertical_fov;
+	float aspect_ratio;
+	float near_clip_plane_z;
+	float far_clip_plane_z;
+	glm::mat4 world_transform;
+	Rect viewport_rect;
 };
 
 class IRenderer {
 public:
 	virtual void Initialize(int width, int height) = 0;
 
-	virtual void SetRenderTarget(UID id, RenderTargetInfo info) = 0;
-
-	virtual void UnsetRenderTarget(UID id) = 0;
+	virtual void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) = 0;
 	
-	virtual bool RenderFrame(const std::vector<RenderableObject>& renderable_objects) = 0;
+	virtual bool RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) = 0;
 
 	virtual void Cleanup() = 0;
-
-	virtual void RegisterRenderingPipeline(std::shared_ptr<RenderingPipeline> rendering_pipeline) = 0;
-
-	virtual void RegisterMaterial(std::shared_ptr<Material> material) = 0;
-
-	virtual void RegisterMesh(std::shared_ptr<Mesh> mesh) = 0;
 };

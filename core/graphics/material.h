@@ -15,12 +15,20 @@ struct UniformValue {
 	std::size_t uniform_index;
 	ShaderDataType type;
 	std::vector<char> data;
+	bool is_dirty;
 };
 
 struct MaterialInfo
 {
 	std::unordered_map<std::string, UniformValue> uniform_settings;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
+};
+
+struct MaterialLifecycleEventsListener {
+
+	virtual void MaterialDidDestroy(MaterialID materialId) = 0;
+
+	virtual void MaterialUniformDidChange(Material* material, std::size_t uniform_index) = 0;
 };
 
 class Material
@@ -55,6 +63,8 @@ public:
 		if (index != shader::index_not_found) {
 			uniform_value_index_map_[name] = uniform_values_.size();
 			uniform_values_.push_back({ index, type, value_data });
+			
+			lifecycle_events_listener_->MaterialUniformDidChange(this, index);
 		}
 		else {
 			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
@@ -71,6 +81,8 @@ public:
 		if (index != shader::index_not_found) {
 			uniform_value_index_map_[name] = uniform_values_.size();
 			uniform_values_.push_back({ index, type, value_data });
+
+			lifecycle_events_listener_->MaterialUniformDidChange(this, index);
 		}
 		else {
 			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
@@ -110,4 +122,6 @@ private:
 	std::vector<UniformValue> uniform_values_;
 	std::unordered_map<std::string, std::size_t> uniform_value_index_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
+
+	MaterialLifecycleEventsListener* lifecycle_events_listener_;
 };

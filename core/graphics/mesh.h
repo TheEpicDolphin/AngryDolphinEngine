@@ -7,7 +7,6 @@
 #include <glm/vec4.hpp>
 
 #include "rendering_pipeline.h"
-#include "material.h"
 
 typedef uint32_t MeshID;
 
@@ -20,9 +19,15 @@ struct VertexAttributeBuffer {
 
 struct MeshInfo
 {
-	std::unordered_map<std::string, VertexAttributeBuffer> vertex_attribute_settings;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
 	bool is_static;
+};
+
+struct MeshLifecycleEventsListener {
+
+	virtual void MeshDidDestroy(MeshID meshId) = 0;
+
+	virtual void MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
 };
 
 class Mesh
@@ -34,7 +39,7 @@ public:
 		size_t indices[3] = { 0, 0, 0 };
 	};
 
-	Mesh(MeshID id);
+	Mesh(MeshID id, MeshInfo mesh_info);
 
 	~Mesh();
 
@@ -43,11 +48,11 @@ public:
 		return id_;
 	}
 
+	bool IsStatic() {
+		return is_static_;
+	}
+
 	const std::size_t& VertexCount();
-
-	void SetMaterial(std::shared_ptr<Material> material);
-
-	const std::shared_ptr<Material>& GetMaterial();
 
 	void SetVertexPositions(std::vector<glm::vec3> verts);
 
@@ -99,7 +104,7 @@ private:
 
 	MeshID id_;
 
-	std::shared_ptr<Material> material_;
+	bool is_static_;
 
 	std::size_t vertex_count_;
 
@@ -116,6 +121,8 @@ private:
 	
 	std::vector<Triangle> tris_;
 
+	MeshLifecycleEventsListener* lifecycle_events_listener_;
+
 	template<typename T>
 	void SetVertexAttributeBufferWithCachedIndex(std::string name, std::vector<T> buffer, int& cached_va_index)
 	{
@@ -126,6 +133,7 @@ private:
 		else {
 			vertex_attribute_buffers_[cached_va_index].data = shader::BufferData(buffer);
 			vertex_attribute_buffers_[cached_va_index].is_dirty = true;
+			lifecycle_events_listener_->MeshAttributeDidChange(this, index);
 		}
 	}
 

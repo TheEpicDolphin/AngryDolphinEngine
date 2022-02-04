@@ -7,30 +7,23 @@
 
 #include "renderer.h"
 #include "rendering_pipeline.h"
-#include "material_manager.h"
-#include "rendering_pipeline_manager.h"
 
-class OpenGLRenderer : IRenderer
+class OpenGLRenderer : 
+	IRenderer, 
+	MaterialLifecycleEventsListener, 
+	MeshLifecycleEventsListener, 
+	PipelineLifecycleEventsListener
 {
 public:
 	void Initialize(int width, int height);
 
-	void SetRenderTarget(UID id, RenderTargetInfo info) override;
+	void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) override;
 
-	void UnsetRenderTarget(UID id) override;
-
-	bool RenderFrame(const std::vector<RenderableObject>& renderable_objects) override;
+	bool RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) override;
 
 	void Cleanup() override;
 
-	void RegisterRenderingPipeline(std::shared_ptr<RenderingPipeline> rendering_pipeline) override;
-
-	void RegisterMaterial(std::shared_ptr<Material> material) override;
-
-	void RegisterMesh(std::shared_ptr<Mesh> mesh) override;
-
 private:
-	void LoadRenderingAssets();
 
 	struct RenderableObjectBatchKey {
 		PipelineID pipeline_id;
@@ -56,12 +49,12 @@ private:
 
 	struct RenderableObjectBatch {
 		Mesh* mesh;
+		Material* material;
 		std::vector<RenderableObjectInstance> instances;
 	};
 
 	enum MeshDataUsageType {
-		MeshDataUsageTypeStream = 0,
-		MeshDataUsageTypeStatic,
+		MeshDataUsageTypeStatic = 0,
 		MeshDataUsageTypeDynamic,
 	};
 
@@ -73,19 +66,17 @@ private:
 		void SetupVertexAttributeBuffers(Mesh *mesh);
 	};
 
+	static MeshConfiguration CreateMeshConfiguration(Mesh* mesh);
+
 	struct PipelineConfiguration {
 		GLuint program_id;
 	};
+
+	static PipelineConfiguration CreatePipelineConfiguration(const std::shared_ptr<RenderingPipeline>& pipeline);
 
 	GLFWwindow* window_;
 
 	std::unordered_map<MeshID, MeshConfiguration> mesh_config_map_;
 	//std::unordered_map<MaterialID, MaterialConfiguration> material_config_map_;
-	std::unordered_map<PipelineID, PipelineConfiguration> pipeline_config_map_;
-
-	MeshManager mesh_manager_;
-	MaterialManager material_manager_;
-	RenderingPipelineManager pipeline_manager_;
-
-	std::unordered_map<std::string, int> asset_filepath_hasher_;
+	std::unordered_map<PipelineID, PipelineConfiguration> pipeline_config_map_;	
 };

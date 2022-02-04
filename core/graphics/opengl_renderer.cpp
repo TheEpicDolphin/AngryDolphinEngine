@@ -6,8 +6,15 @@
 
 #include <GL/glew.h>
 #include <glm/gtc/type_ptr.hpp>
-#include <config/generated/config.h>
-#include <core/utils/file_helpers.h>
+
+#include "material_manager.h"
+#include "mesh_manager.h"
+#include "rendering_pipeline_manager.h"
+
+static void GLFWErrorCallback(int error, const char* description)
+{
+	fputs(description, stderr);
+}
 
 static void DestroyWindow(GLFWwindow *window) {
     glfwDestroyWindow(window);
@@ -17,11 +24,8 @@ static void DestroyWindow(GLFWwindow *window) {
 
 void OpenGLRenderer::Initialize(int width, int height) 
 {
-	material_manager_.delegate = this;
-	pipeline_manager_.delegate = this;
-	LoadRenderingAssets();
-
-    glfwSetErrorCallback(error_callback);
+    
+	glfwSetErrorCallback(GLFWErrorCallback);
 
     if (!glfwInit()) {
         exit(EXIT_FAILURE);
@@ -39,7 +43,15 @@ void OpenGLRenderer::Initialize(int width, int height)
     }
 }
 
-bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable_objects) {
+void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) {
+	// This will avoid having any lags during rendering.
+	pipeline_config_map_[pipeline->GetInstanceID()] = CreatePipelineConfiguration(pipeline);
+}
+
+bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) {
+	// Only support one camera for now.
+	CameraParams cam_params = cameras[0];
+
     if (!glfwWindowShouldClose(window_)) {
         glfwSwapBuffers(window_);
         glfwPollEvents();
@@ -50,36 +62,48 @@ bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable
 		glViewport(0, 0, *window_width, *window_height);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		if (!camera.enabled) {
-			// Camera is disabled, don't render
-			return;
-		}
-
-		const glm::mat4 view_matrix = camera.transform.matrix;
+		const glm::mat4 view_matrix = cam_params.world_transform;
 		glm::mat4 projection_matrix;
-		if (camera.is_orthographic) {
+		if (cam_params.is_orthographic) {
 			// Orthographic projection matrix
 			projection_matrix = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.0f, 100.0f);
 		}
 		else {
 			// Perspective projection matrix
 			// Projection matrix : 45° Field of View, width:height ratio, display range : 0.1 unit (z near) <-> 100 units (z far)
-			projection_matrix = glm::perspective(glm::radians(45.0f), (float)window_width / (float)window_height, 0.1f, 100.0f);
+			projection_matrix = glm::perspective(
+				glm::radians(cam_params.vertical_fov),
+				cam_params.aspect_ratio, 
+				cam_params.near_clip_plane_z, 
+				cam_params.far_clip_plane_z
+			);
 		}
 
 		std::map<RenderableObjectBatchKey, RenderableObjectBatch> sorted_renderable_batches;
 		for (RenderableObject renderable_object : renderable_objects) {
 			// TODO: perform culling
+
+			const std::shared_ptr<RenderingPipeline>& pipeline = renderable_object.mesh->GetPipeline();
+
+			if (pipeline_config_map_.find(pipeline->GetInstanceID()) == pipeline_config_map_.end()) {
+				pipeline_config_map_[pipeline->GetInstanceID()] = CreatePipelineConfiguration(pipeline);
+				pipeline.lifecycle_events_listener = this;
+			}
+
+			if (mesh_config_map_.find(renderable_object.mesh->GetInstanceID()) == mesh_config_map_.end()) {
+				mesh_config_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshConfiguration(renderable_object.mesh);
+				renderable_object.mesh->lifecycle_events_listener = this;
+			}
 			
 			const RenderableObjectBatchKey batch_key = {
-				renderable_object.mesh->GetPipeline()->GetInstanceID(), 
+				pipeline->GetInstanceID(),
 				renderable_object.mesh->GetInstanceID(),
-				renderable_object.mesh->GetMaterial()->GetInstanceID()
+				renderable_object.material->GetInstanceID()
 			};
 
 			std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.find(batch_key);
 			if (it == sorted_renderable_batches.end()) {
-				const RenderableObjectBatch batch = { renderable_object.mesh, { {renderable_object.model_matrix, renderable_object.bones} } };
+				const RenderableObjectBatch batch = { renderable_object.mesh, renderable_object.material, { {renderable_object.model_matrix, renderable_object.bones} } };
 				sorted_renderable_batches.insert({ batch_key, batch });
 			}
 			else {
@@ -113,7 +137,7 @@ bool OpenGLRenderer::RenderFrame(const std::vector<RenderableObject>& renderable
 			if (current_batch_key.material_id != previous_batch_key.material_id) {
 				// Switch material configuration
 				// Iterate material uniforms and set corresponding uniforms in shaders
-				for (const UniformValue& uniform_value : batch.mesh->GetMaterial()->UniformValues()) {
+				for (const UniformValue& uniform_value : batch.material->UniformValues()) {
 					const UniformInfo& uniform_info = batch.mesh->GetPipeline()->UniformInfoAtIndex(uniform_value.uniform_index);
 					shader::opengl::SetUniform(uniform_info.type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
 				}
@@ -191,10 +215,8 @@ std::string NameForStageType(ShaderStageType type)
 	}
 }
 
-std::shared_ptr<RenderingPipeline> OpenGLRenderer::CreateRenderingPipeline(RenderingPipelineInfo info)
+OpenGLRenderer::PipelineConfiguration OpenGLRenderer::CreatePipelineConfiguration(const std::shared_ptr<RenderingPipeline>& pipeline)
 {
-	const std::shared_ptr<RenderingPipeline> pipeline = pipeline_manager_.CreatePipeline(info);
-
 	const std::vector<Shader> shader_stages = pipeline->ShaderStages();
 	GLuint program_id = glCreateProgram();
 	std::vector<GLuint> shader_ids;
@@ -242,60 +264,20 @@ std::shared_ptr<RenderingPipeline> OpenGLRenderer::CreateRenderingPipeline(Rende
 		glDeleteShader(shader_id);
 	}
 
-	pipeline_config_map_[pipeline->GetInstanceID()] = { program_id };
-	return pipeline;
+	return { program_id };
 }
 
-std::unique_ptr<Material> OpenGLRenderer::CreateUniqueMaterial(MaterialInfo info)
-{
-	const std::unique_ptr<Material> material = material_manager_.CreateUniqueMaterial(info);
-	return std::move(material);
-}
-
-std::shared_ptr<Material> OpenGLRenderer::CreateSharedMaterial(MaterialInfo info)
-{
-	const std::shared_ptr<Material> material = material_manager_.CreateSharedMaterial(info);
-	return material;
-}
-
-std::unique_ptr<Mesh> OpenGLRenderer::CreateUniqueMesh(MeshInfo info)
-{
-	const std::unique_ptr<Mesh> mesh = mesh_manager_.CreateUniqueMesh(info);
-	MeshConfiguration mesh_config;
-	if (info.is_static) {
-		// TODO: Create a static mesh batch. 
-	}
-	else {
-		mesh_config = { MeshDataUsageTypeDynamic, 0, 0, 0 };
-		mesh_config.SetupVertexAttributeBuffers(mesh.get());
-	}
-
-	mesh_config_map_[mesh->GetInstanceID()] = mesh_config;
-	return std::move(mesh);
-}
-
-std::shared_ptr<Mesh> OpenGLRenderer::CreateSharedMesh(MeshInfo info) 
-{
-	const std::shared_ptr<Mesh> mesh = mesh_manager_.CreateSharedMesh(info);
-	MeshConfiguration mesh_config;
-	if (info.is_static) {
-		// TODO: Create a static mesh batch. 
-	}
-	else {
-		mesh_config = { MeshDataUsageTypeDynamic, 0, 0, 0};
-		mesh_config.SetupVertexAttributeBuffers(mesh.get());
-	}
-	
-	mesh_config_map_[mesh->GetInstanceID()] = mesh_config;
-	return mesh;
+OpenGLRenderer::MeshConfiguration OpenGLRenderer::CreateMeshConfiguration(Mesh* mesh) {
+	MeshConfiguration mesh_config = { mesh->IsStatic() ? MeshDataUsageTypeStatic : MeshDataUsageTypeDynamic, 0, 0, 0 };
+	mesh_config.SetupVertexAttributeBuffers(mesh);
+	return mesh_config;
 }
 
 void OpenGLRenderer::MeshConfiguration::SetupVertexAttributeBuffers(Mesh* mesh)
 {
 	switch (data_usage_type) {
-	case MeshDataUsageTypeStream:
-		break;
 	case MeshDataUsageTypeStatic:
+		// TODO
 		break;
 	case MeshDataUsageTypeDynamic:
 		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
@@ -347,38 +329,5 @@ void OpenGLRenderer::MeshConfiguration::SetupVertexAttributeBuffers(Mesh* mesh)
 		}
 		glBindVertexArray(0);
 		break;
-	}
-}
-
-void OpenGLRenderer::LoadRenderingAssets() {
-	// Recursively searches for .rp files in the project's resources folder.
-	const std::vector<fs::path> rp_file_paths = file_helpers::AllFilePathsInDirectoryWithExtension(GAME_RESOURCES_DIRECTORY, ".rp");
-	for (fs::path rp_file_path : rp_file_paths) {
-		std::vector<char> source_code = file_helpers::ReadFileWithPath(rp_file_path);
-		int asset_id = asset_filepath_hasher_.size();
-		pipeline_manager_.CreatePipelineWithHash({ source_code }, asset_id);
-		asset_filepath_hasher_[rp_file_path.u8string()] = asset_id;
-
-		// Look for mesh spec files
-		fs::path mesh_specs_folder("mesh_specs");
-		fs::path mesh_spec_folder_path = rp_file_path.parent_path() / mesh_specs_folder;
-		std::vector<fs::path> mesh_spec_filepaths = file_helpers::AllFilePathsInDirectoryWithExtension(mesh_spec_folder_path.u8string(), ".meshspec");
-		for (fs::path mesh_spec_path : mesh_spec_filepaths) {
-			std::vector<char> mesh_spec_contents = file_helpers::ReadFileWithPath(mesh_spec_path);
-			int mesh_asset_id = asset_filepath_hasher_.size();
-			mesh_manager_.CreateMeshWithHash({ source_code }, mesh_asset_id);
-			asset_filepath_hasher_[mesh_spec_path.u8string()] = mesh_asset_id;
-		}
-
-		// Look for material spec files
-		fs::path material_specs_folder("material_specs");
-		fs::path material_specs_folder_path = rp_file_path.parent_path() / material_specs_folder;
-		std::vector<fs::path> material_spec_filepaths = file_helpers::AllFilePathsInDirectoryWithExtension(material_specs_folder_path.u8string(), ".materialspec");
-		for (fs::path material_spec_path : material_spec_filepaths) {
-			std::vector<char> material_spec_contents = file_helpers::ReadFileWithPath(material_spec_path);
-			int material_asset_id = asset_filepath_hasher_.size();
-			material_manager_.CreateMaterialWithHash({ source_code }, material_asset_id);
-			asset_filepath_hasher_[material_spec_path.u8string()] = material_asset_id;
-		}
 	}
 }

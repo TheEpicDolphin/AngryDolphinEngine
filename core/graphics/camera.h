@@ -2,9 +2,14 @@
 
 #include <core/utils/Rect.h>
 
-struct Camera {
+struct CameraComponent {
 	bool enabled;
-	Rect viewport_rect;
 	bool is_orthographic;
-	float fov;
+	// In degrees.
+	float vertical_fov;
+	float aspect_ratio;
+	float near_clip_plane_z;
+	float far_clip_plane_z;
+	glm::mat4 world_transform;
+	Rect viewport_rect;
 };

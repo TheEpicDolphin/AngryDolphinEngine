@@ -14,5 +14,5 @@ struct SkeletalMeshRenderable
 
 	bool enabled;
 
-	std::vector<EntityID> bones;
+	//std::vector<ecs::EntityID> bones;
 };

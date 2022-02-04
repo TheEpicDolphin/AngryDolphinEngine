@@ -1,34 +1,20 @@
 
 #include "mesh.h"
 
-Mesh::Mesh(MeshID id, MeshDelegate *delegate)
+Mesh::Mesh(MeshID id, MeshInfo info)
 {
 	id_ = id;
-	delegate_ = std::make_shared<MeshDelegate>(delegate);
+	rendering_pipeline_ = info.rendering_pipeline;
+	is_static_ = info.is_static;
 }
 
 Mesh::~Mesh()
 {
-	delegate_->MeshDidDestruct(this);
+	
 }
 
 const std::size_t& Mesh::VertexCount() {
 	return vertex_count_;
-}
-
-void Mesh::SetMaterial(std::shared_ptr<Material> material)
-{
-	if (material->GetPipeline()->GetInstanceID() == rendering_pipeline_->GetInstanceID()) {
-		material_ = material;
-	}
-	else {
-		// TODO: Print warning
-	}
-}
-
-const std::shared_ptr<Material>& Mesh::GetMaterial()
-{
-	return material_;
 }
 
 void Mesh::SetVertexPositions(std::vector<glm::vec3> verts) {
