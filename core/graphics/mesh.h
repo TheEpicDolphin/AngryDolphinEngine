@@ -6,15 +6,15 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
+#include <core/utils/event_announcer.h>
+
 #include "rendering_pipeline.h"
 
 typedef uint32_t MeshID;
 
 struct VertexAttributeBuffer {
-	std::size_t attribute_index;
-	ShaderDataType type;
+	ShaderDataType data_type;
 	std::vector<char> data;
-	bool is_dirty;
 };
 
 struct MeshInfo
@@ -25,9 +25,9 @@ struct MeshInfo
 
 struct MeshLifecycleEventsListener {
 
-	virtual void MeshDidDestroy(MeshID meshId) = 0;
-
 	virtual void MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
+
+	virtual void MeshDidDestroy(MeshID mesh_id) = 0;
 };
 
 class Mesh
@@ -43,14 +43,9 @@ public:
 
 	~Mesh();
 
-	const MeshID& GetInstanceID()
-	{
-		return id_;
-	}
+	const MeshID& GetInstanceID();
 
-	bool IsStatic() {
-		return is_static_;
-	}
+	bool IsStatic();
 
 	const std::size_t& VertexCount();
 
@@ -79,26 +74,37 @@ public:
 	const std::vector<Triangle>& GetTriangles();
 
 	template<typename T>
-	void SetVertexAttributeBuffer(std::string name, std::vector<T> buffer)
+	void SetVertexAttributeBufferData(std::string name, std::vector<T> buffer_data)
 	{
-		const ShaderDataType type = shader::TypeID(buffer[0]);
+		std::unordered_map<std::string, std::size_t>::iterator iter = vertex_attribute_buffer_name_map_.find(name);
+		if (iter == vertex_attribute_buffer_name_map_.end()) {
+			// TODO: print warning that a vertex attribute with this name does not exist for this mesh/pipeline.
+			return;
+		}
+		const std::size_t vab_index = iter->second;
+
+		VertexAttributeBuffer& vabuffer = vertex_attribute_buffers_[vab_index];
+		const ShaderDataType data_type = shader::TypeID(buffer_data[0]);
+		if (vabuffer.data_type != data_type) {
+			// TODO: print warning that the vertex attribute with this name does not have the inputted type.
+			return;
+		}
+
 		const std::vector<char> buffer_data = shader::BufferData(buffer);
-		// Check if rendering pipeline actually has a uniform with this name and type.
-		const std::size_t index = rendering_pipeline_->IndexOfVertexAttributeWithNameAndType(name, type);
-		if (index != shader::index_not_found) {
-			vertex_attribute_buffer_index_map_[name] = vertex_attribute_buffers_.size();
-			vertex_attribute_buffers_.push_back({ index, type, num_components, data_type_size, buffer_data, true });
-		}
-		else {
-			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
-		}
+		vabuffer.data = buffer_data;
+
+		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshAttributeDidChange, this, index);
 	}
 
 	const std::shared_ptr<RenderingPipeline>& GetPipeline();
 
 	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers();
 
-	static std::shared_ptr<Mesh> CreateCubePrimitive(float side_length);
+	const VertexAttributeBuffer& GetVertexAttributeBufferAtIndex(std::size_t index);
+
+	void AddLifecycleEventsListener(MeshLifecycleEventsListener* listener);
+
+	void RemoveLifecycleEventsListener(MeshLifecycleEventsListener* listener);
 
 private:
 
@@ -111,37 +117,36 @@ private:
 	// Indices to commonly used vertex attributes.
 	int position_attribute_index_ = -1;
 	int normal_attribute_index_ = -1;
-	int tex_coords_attribute_index_ = -1;
-	int bone_weights_attribute_index_ = -1;
+	int tex_coord0_attribute_index_ = -1;
+	int bone_weight_attribute_index_ = -1;
 	int bone_indices_attribute_index_ = -1;
 
 	std::vector<VertexAttributeBuffer> vertex_attribute_buffers_;
-	std::unordered_map<std::string, std::size_t> vertex_attribute_buffer_index_map_;
+	std::unordered_map<std::string, std::size_t> vertex_attribute_buffer_name_map_;
+
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 	
 	std::vector<Triangle> tris_;
 
-	MeshLifecycleEventsListener* lifecycle_events_listener_;
+	EventAnnouncer<MeshLifecycleEventsListener> lifecycle_events_announcer_;
 
+	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>
-	void SetVertexAttributeBufferWithCachedIndex(std::string name, std::vector<T> buffer, int& cached_va_index)
+	void SetVertexAttributeBufferWithCachedIndex(int cached_va_index, std::vector<T> buffer)
 	{
-		if (cached_va_index < 0) {
-			cached_va_index = vertex_attribute_buffers_.size();
-			SetVertexAttributeBuffer<T>(name, buffer);
-		}
-		else {
-			vertex_attribute_buffers_[cached_va_index].data = shader::BufferData(buffer);
-			vertex_attribute_buffers_[cached_va_index].is_dirty = true;
-			lifecycle_events_listener_->MeshAttributeDidChange(this, index);
-		}
+		char* buffer_data_ptr = reinterpret_cast<char*>(buffer.data());
+		const std::vector<char> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
+		vertex_attribute_buffers_[cached_va_index].data = buffer;
+
+		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshAttributeDidChange, this, cached_va_index);
 	}
 
+	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>
-	std::vector<T> GetVertexAttributeBufferWithCachedIndex(int& cached_va_index) {
-		VertexAttributeBuffer& buffer = vertex_attribute_buffers_[position_attribute_index_];
-		glm::vec3* positions_ptr = reinterpret_cast<glm::vec3*>(buffer.data.data());
-		const std::vector<glm::vec3> positions(positions_ptr, positions_ptr + vertex_count_);
-		return positions;
+	std::vector<T> GetVertexAttributeBufferForCachedIndex(int cached_va_index) {
+		VertexAttributeBuffer& buffer = vertex_attribute_buffers_[cached_va_index];
+		T* buffer_data_ptr = reinterpret_cast<T*>(buffer.data.data());
+		const std::vector<T> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.data.size() / sizeof(T)));
+		return buffer;
 	}
 };

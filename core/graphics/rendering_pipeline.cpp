@@ -11,7 +11,9 @@ RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, RenderingPipelineIn
 	shader_stages_ = info.shader_stages;
 }
 
-RenderingPipeline::~RenderingPipeline() {}
+RenderingPipeline::~RenderingPipeline() {
+	lifecycle_events_announcer_.Announce(&PipelineLifecycleEventsListener::PipelineDidDestroy, this->GetInstanceID());
+}
 
 const PipelineID& RenderingPipeline::GetInstanceID()
 {
@@ -33,21 +35,6 @@ std::size_t RenderingPipeline::IndexOfUniformWithNameAndType(std::string name, S
 	return iter->second;
 }
 
-std::size_t RenderingPipeline::IndexOfVertexAttributeWithNameAndType(std::string name, ShaderDataType type)
-{
-	std::unordered_map<std::string, std::size_t>::iterator iter = vertex_attribute_index_map_.find(name);
-	if (iter == vertex_attribute_index_map_.end()) {
-		return shader::npos;
-	}
-
-	const VertexAttributeInfo vertex_attribute = vertex_attributes_[iter->second];
-	if (vertex_attribute.type != type) {
-		return shader::npos;
-	}
-
-	return iter->second;
-}
-
 const std::vector<Shader>& RenderingPipeline::ShaderStages()
 {
 	return shader_stages_;
@@ -61,4 +48,16 @@ const UniformInfo& RenderingPipeline::UniformInfoAtIndex(std::size_t index)
 const VertexAttributeInfo& RenderingPipeline::VertexAttributeInfoAtIndex(std::size_t index)
 {
 	return vertex_attributes_[index];
+}
+
+const std::vector<VertexAttributeInfo>& RenderingPipeline::VertexAttributes() {
+	return vertex_attributes_;
+}
+
+void RenderingPipeline::AddLifecycleEventsListener(PipelineLifecycleEventsListener* listener) {
+	lifecycle_events_announcer_.AddListener(listener);
+}
+
+void RenderingPipeline::RemoveLifecycleEventsListener(PipelineLifecycleEventsListener* listener) {
+	lifecycle_events_announcer_.RemoveListener(listener);
 }

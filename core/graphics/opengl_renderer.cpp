@@ -22,6 +22,24 @@ static void DestroyWindow(GLFWwindow *window) {
     exit(EXIT_SUCCESS);
 }
 
+OpenGLRenderer::OpenGLRenderer() {
+
+}
+
+OpenGLRenderer::~OpenGLRenderer() {
+	for (std::unordered_map<PipelineID, PipelineState>::iterator it = pipeline_state_map_.begin(); it != pipeline_state_map_.end(); it++) {
+		it->second.pipeline->RemoveLifecycleEventsListener(this);
+	}
+
+	for (std::unordered_map<MeshID, MeshState>::iterator it = mesh_state_map_.begin(); it != mesh_state_map_.end(); it++) {
+		it->second.mesh->RemoveLifecycleEventsListener(this);
+	}
+
+	for (std::unordered_map<MaterialID, MaterialState>::iterator it = material_state_map_.begin(); it != material_state_map_.end(); it++) {
+		it->second.material->RemoveLifecycleEventsListener(this);
+	}
+}
+
 void OpenGLRenderer::Initialize(int width, int height) 
 {
     
@@ -45,7 +63,8 @@ void OpenGLRenderer::Initialize(int width, int height)
 
 void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) {
 	// This will avoid having any lags during rendering.
-	pipeline_config_map_[pipeline->GetInstanceID()] = CreatePipelineConfiguration(pipeline);
+	pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
+	pipeline->AddLifecycleEventsListener(this);
 }
 
 bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) {
@@ -85,14 +104,14 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 
 			const std::shared_ptr<RenderingPipeline>& pipeline = renderable_object.mesh->GetPipeline();
 
-			if (pipeline_config_map_.find(pipeline->GetInstanceID()) == pipeline_config_map_.end()) {
-				pipeline_config_map_[pipeline->GetInstanceID()] = CreatePipelineConfiguration(pipeline);
-				pipeline.lifecycle_events_listener = this;
+			if (pipeline_state_map_.find(pipeline->GetInstanceID()) == pipeline_state_map_.end()) {
+				pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
+				pipeline->AddLifecycleEventsListener(this);
 			}
 
-			if (mesh_config_map_.find(renderable_object.mesh->GetInstanceID()) == mesh_config_map_.end()) {
-				mesh_config_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshConfiguration(renderable_object.mesh);
-				renderable_object.mesh->lifecycle_events_listener = this;
+			if (mesh_state_map_.find(renderable_object.mesh->GetInstanceID()) == mesh_state_map_.end()) {
+				mesh_state_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshState(renderable_object.mesh);
+				renderable_object.mesh->AddLifecycleEventsListener(this);
 			}
 			
 			const RenderableObjectBatchKey batch_key = {
@@ -122,17 +141,17 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 			RenderableObjectBatch batch = it->second;
 			if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
 				// Switch rendering pipeline configuration
-				const PipelineConfiguration pipeline_config = pipeline_config_map_[current_batch_key.pipeline_id];
-				glUseProgram(pipeline_config.program_id);
+				const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_id];
+				glUseProgram(pipeline_state.program_id);
 				// Find location of mvp matrix. This uniform is treated differently from the ones in Materials
-				mvp_location = glGetUniformLocation(pipeline_config.program_id, "mvp");
+				mvp_location = glGetUniformLocation(pipeline_state.program_id, "mvp");
 				// Find location of bones array, if it exists. This uniform is treated differently from the ones in Materials
-				bones_location = glGetUniformLocation(pipeline_config.program_id, "bones");
+				bones_location = glGetUniformLocation(pipeline_state.program_id, "bones");
 			}
 			if (current_batch_key.mesh_id != previous_batch_key.mesh_id) {
 				// Switch mesh configuration
-				const MeshConfiguration mesh_config = mesh_config_map_[current_batch_key.mesh_id];
-				glBindVertexArray(mesh_config.vao);
+				const MeshState mesh_state = mesh_state_map_[current_batch_key.mesh_id];
+				glBindVertexArray(mesh_state.vao);
 			}
 			if (current_batch_key.material_id != previous_batch_key.material_id) {
 				// Switch material configuration
@@ -215,7 +234,7 @@ std::string NameForStageType(ShaderStageType type)
 	}
 }
 
-OpenGLRenderer::PipelineConfiguration OpenGLRenderer::CreatePipelineConfiguration(const std::shared_ptr<RenderingPipeline>& pipeline)
+OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::shared_ptr<RenderingPipeline>& pipeline)
 {
 	const std::vector<Shader> shader_stages = pipeline->ShaderStages();
 	GLuint program_id = glCreateProgram();
@@ -264,21 +283,18 @@ OpenGLRenderer::PipelineConfiguration OpenGLRenderer::CreatePipelineConfiguratio
 		glDeleteShader(shader_id);
 	}
 
-	return { program_id };
+	return { pipeline.get(), program_id };
 }
 
-OpenGLRenderer::MeshConfiguration OpenGLRenderer::CreateMeshConfiguration(Mesh* mesh) {
-	MeshConfiguration mesh_config = { mesh->IsStatic() ? MeshDataUsageTypeStatic : MeshDataUsageTypeDynamic, 0, 0, 0 };
-	mesh_config.SetupVertexAttributeBuffers(mesh);
-	return mesh_config;
-}
-
-void OpenGLRenderer::MeshConfiguration::SetupVertexAttributeBuffers(Mesh* mesh)
-{
+OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
+	GLuint vao;
+	GLuint ibo;
+	GLuint vbo;
+	MeshDataUsageType data_usage_type = mesh->IsStatic() ? MeshDataUsageTypeStatic : MeshDataUsageTypeDynamic;
 	switch (data_usage_type) {
 	case MeshDataUsageTypeStatic:
-		// TODO
-		break;
+		// Fall through to Dynamic for now.
+		// TODO: Implement this.
 	case MeshDataUsageTypeDynamic:
 		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
 		glGenVertexArrays(1, &vao);
@@ -330,4 +346,94 @@ void OpenGLRenderer::MeshConfiguration::SetupVertexAttributeBuffers(Mesh* mesh)
 		glBindVertexArray(0);
 		break;
 	}
+	return { mesh, data_usage_type, vao, ibo, vbo };
+}
+
+OpenGLRenderer::MaterialState OpenGLRenderer::CreateMaterialState(Material* mat) {
+
+}
+
+// PipelineLifecycleEventsListener
+
+void OpenGLRenderer::PipelineDidDestroy(PipelineID pipeline_id) {
+	pipeline_state_map_.erase(pipeline_id);
+}
+
+// MeshLifecycleEventsListener
+
+void OpenGLRenderer::MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) {
+	std::unordered_map<MeshID, MeshState>::iterator iter = mesh_state_map_.find(mesh->GetInstanceID());
+	if (iter != mesh_state_map_.end()) {
+		MeshState mesh_state = iter->second;
+
+		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
+		glBindVertexArray(mesh_state.vao);
+
+		const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributeInfoAtIndex(attribute_index);
+		switch (vertex_attribute.category)
+		{
+		case VertexAttributeUsageCategoryPosition:
+			glGenBuffers(1, &vbo);
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+			break;
+		case VertexAttributeUsageCategoryNormal:
+			//glGenBuffers(1, &nbo);
+			//glBindBuffer(GL_ARRAY_BUFFER, nbo);
+			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+			break;
+		case VertexAttributeUsageCategoryTextureCoordinates:
+			//glGenBuffers(1, &tbo);
+			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
+			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+			break;
+		case VertexAttributeUsageCategoryBoneWeights:
+			//glGenBuffers(1, &bwbo);
+			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
+			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+			break;
+		case VertexAttributeUsageCategoryBoneIndices:
+
+			break;
+		case VertexAttributeUsageCategoryCustom:
+			//glGenBuffers(1, &custom_bo[vertex_attribute.name]);
+			//glBindBuffer(GL_ARRAY_BUFFER, custom_bo[vertex_attribute.name]);
+			break;
+		}
+
+		glEnableVertexAttribArray(vertex_attribute.location);
+		glVertexAttribPointer(
+			vertex_attribute.location,		// The shader's location for vertex attribute.
+			vertex_attribute.dimension,		// number of components
+			vertex_attribute.format,		// type
+			GL_FALSE,						// normalized?
+			0,								// stride
+			(void*)0						// array buffer offset
+		);
+		glDisableVertexAttribArray(vertex_attribute.location);
+	}
+	else {
+		// This shouldn't happen
+	}
+}
+
+void OpenGLRenderer::MeshDidDestroy(MeshID mesh_id) {
+	mesh_state_map_.erase(mesh_id);
+}
+
+// MaterialLifecycleEventsListener
+
+void OpenGLRenderer::MaterialUniformDidChange(Material* material, std::size_t uniform_index) {
+	std::unordered_map<MeshID, MaterialState>::iterator iter = material_state_map_.find(material->GetInstanceID());
+	if (iter != material_state_map_.end()) {
+		MaterialState mesh_state = iter->second;
+
+	}
+	else {
+		// This shouldn't happen
+	}
+}
+
+void OpenGLRenderer::MaterialDidDestroy(MaterialID material_id) {
+	material_state_map_.erase(material_id);
 }

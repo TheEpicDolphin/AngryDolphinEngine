@@ -9,12 +9,19 @@
 #include "rendering_pipeline.h"
 
 class OpenGLRenderer : 
-	IRenderer, 
-	MaterialLifecycleEventsListener, 
-	MeshLifecycleEventsListener, 
-	PipelineLifecycleEventsListener
+	public IRenderer, 
+	private MaterialLifecycleEventsListener, 
+	private MeshLifecycleEventsListener, 
+	private PipelineLifecycleEventsListener
 {
 public:
+
+	OpenGLRenderer();
+
+	~OpenGLRenderer();
+
+	// IRenderer
+
 	void Initialize(int width, int height);
 
 	void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) override;
@@ -53,30 +60,55 @@ private:
 		std::vector<RenderableObjectInstance> instances;
 	};
 
+	struct PipelineState {
+		RenderingPipeline* pipeline;
+		GLuint program_id;
+	};
+
+	static PipelineState CreatePipelineState(const std::shared_ptr<RenderingPipeline>& pipeline);
+
 	enum MeshDataUsageType {
 		MeshDataUsageTypeStatic = 0,
 		MeshDataUsageTypeDynamic,
 	};
 
-	struct MeshConfiguration {
+	struct MeshState {
+		Mesh* mesh;
 		MeshDataUsageType data_usage_type;
 		GLuint vao;
 		GLuint ibo;
 		GLuint vbo;
-		void SetupVertexAttributeBuffers(Mesh *mesh);
 	};
 
-	static MeshConfiguration CreateMeshConfiguration(Mesh* mesh);
+	static MeshState CreateMeshState(Mesh* mesh);
 
-	struct PipelineConfiguration {
-		GLuint program_id;
+	struct MaterialState {
+		Material* mat;
+
 	};
 
-	static PipelineConfiguration CreatePipelineConfiguration(const std::shared_ptr<RenderingPipeline>& pipeline);
+	static MaterialState CreateMaterialState(Material* mat);
 
 	GLFWwindow* window_;
 
-	std::unordered_map<MeshID, MeshConfiguration> mesh_config_map_;
-	//std::unordered_map<MaterialID, MaterialConfiguration> material_config_map_;
-	std::unordered_map<PipelineID, PipelineConfiguration> pipeline_config_map_;	
+	std::unordered_map<PipelineID, PipelineState> pipeline_state_map_;
+	std::unordered_map<MeshID, MeshState> mesh_state_map_;
+	std::unordered_map<MaterialID, MaterialState> material_state_map_;	
+
+
+	// PipelineLifecycleEventsListener
+
+	void PipelineDidDestroy(PipelineID pipeline_id) override;
+
+	// MeshLifecycleEventsListener
+
+	void MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) override;
+
+	void MeshDidDestroy(MeshID mesh_id) override;
+
+	// MaterialLifecycleEventsListener
+
+	void MaterialUniformDidChange(Material* material, std::size_t uniform_index) override;
+
+	void MaterialDidDestroy(MaterialID material_id) override;
 };

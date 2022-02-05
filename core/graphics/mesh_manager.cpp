@@ -25,5 +25,27 @@ std::shared_ptr<Mesh> MeshManager::CreateMeshForResourcePath(const char* resourc
 }
 
 std::shared_ptr<Mesh> MeshManager::CreateMesh(MeshInfo info) {
-	return std::make_shared<Mesh>(++next_mesh_id_, { info.uniform_settings, info.rendering_pipeline });
+	return std::make_shared<Mesh>(++next_mesh_id_, info);
+}
+
+std::shared_ptr<Mesh> MeshManager::CreateCubeMeshPrimitive(MeshInfo info, float side_length) {
+	std::shared_ptr<Mesh> mesh = CreateMesh(info);
+	std::vector<glm::vec3> cube_verts =
+	{
+		glm::vec3(0.5f, -0.5f, 0.5f),
+		glm::vec3(-0.5f, -0.5f, 0.5f),
+		glm::vec3(-0.5f, -0.5f, -0.5f),
+		glm::vec3(0.5f, -0.5f, -0.5f),
+		glm::vec3(0.5f, 0.5f, 0.5f),
+		glm::vec3(-0.5f, 0.5f, 0.5f),
+		glm::vec3(-0.5f, 0.5f, -0.5f),
+		glm::vec3(0.5f, 0.5f, -0.5f),
+	};
+
+	for (std::vector<glm::vec3>::iterator it = cube_verts.begin(); it != cube_verts.end(); ++it) {
+		*it = *it * side_length;
+	}
+
+	mesh->SetVertexPositions(cube_verts);
+	return mesh;
 }

@@ -4,6 +4,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include <core/utils/event_announcer.h>
+
 #include "shader/shader.h"
 
 typedef std::uint32_t PipelineID;
@@ -12,8 +14,8 @@ enum VertexAttributeUsageCategory
 {
 	VertexAttributeUsageCategoryPosition = 0,
 	VertexAttributeUsageCategoryNormal,
-	VertexAttributeUsageCategoryTextureCoordinates,
-	VertexAttributeUsageCategoryBoneWeights,
+	VertexAttributeUsageCategoryTexCoord0,
+	VertexAttributeUsageCategoryBoneWeight,
 	VertexAttributeUsageCategoryBoneIndices,
 	VertexAttributeUsageCategoryCustom,
 };
@@ -27,7 +29,7 @@ struct UniformInfo {
 	// Name of this uniform.
 	std::string name;
 	// Data type. In the case of an array, this is the type of each element.
-	ShaderDataType type;
+	ShaderDataType data_type;
 	// Location in the shader.
 	int location;
 	// Array length. It is 1 for non-arrays.
@@ -38,7 +40,7 @@ struct VertexAttributeInfo {
 	// Name of this vertex attribute.
 	std::string name;
 	// Data type.
-	ShaderDataType type;
+	ShaderDataType data_type;
 	// Location in the shader.
 	int location;
 	// Number of components in the data type. For example, vec3 has a dimension of 3.
@@ -49,7 +51,12 @@ struct VertexAttributeInfo {
 	VertexAttributeUsageCategory category;
 };
 
+struct PipelineLifecycleEventsListener {
+	virtual void PipelineDidDestroy(PipelineID pipeline_id) = 0;
+};
+
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
+// It is an immutable class
 class RenderingPipeline 
 {
 public:
@@ -63,25 +70,31 @@ public:
 
 	std::size_t IndexOfUniformWithNameAndType(std::string name, ShaderDataType type);
 
-	std::size_t IndexOfVertexAttributeWithNameAndType(std::string name, ShaderDataType type);
-
 	const UniformInfo& UniformInfoAtIndex(std::size_t index);
 
 	const VertexAttributeInfo& VertexAttributeInfoAtIndex(std::size_t index);
 
+	const std::vector<VertexAttributeInfo>& VertexAttributes();
+
+	void RenderingPipeline::AddLifecycleEventsListener(PipelineLifecycleEventsListener* listener);
+
+	void RenderingPipeline::RemoveLifecycleEventsListener(PipelineLifecycleEventsListener* listener);
+
 private:
 	
-	PipelineID id_;
+	const PipelineID id_;
 
 	// The uniforms are sorted by appearance order in shaders
-	std::vector<UniformInfo> uniforms_;
+	const std::vector<UniformInfo> uniforms_;
 	// Maps name of uniform to its index in the uniforms_ vector.
-	std::unordered_map<std::string, std::size_t> uniform_index_map_;
+	const std::unordered_map<std::string, std::size_t> uniform_index_map_;
 
 	// The vertex attributes are sorted by appearance order in shaders
-	std::vector<VertexAttributeInfo> vertex_attributes_;
+	const std::vector<VertexAttributeInfo> vertex_attributes_;
 	// Maps name of vertex attribute to its index in the vertex_attributes_ vector.
-	std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
+	const std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
 
-	std::vector<Shader> shader_stages_;
+	const std::vector<Shader> shader_stages_;
+
+	EventAnnouncer<PipelineLifecycleEventsListener> lifecycle_events_announcer_;
 };
