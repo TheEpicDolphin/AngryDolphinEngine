@@ -10,19 +10,15 @@
 
 typedef std::uint32_t PipelineID;
 
-enum VertexAttributeUsageCategory
-{
-	VertexAttributeUsageCategoryPosition = 0,
-	VertexAttributeUsageCategoryNormal,
-	VertexAttributeUsageCategoryTexCoord0,
-	VertexAttributeUsageCategoryBoneWeight,
-	VertexAttributeUsageCategoryBoneIndices,
-	VertexAttributeUsageCategoryCustom,
-};
-
 struct RenderingPipelineInfo
 {
 	std::vector<Shader> shader_stages;
+};
+
+enum UniformUsageCategory
+{
+	UniformUsageCategoryColor = 0,
+	UniformUsageCategoryCustom,
 };
 
 struct UniformInfo {
@@ -34,6 +30,18 @@ struct UniformInfo {
 	int location;
 	// Array length. It is 1 for non-arrays.
 	int array_length;
+	// The usage category for this uniform.
+	UniformUsageCategory category;
+};
+
+enum VertexAttributeUsageCategory
+{
+	VertexAttributeUsageCategoryPosition = 0,
+	VertexAttributeUsageCategoryNormal,
+	VertexAttributeUsageCategoryTexCoord0,
+	VertexAttributeUsageCategoryBoneWeight,
+	VertexAttributeUsageCategoryBoneIndices,
+	VertexAttributeUsageCategoryCustom,
 };
 
 struct VertexAttributeInfo {
@@ -71,6 +79,8 @@ public:
 	std::size_t IndexOfUniformWithNameAndType(std::string name, ShaderDataType type);
 
 	const UniformInfo& UniformInfoAtIndex(std::size_t index);
+
+	const std::vector<UniformInfo>& Uniforms();
 
 	const VertexAttributeInfo& VertexAttributeInfoAtIndex(std::size_t index);
 

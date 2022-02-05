@@ -45,6 +45,10 @@ const UniformInfo& RenderingPipeline::UniformInfoAtIndex(std::size_t index)
 	return uniforms_[index];
 }
 
+const std::vector<UniformInfo>& RenderingPipeline::Uniforms() {
+	return uniforms_;
+}
+
 const VertexAttributeInfo& RenderingPipeline::VertexAttributeInfoAtIndex(std::size_t index)
 {
 	return vertex_attributes_[index];

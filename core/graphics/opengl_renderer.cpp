@@ -283,6 +283,8 @@ OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::sha
 		glDeleteShader(shader_id);
 	}
 
+	// Get MVP uniform location.
+	glGetUniformLocation(program_id, "mvp");
 	return { pipeline.get(), program_id };
 }
 

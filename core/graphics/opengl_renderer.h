@@ -63,6 +63,7 @@ private:
 	struct PipelineState {
 		RenderingPipeline* pipeline;
 		GLuint program_id;
+		GLint MVP_location;
 	};
 
 	static PipelineState CreatePipelineState(const std::shared_ptr<RenderingPipeline>& pipeline);

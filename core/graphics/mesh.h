@@ -73,6 +73,16 @@ public:
 
 	const std::vector<Triangle>& GetTriangles();
 
+	const std::shared_ptr<RenderingPipeline>& GetPipeline();
+
+	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers();
+
+	const VertexAttributeBuffer& GetVertexAttributeBufferAtIndex(std::size_t index);
+
+	void AddLifecycleEventsListener(MeshLifecycleEventsListener* listener);
+
+	void RemoveLifecycleEventsListener(MeshLifecycleEventsListener* listener);
+
 	template<typename T>
 	void SetVertexAttributeBufferData(std::string name, std::vector<T> buffer_data)
 	{
@@ -95,16 +105,6 @@ public:
 
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshAttributeDidChange, this, index);
 	}
-
-	const std::shared_ptr<RenderingPipeline>& GetPipeline();
-
-	const std::vector<VertexAttributeBuffer>& GetVertexAttributeBuffers();
-
-	const VertexAttributeBuffer& GetVertexAttributeBufferAtIndex(std::size_t index);
-
-	void AddLifecycleEventsListener(MeshLifecycleEventsListener* listener);
-
-	void RemoveLifecycleEventsListener(MeshLifecycleEventsListener* listener);
 
 private:
 

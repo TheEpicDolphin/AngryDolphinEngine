@@ -33,29 +33,22 @@ struct MaterialLifecycleEventsListener {
 class Material
 {
 public:
-	Material(MaterialID id, MaterialInfo info)
-	{
-		id_ = id;
-		rendering_pipeline_ = info.rendering_pipeline;
-	}
+	Material(MaterialID id, MaterialInfo info);
 
-	~Material() 
-	{
-		lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialDidDestroy, this->GetInstanceID());
-	}
+	~Material();
 
-	const MaterialID& GetInstanceID()
-	{
-		return id_;
-	}
+	const MaterialID& GetInstanceID();
 
-	bool IsEqual(Material& other_material) 
-	{
-		return id_ == other_material.id_;
-	}
+	const std::vector<UniformValue>& UniformValues();
+
+	const std::shared_ptr<RenderingPipeline>& GetPipeline();
+
+	void AddLifecycleEventsListener(MaterialLifecycleEventsListener* listener);
+
+	void RemoveLifecycleEventsListener(MaterialLifecycleEventsListener* listener);
 
 	template<typename T>
-	void SetUniform(std::string name, T value) 
+	void SetUniform(std::string name, T value)
 	{
 		const ShaderDataType type = shader::TypeID(value);
 		const std::vector<char> value_data = shader::ValueData(value);
@@ -64,7 +57,7 @@ public:
 		if (index != shader::index_not_found) {
 			uniform_value_index_map_[name] = uniform_values_.size();
 			uniform_values_.push_back({ index, type, value_data });
-			
+
 			lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialUniformDidChange, this, index);
 		}
 		else {
@@ -91,9 +84,9 @@ public:
 	}
 
 	template<typename T>
-	void GetUniform(std::string name, T* value) 
+	void GetUniform(std::string name, T* value)
 	{
-		std::unordered_map<std::string, std::size_t>::iterator iter = uniform_value_index_map_.find(name);
+		std::unordered_map<std::string, std::size_t>::iterator iter = uniform_value_name_map_.find(name);
 		if (iter == uniform_value_index_map_.end()) {
 			// print warning that uniform with this name does not exist or has not been assigned for this material.
 		}
@@ -108,28 +101,11 @@ public:
 		}
 	}
 
-	const std::vector<UniformValue>& UniformValues() 
-	{
-		return uniform_values_;
-	}
-
-	const std::shared_ptr<RenderingPipeline>& GetPipeline() {
-		return rendering_pipeline_;
-	}
-
-	void AddLifecycleEventsListener(MaterialLifecycleEventsListener* listener) {
-		lifecycle_events_announcer_.AddListener(listener);
-	}
-
-	void RemoveLifecycleEventsListener(MaterialLifecycleEventsListener* listener) {
-		lifecycle_events_announcer_.RemoveListener(listener);
-	}
-
 private:
 	MaterialID id_;
 
 	std::vector<UniformValue> uniform_values_;
-	std::unordered_map<std::string, std::size_t> uniform_value_index_map_;
+	std::unordered_map<std::string, std::size_t> uniform_value_name_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 
 	EventAnnouncer<MaterialLifecycleEventsListener> lifecycle_events_announcer_;
