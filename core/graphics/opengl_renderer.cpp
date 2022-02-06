@@ -113,6 +113,11 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 				mesh_state_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshState(renderable_object.mesh);
 				renderable_object.mesh->AddLifecycleEventsListener(this);
 			}
+
+			if (material_state_map_.find(renderable_object.material->GetInstanceID()) == material_state_map_.end()) {
+				material_state_map_[renderable_object.material->GetInstanceID()] = CreateMaterialState(renderable_object.material);
+				renderable_object.material->AddLifecycleEventsListener(this);
+			}
 			
 			const RenderableObjectBatchKey batch_key = {
 				pipeline->GetInstanceID(),
@@ -132,21 +137,21 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 
 		const glm::mat4 vp = view_matrix * projection_matrix;
 		RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
-		GLint mvp_location;
-		GLint bones_location;
 		for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
 			it != sorted_renderable_batches.end();
 			it++) {
 			RenderableObjectBatchKey current_batch_key = it->first;
 			RenderableObjectBatch batch = it->second;
+
+			GLint mvp_location;
+			//GLint bones_location;
 			if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
 				// Switch rendering pipeline configuration
 				const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_id];
 				glUseProgram(pipeline_state.program_id);
-				// Find location of mvp matrix. This uniform is treated differently from the ones in Materials
-				mvp_location = glGetUniformLocation(pipeline_state.program_id, "mvp");
-				// Find location of bones array, if it exists. This uniform is treated differently from the ones in Materials
-				bones_location = glGetUniformLocation(pipeline_state.program_id, "bones");
+
+				mvp_location = pipeline_state.pipeline->MVPUniform().location;
+				//bones_location = pipeline_state.pipeline->BonesUniform().location;
 			}
 			if (current_batch_key.mesh_id != previous_batch_key.mesh_id) {
 				// Switch mesh configuration
@@ -156,9 +161,10 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 			if (current_batch_key.material_id != previous_batch_key.material_id) {
 				// Switch material configuration
 				// Iterate material uniforms and set corresponding uniforms in shaders
-				for (const UniformValue& uniform_value : batch.material->UniformValues()) {
-					const UniformInfo& uniform_info = batch.mesh->GetPipeline()->UniformInfoAtIndex(uniform_value.uniform_index);
-					shader::opengl::SetUniform(uniform_info.type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
+				for (std::size_t i = 0; i < batch.material->UniformValues().size(); i++) {
+					const UniformInfo uniform_info = batch.mesh->GetPipeline()->MaterialUniforms()[i];
+					const UniformValue uniform_value = batch.material->UniformValues()[i];
+					shader::opengl::SetUniform(uniform_info.data_type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
 				}
 			}
 
@@ -167,7 +173,7 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 				const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
 				// Set MVP matrix in shader.
 				glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
-
+				/*
 				if (bones_location) {
 					// Set bones array in shader.
 					glUniformMatrix4fv(
@@ -177,6 +183,7 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 						reinterpret_cast<const GLfloat*>(renderable_object_instance.bone_transforms.data())
 					);
 				}
+				*/
 
 				// Draw
 				glDrawArrays(GL_TRIANGLES, 0, batch.mesh->VertexCount());
@@ -283,9 +290,12 @@ OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::sha
 		glDeleteShader(shader_id);
 	}
 
-	// Get MVP uniform location.
-	glGetUniformLocation(program_id, "mvp");
 	return { pipeline.get(), program_id };
+}
+
+static void SetVertexAttributeBuffer(GLuint bo, ) {
+	glBindBuffer(GL_ARRAY_BUFFER, bo);
+	glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
 }
 
 OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
@@ -301,8 +311,10 @@ OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
 		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
-		for (const VertexAttributeBuffer& va_buffer : mesh->GetVertexAttributeBuffers()) {
-			const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributeInfoAtIndex(va_buffer.attribute_index);
+		for (std::size_t i = 0; i < mesh->GetVertexAttributeBuffers().size(); i++) {
+			const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributes()[i];
+			const VertexAttributeBuffer & va_buffer = mesh->GetVertexAttributeBuffers()[i];
+
 			switch (vertex_attribute.category)
 			{
 			case VertexAttributeUsageCategoryPosition:
@@ -413,6 +425,8 @@ void OpenGLRenderer::MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_in
 			(void*)0						// array buffer offset
 		);
 		glDisableVertexAttribArray(vertex_attribute.location);
+
+		glBindVertexArray(0);
 	}
 	else {
 		// This shouldn't happen

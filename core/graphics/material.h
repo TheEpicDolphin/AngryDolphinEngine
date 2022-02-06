@@ -27,6 +27,8 @@ struct MaterialLifecycleEventsListener {
 
 	virtual void MaterialUniformDidChange(Material* material, std::size_t uniform_index) = 0;
 
+	virtual void MaterialTextureDidChange(Material* material, Texture texture) = 0;
+
 	virtual void MaterialDidDestroy(MaterialID material_id) = 0;
 };
 

@@ -76,11 +76,9 @@ public:
 
 	const std::vector<Shader>& ShaderStages();
 
-	std::size_t IndexOfUniformWithNameAndType(std::string name, ShaderDataType type);
+	const UniformInfo& MVPUniform();
 
-	const UniformInfo& UniformInfoAtIndex(std::size_t index);
-
-	const std::vector<UniformInfo>& Uniforms();
+	const std::vector<UniformInfo>& MaterialUniforms();
 
 	const VertexAttributeInfo& VertexAttributeInfoAtIndex(std::size_t index);
 
@@ -94,15 +92,15 @@ private:
 	
 	const PipelineID id_;
 
-	// The uniforms are sorted by appearance order in shaders
-	const std::vector<UniformInfo> uniforms_;
-	// Maps name of uniform to its index in the uniforms_ vector.
-	const std::unordered_map<std::string, std::size_t> uniform_index_map_;
+	const UniformInfo mvp_uniform_;
+
+	//const UniformInfo bones_uniform_;
+
+	// The uniforms are sorted by location in shaders
+	const std::vector<UniformInfo> material_uniforms_;
 
 	// The vertex attributes are sorted by appearance order in shaders
 	const std::vector<VertexAttributeInfo> vertex_attributes_;
-	// Maps name of vertex attribute to its index in the vertex_attributes_ vector.
-	const std::unordered_map<std::string, std::size_t> vertex_attribute_index_map_;
 
 	const std::vector<Shader> shader_stages_;
 

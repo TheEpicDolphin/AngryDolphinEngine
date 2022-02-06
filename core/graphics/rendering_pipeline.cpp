@@ -20,33 +20,17 @@ const PipelineID& RenderingPipeline::GetInstanceID()
 	return id_;
 }
 
-std::size_t RenderingPipeline::IndexOfUniformWithNameAndType(std::string name, ShaderDataType type)
-{
-	std::unordered_map<std::string, std::size_t>::iterator iter = uniform_index_map_.find(name);
-	if (iter == uniform_index_map_.end()) {
-		return shader::npos;
-	}
-
-	const UniformInfo uniform = uniforms_[iter->second];
-	if (uniform.type != type) {
-		return shader::npos;
-	}
-
-	return iter->second;
-}
-
 const std::vector<Shader>& RenderingPipeline::ShaderStages()
 {
 	return shader_stages_;
 }
 
-const UniformInfo& RenderingPipeline::UniformInfoAtIndex(std::size_t index)
-{
-	return uniforms_[index];
+const UniformInfo& RenderingPipeline::MVPUniform() {
+	return mvp_uniform_;
 }
 
-const std::vector<UniformInfo>& RenderingPipeline::Uniforms() {
-	return uniforms_;
+const std::vector<UniformInfo>& RenderingPipeline::MaterialUniforms() {
+	return material_uniforms_;
 }
 
 const VertexAttributeInfo& RenderingPipeline::VertexAttributeInfoAtIndex(std::size_t index)
