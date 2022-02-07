@@ -6,6 +6,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
+#include <core/utils/bounds.h>
 #include <core/utils/event_announcer.h>
 
 #include "rendering_pipeline.h"
@@ -25,7 +26,7 @@ struct MeshInfo
 
 struct MeshLifecycleEventsListener {
 
-	virtual void MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
+	virtual void MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
 
 	virtual void MeshDidDestroy(MeshID mesh_id) = 0;
 };
@@ -83,6 +84,9 @@ public:
 
 	void RemoveLifecycleEventsListener(MeshLifecycleEventsListener* listener);
 
+	// In world space
+	const Bounds& WorldBounds();
+
 	template<typename T>
 	void SetVertexAttributeBufferData(std::string name, std::vector<T> buffer_data)
 	{
@@ -103,7 +107,7 @@ public:
 		const std::vector<char> buffer_data = shader::BufferData(buffer);
 		vabuffer.data = buffer_data;
 
-		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshAttributeDidChange, this, index);
+		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, index);
 	}
 
 private:
@@ -121,6 +125,7 @@ private:
 	int bone_weight_attribute_index_ = -1;
 	int bone_indices_attribute_index_ = -1;
 
+	std::vector<std::size_t> indices_;
 	std::vector<VertexAttributeBuffer> vertex_attribute_buffers_;
 	std::unordered_map<std::string, std::size_t> vertex_attribute_buffer_name_map_;
 
@@ -130,6 +135,8 @@ private:
 
 	EventAnnouncer<MeshLifecycleEventsListener> lifecycle_events_announcer_;
 
+	Bounds world_bounds_;
+
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>
 	void SetVertexAttributeBufferWithCachedIndex(int cached_va_index, std::vector<T> buffer)
@@ -138,7 +145,7 @@ private:
 		const std::vector<char> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
 		vertex_attribute_buffers_[cached_va_index].data = buffer;
 
-		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshAttributeDidChange, this, cached_va_index);
+		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, cached_va_index);
 	}
 
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.

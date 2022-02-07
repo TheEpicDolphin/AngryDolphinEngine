@@ -293,58 +293,39 @@ OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::sha
 	return { pipeline.get(), program_id };
 }
 
-static void SetVertexAttributeBuffer(GLuint bo, ) {
+
+
+static inline void WriteVertexBufferData(GLuint& bo, std::vector<char> buffer_data) {
 	glBindBuffer(GL_ARRAY_BUFFER, bo);
-	glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, buffer_data.size(), buffer_data.data(), GL_STATIC_DRAW);
 }
 
 OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
-	GLuint vao;
-	GLuint ibo;
-	GLuint vbo;
 	MeshDataUsageType data_usage_type = mesh->IsStatic() ? MeshDataUsageTypeStatic : MeshDataUsageTypeDynamic;
+
+	MeshState mesh_state = { mesh, data_usage_type, 0, 0, 0 };
 	switch (data_usage_type) {
 	case MeshDataUsageTypeStatic:
 		// Fall through to Dynamic for now.
 		// TODO: Implement this.
 	case MeshDataUsageTypeDynamic:
 		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
-		for (std::size_t i = 0; i < mesh->GetVertexAttributeBuffers().size(); i++) {
+		glGenVertexArrays(1, &mesh_state.vao);
+		glBindVertexArray(mesh_state.vao);
+		
+		glGenBuffers(1, &mesh_state.ibo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_state.ibo);
+		glBufferData(GL_ARRAY_BUFFER, buffer_data.size(), buffer_data.data(), GL_STATIC_DRAW);
+
+		const std::size_t num_va_buffers = mesh->GetVertexAttributeBuffers().size();
+		mesh_state.bos = new GLuint[num_va_buffers];
+		glGenBuffers(num_va_buffers, mesh_state.bos);
+
+		for (std::size_t i = 0; i < num_va_buffers; i++) {
 			const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributes()[i];
-			const VertexAttributeBuffer & va_buffer = mesh->GetVertexAttributeBuffers()[i];
-
-			switch (vertex_attribute.category)
-			{
-			case VertexAttributeUsageCategoryPosition:
-				glGenBuffers(1, &vbo);
-				glBindBuffer(GL_ARRAY_BUFFER, vbo);
-				glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-				break;
-			case VertexAttributeUsageCategoryNormal:
-				//glGenBuffers(1, &nbo);
-				//glBindBuffer(GL_ARRAY_BUFFER, nbo);
-				//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-				break;
-			case VertexAttributeUsageCategoryTextureCoordinates:
-				//glGenBuffers(1, &tbo);
-				//glBindBuffer(GL_ARRAY_BUFFER, tbo);
-				//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-				break;
-			case VertexAttributeUsageCategoryBoneWeights:
-				//glGenBuffers(1, &bwbo);
-				//glBindBuffer(GL_ARRAY_BUFFER, tbo);
-				//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-				break;
-			case VertexAttributeUsageCategoryBoneIndices:
-
-				break;
-			case VertexAttributeUsageCategoryCustom:
-				//glGenBuffers(1, &custom_bo[vertex_attribute.name]);
-				//glBindBuffer(GL_ARRAY_BUFFER, custom_bo[vertex_attribute.name]);
-				break;
-			}
+			const VertexAttributeBuffer& va_buffer = mesh->GetVertexAttributeBuffers()[i];
+			
+			WriteVertexBufferData(*(mesh_state.bos + i), va_buffer.data);
 
 			glEnableVertexAttribArray(vertex_attribute.location);
 			glVertexAttribPointer(
@@ -360,7 +341,7 @@ OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
 		glBindVertexArray(0);
 		break;
 	}
-	return { mesh, data_usage_type, vao, ibo, vbo };
+	return mesh_state;
 }
 
 OpenGLRenderer::MaterialState OpenGLRenderer::CreateMaterialState(Material* mat) {
@@ -375,57 +356,14 @@ void OpenGLRenderer::PipelineDidDestroy(PipelineID pipeline_id) {
 
 // MeshLifecycleEventsListener
 
-void OpenGLRenderer::MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) {
+void OpenGLRenderer::MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) {
 	std::unordered_map<MeshID, MeshState>::iterator iter = mesh_state_map_.find(mesh->GetInstanceID());
 	if (iter != mesh_state_map_.end()) {
 		MeshState mesh_state = iter->second;
 
 		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
 		glBindVertexArray(mesh_state.vao);
-
-		const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributeInfoAtIndex(attribute_index);
-		switch (vertex_attribute.category)
-		{
-		case VertexAttributeUsageCategoryPosition:
-			glGenBuffers(1, &vbo);
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-			break;
-		case VertexAttributeUsageCategoryNormal:
-			//glGenBuffers(1, &nbo);
-			//glBindBuffer(GL_ARRAY_BUFFER, nbo);
-			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-			break;
-		case VertexAttributeUsageCategoryTextureCoordinates:
-			//glGenBuffers(1, &tbo);
-			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
-			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-			break;
-		case VertexAttributeUsageCategoryBoneWeights:
-			//glGenBuffers(1, &bwbo);
-			//glBindBuffer(GL_ARRAY_BUFFER, tbo);
-			//glBufferData(GL_ARRAY_BUFFER, mesh->VertexCount(), va_buffer.data.data(), GL_DYNAMIC_DRAW);
-			break;
-		case VertexAttributeUsageCategoryBoneIndices:
-
-			break;
-		case VertexAttributeUsageCategoryCustom:
-			//glGenBuffers(1, &custom_bo[vertex_attribute.name]);
-			//glBindBuffer(GL_ARRAY_BUFFER, custom_bo[vertex_attribute.name]);
-			break;
-		}
-
-		glEnableVertexAttribArray(vertex_attribute.location);
-		glVertexAttribPointer(
-			vertex_attribute.location,		// The shader's location for vertex attribute.
-			vertex_attribute.dimension,		// number of components
-			vertex_attribute.format,		// type
-			GL_FALSE,						// normalized?
-			0,								// stride
-			(void*)0						// array buffer offset
-		);
-		glDisableVertexAttribArray(vertex_attribute.location);
-
+		WriteVertexBufferData(*(mesh_state.bos + attribute_index), mesh->GetVertexAttributeBuffers()[attribute_index].data);
 		glBindVertexArray(0);
 	}
 	else {

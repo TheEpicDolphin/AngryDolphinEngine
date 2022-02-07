@@ -77,7 +77,7 @@ private:
 		MeshDataUsageType data_usage_type;
 		GLuint vao;
 		GLuint ibo;
-		GLuint vbo;
+		GLuint* bos;
 	};
 
 	static MeshState CreateMeshState(Mesh* mesh);
@@ -102,7 +102,7 @@ private:
 
 	// MeshLifecycleEventsListener
 
-	void MeshAttributeDidChange(Mesh* mesh, std::size_t attribute_index) override;
+	void MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) override;
 
 	void MeshDidDestroy(MeshID mesh_id) override;
 
