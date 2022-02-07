@@ -24,22 +24,19 @@ struct MeshInfo
 	bool is_static;
 };
 
+struct MeshGeometryEventsListener {
+	virtual void MeshVertexPositionsDidChange(Mesh* mesh) = 0;
+};
+
 struct MeshLifecycleEventsListener {
 
 	virtual void MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
-
 	virtual void MeshDidDestroy(MeshID mesh_id) = 0;
 };
 
 class Mesh
 {
 public:
-	// Structure describing data for a single triangle in the mesh.
-	struct Triangle
-	{
-		size_t indices[3] = { 0, 0, 0 };
-	};
-
 	Mesh(MeshID id, MeshInfo mesh_info);
 
 	~Mesh();
@@ -70,9 +67,9 @@ public:
 
 	std::vector<glm::ivec4> GetBoneIndices();
 
-	void SetTriangles(std::vector<Triangle> tris);
+	void SetTriangleIndices(std::vector<std::size_t> tri_indices);
 
-	const std::vector<Triangle>& GetTriangles();
+	const std::vector<std::size_t>& GetTriangleIndices();
 
 	const std::shared_ptr<RenderingPipeline>& GetPipeline();
 
@@ -83,9 +80,6 @@ public:
 	void AddLifecycleEventsListener(MeshLifecycleEventsListener* listener);
 
 	void RemoveLifecycleEventsListener(MeshLifecycleEventsListener* listener);
-
-	// In world space
-	const Bounds& WorldBounds();
 
 	template<typename T>
 	void SetVertexAttributeBufferData(std::string name, std::vector<T> buffer_data)
@@ -107,6 +101,9 @@ public:
 		const std::vector<char> buffer_data = shader::BufferData(buffer);
 		vabuffer.data = buffer_data;
 
+		if (position_attribute_index_ == index) {
+			geometry_events_announcer_.Announce(&MeshGeometryEventsListener::MeshVertexPositionsDidChange, this);
+		}
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, index);
 	}
 
@@ -116,8 +113,6 @@ private:
 
 	bool is_static_;
 
-	std::size_t vertex_count_;
-
 	// Indices to commonly used vertex attributes.
 	int position_attribute_index_ = -1;
 	int normal_attribute_index_ = -1;
@@ -125,17 +120,18 @@ private:
 	int bone_weight_attribute_index_ = -1;
 	int bone_indices_attribute_index_ = -1;
 
-	std::vector<std::size_t> indices_;
+	// These elements are indices into the vertex positions. 
+	// Elements n, n+1, and n+2, where n % 3 == 0, form a triangle going clockwise.
+	std::vector<std::size_t> triangle_indices_;
+
 	std::vector<VertexAttributeBuffer> vertex_attribute_buffers_;
 	std::unordered_map<std::string, std::size_t> vertex_attribute_buffer_name_map_;
 
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
-	
-	std::vector<Triangle> tris_;
 
 	EventAnnouncer<MeshLifecycleEventsListener> lifecycle_events_announcer_;
 
-	Bounds world_bounds_;
+	EventAnnouncer<MeshGeometryEventsListener> geometry_events_announcer_;
 
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>
@@ -145,6 +141,9 @@ private:
 		const std::vector<char> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
 		vertex_attribute_buffers_[cached_va_index].data = buffer;
 
+		if (position_attribute_index_ == cached_va_index) {
+			geometry_events_announcer_.Announce(&MeshGeometryEventsListener::MeshVertexPositionsDidChange, this);
+		}
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, cached_va_index);
 	}
 

@@ -130,6 +130,7 @@ void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 		DeleteRecycledChunkWithSwap(prev_chunk_size, prev_chunk_rank);
 	}
 
+	// We officially destroy the entities here
 	for (std::size_t i = 0; i < n; i++) {
 		const std::size_t pool_index = chunk_start_pool_index + i;
 		new_chunk_pool_indices.push_back(pool_index);
@@ -138,11 +139,16 @@ void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 		// Handle removal of node from hierarchy.
 		RemoveTransformNodeFromHierarchy(&node.value.transform_node);
 
+		TransformNode& transform_node = node.value.transform_node;
+		// Broadcast entity destruction event.
+		transform_node.lifecycle_events_announcer->Announce(&EntityLifecycleEventsListener::EntityDidDestroy, transform_node.entity_id);
+		delete node.value.transform_node.lifecycle_events_announcer;
+
 		// Set node to be recycled
 		node.type = SceneGraphNodeTypeRecycled;
 
 		// Recycle entity id.
-		recycled_entity_ids_.push(node.value.transform_node.entity_id);
+		recycled_entity_ids_.push(transform_node.entity_id);
 	}
 	
 	SceneGraphNode& next_node = scene_graph_node_pool_[chunk_start_pool_index + n];
@@ -175,6 +181,31 @@ void SceneGraph::DestroyEntityChunk(EntityID entity_id, std::size_t n)
 	}
 }
 
+bool SceneGraph::IsValid(ecs::EntityID entity_id) {
+	if (entity_id.index >= entity_to_scene_graph_node_map_.size()) {
+		return false;
+	}
+	SceneGraph::SceneGraphNode& node = scene_graph_node_pool_[entity_to_scene_graph_node_map_[entity_id.index]];
+	return node.type == SceneGraphNodeTypeTransform && node.value.transform_node.entity_id.version == entity_id.version;
+}
+
+void SceneGraph::AddLifecycleEventsListenerForEntity(EntityLifecycleEventsListener* listener, ecs::EntityID entity_id) {
+	if (IsValid(entity_id)) {
+		TransformNode& transform_node = scene_graph_node_pool_[entity_to_scene_graph_node_map_[entity_id.index]].value.transform_node;
+		transform_node.lifecycle_events_announcer = new EventAnnouncer<EntityLifecycleEventsListener>();
+		transform_node.lifecycle_events_announcer->AddListener(listener);		
+	}
+}
+
+void SceneGraph::RemoveLifecycleEventsListenerForEntity(EntityLifecycleEventsListener* listener, ecs::EntityID entity_id) {
+	if (IsValid(entity_id)) {
+		TransformNode& transform_node = scene_graph_node_pool_[entity_to_scene_graph_node_map_[entity_id.index]].value.transform_node;
+		if (transform_node.lifecycle_events_announcer) {
+			transform_node.lifecycle_events_announcer->RemoveListener(listener);
+		}
+	}
+}
+
 const glm::mat4& SceneGraph::GetLocalTransform(EntityID entity_id)
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
@@ -188,7 +219,7 @@ void SceneGraph::SetLocalTransform(EntityID entity_id, glm::mat4& local_transfor
 	if (local_transform_matrix != transform_node.local_transform_matrix) {
 		transform_node.local_transform_matrix = local_transform_matrix;
 		const TransformNode* parent_transform_node = transform_node.parent;
-		transform_node.world_transform_matrix = transform_utils::TransformLocalToWorld(local_transform_matrix, transform_node.parent->world_transform_matrix);
+		SetWorldTransformMatrix(&transform_node, transform_utils::TransformLocalToWorld(local_transform_matrix, transform_node.parent->world_transform_matrix));
 		UpdateDescendantWorldTransformationMatrices(transform_node);
 	}
 }
@@ -204,7 +235,7 @@ void SceneGraph::SetWorldTransform(EntityID entity_id, glm::mat4& world_transfor
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
 	if (world_transform_matrix != transform_node.world_transform_matrix) {
-		transform_node.world_transform_matrix = world_transform_matrix;
+		SetWorldTransformMatrix(&transform_node, world_transform_matrix);
 		const TransformNode* parent_transform_node = transform_node.parent;
 		transform_node.local_transform_matrix = transform_utils::TransformWorldToLocal(world_transform_matrix, transform_node.parent->world_transform_matrix);
 		UpdateDescendantWorldTransformationMatrices(transform_node);
@@ -264,7 +295,7 @@ void SceneGraph::UpdateDescendantWorldTransformationMatrices(TransformNode& root
 		const glm::mat4& parent_world_matrix = transform_node->world_transform_matrix;
 		TransformNode* child_transform_node = transform_node->first_child;
 		while (child_transform_node != nullptr) {
-			child_transform_node->world_transform_matrix = child_transform_node->local_transform_matrix * parent_world_matrix;
+			SetWorldTransformMatrix(child_transform_node, child_transform_node->local_transform_matrix * parent_world_matrix);
 			bfs_descendant_queue.push(child_transform_node);
 			child_transform_node = child_transform_node->next_sibling;
 		}
@@ -284,4 +315,11 @@ void SceneGraph::RemoveTransformNodeFromHierarchy(TransformNode* transform_node)
 	}
 	prev_sibling->next_sibling = next_sibling;
 	next_sibling->previous_sibling = prev_sibling;
+}
+
+void SceneGraph::SetWorldTransformMatrix(TransformNode* transform_node, glm::mat4 new_world_matrix) {
+	transform_node->world_transform_matrix = new_world_matrix;
+	if (transform_node->lifecycle_events_announcer) {
+		transform_node->lifecycle_events_announcer->Announce(&EntityLifecycleEventsListener::EntityWorldTransformDidChange, transform_node->entity_id, new_world_matrix);
+	}
 }

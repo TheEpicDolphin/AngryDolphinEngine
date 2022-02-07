@@ -9,11 +9,10 @@
 #include <core/ecs/registry.h>
 #include <core/scene/scene.h>
 #include <core/scene/scene_graph.h>
-#include <GL/glew.h>
 
-#include "camera.h"
-#include "mesh_renderable.h"
-#include "skeletal_mesh_renderable.h"
+#include "camera_component.h"
+#include "components/mesh_renderable_component.h"
+#include "components/skeletal_mesh_renderable_component.h"
 #include "renderer.h"
 
 class RenderingSystem : public ISystem
@@ -25,16 +24,17 @@ public:
 	{
 		std::vector<RenderableObject> renderable_objects;
 		// Iterate through mesh renderables.
-		std::function<void(ecs::EntityID, MeshRenderable&)> mesh_renderables_block =
-		[&renderable_objects, &scene](ecs::EntityID entity_id, MeshRenderable& mesh_rend) {
+		std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
+		[&renderable_objects, &scene](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
 			if (mesh_rend.enabled) {
+				
 				const Mesh* mesh = mesh_rend.mesh ? mesh_rend.mesh.get() : mesh_rend.shared_mesh.get();
 				const Material* material = mesh_rend.material ? mesh_rend.material.get() : mesh_rend.shared_material.get();
 				assert(mesh->GetPipeline().InstanceID() == material->GetPipeline().InstanceID());
 				renderable_objects.push_back({ mesh, , material, scene.TransformGraph().GetWorldTransform(entity_id), {} });
 			}
 		};
-		scene.Registry().EnumerateComponentsWithBlock<MeshRenderable>(mesh_renderables_block);
+		scene.Registry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 
 		// Iterate through skeletal mesh renderables.
 		/*
@@ -52,23 +52,39 @@ public:
 		scene.Registry().EnumerateComponentsWithBlock<SkeletalMeshRenderable>(skel_mesh_renderables_block);
 		*/
 
-		std::vector<CameraParams> cameras;
 		std::function<void(ecs::EntityID, CameraComponent&)> cameras_block =
-			[&cameras, &scene](ecs::EntityID entity_id, CameraComponent& camera_component) {
+			[&cameras, &scene, &renderable_objects](ecs::EntityID entity_id, CameraComponent& camera_component) {
 			if (camera_component.enabled) {
-				cameras.append({
-					camera_component.is_orthographic,
-					camera_component.vertical_fov,
-					camera_component.aspect_ratio,
-					camera_component.near_clip_plane_z,
-					camera_component.far_clip_plane_z,
-					scene.TransformGraph().GetWorldTransform(entity_id),
-					camera_component.viewport_rect
-				});
+				const glm::mat4 view_matrix = scene.TransformGraph().GetWorldTransform(entity_id);
+				glm::mat4 projection_matrix;
+				if (camera_component.is_orthographic) {
+					// Orthographic projection matrix
+					projection_matrix = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.0f, 100.0f);
+				}
+				else {
+					// Perspective projection matrix
+					// Projection matrix : 45° Field of View, width:height ratio, display range : 0.1 unit (z near) <-> 100 units (z far)
+					projection_matrix = glm::perspective(
+						glm::radians(camera_component.vertical_fov),
+						camera_component.aspect_ratio,
+						camera_component.near_clip_plane_z,
+						camera_component.far_clip_plane_z
+					);
+				}
+
+				std::vector<RenderableObject> non_culled_renderable_objects;
+				
+				// TODO: Perform frustum culling of renderables.
+
+
+				CameraParams cam_params = { view_matrix * projection_matrix, };
+				scene.Renderer().RenderFrame(cam_params, non_culled_renderable_objects);
 			}
 		};
 		scene.Registry().EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
-
-		scene.Renderer().RenderFrame(cameras, renderable_objects);
 	}
+
+private:
+	std::unordered_map<ecs::EntityID, glm::mat4> entity_transform_map_;
+	std::unordered_map<MeshID, std::vector<ecs::EntityID>>
 };

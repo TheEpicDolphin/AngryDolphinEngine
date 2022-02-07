@@ -2,7 +2,7 @@
 
 #include "mesh.h"
 
-struct SkeletalMeshRenderable
+struct SkeletalMeshRenderableComponent
 {
 	// If empty, the shared_mesh is used to define the MeshRenderable's mesh properties. 
 	// Set this to a value in order to override this SkeletalMeshRenderable's mesh properties 

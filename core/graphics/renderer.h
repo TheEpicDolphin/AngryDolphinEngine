@@ -15,6 +15,7 @@ struct RenderableObject
 	std::vector<glm::mat4> bones;
 };
 
+/*
 struct CameraParams {
 	bool is_orthographic;
 	// In degrees.
@@ -25,6 +26,13 @@ struct CameraParams {
 	glm::mat4 world_transform;
 	Rect viewport_rect;
 };
+*/
+
+struct CameraParams {
+	bool is_orthographic;
+	glm::mat4 view_projection_matrix;
+	Rect viewport_rect;
+};
 
 class IRenderer {
 public:
@@ -32,7 +40,7 @@ public:
 
 	virtual void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) = 0;
 	
-	virtual bool RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) = 0;
+	virtual bool RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) = 0;
 
 	virtual void Cleanup() = 0;
 };

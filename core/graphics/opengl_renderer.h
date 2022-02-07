@@ -26,7 +26,7 @@ public:
 
 	void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) override;
 
-	bool RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) override;
+	bool RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) override;
 
 	void Cleanup() override;
 
@@ -83,7 +83,7 @@ private:
 	static MeshState CreateMeshState(Mesh* mesh);
 
 	struct MaterialState {
-		Material* mat;
+		Material* material;
 
 	};
 
@@ -109,6 +109,8 @@ private:
 	// MaterialLifecycleEventsListener
 
 	void MaterialUniformDidChange(Material* material, std::size_t uniform_index) override;
+
+	void MaterialTextureDidChange(Material* material, Texture texture) override;
 
 	void MaterialDidDestroy(MaterialID material_id) override;
 };

@@ -67,10 +67,7 @@ void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPip
 	pipeline->AddLifecycleEventsListener(this);
 }
 
-bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const std::vector<RenderableObject>& renderable_objects) {
-	// Only support one camera for now.
-	CameraParams cam_params = cameras[0];
-
+bool OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) {
     if (!glfwWindowShouldClose(window_)) {
         glfwSwapBuffers(window_);
         glfwPollEvents();
@@ -80,23 +77,6 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 		glfwGetFramebufferSize(window_, window_width, window_height);
 		glViewport(0, 0, *window_width, *window_height);
 		glClear(GL_COLOR_BUFFER_BIT);
-
-		const glm::mat4 view_matrix = cam_params.world_transform;
-		glm::mat4 projection_matrix;
-		if (cam_params.is_orthographic) {
-			// Orthographic projection matrix
-			projection_matrix = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.0f, 100.0f);
-		}
-		else {
-			// Perspective projection matrix
-			// Projection matrix : 45° Field of View, width:height ratio, display range : 0.1 unit (z near) <-> 100 units (z far)
-			projection_matrix = glm::perspective(
-				glm::radians(cam_params.vertical_fov),
-				cam_params.aspect_ratio, 
-				cam_params.near_clip_plane_z, 
-				cam_params.far_clip_plane_z
-			);
-		}
 
 		std::map<RenderableObjectBatchKey, RenderableObjectBatch> sorted_renderable_batches;
 		for (RenderableObject renderable_object : renderable_objects) {
@@ -135,7 +115,7 @@ bool OpenGLRenderer::RenderFrame(const std::vector<CameraParams>& cameras, const
 			}	
 		}
 
-		const glm::mat4 vp = view_matrix * projection_matrix;
+		const glm::mat4 vp = camera_params.view_projection_matrix;
 		RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
 		for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
 			it != sorted_renderable_batches.end();
@@ -315,7 +295,9 @@ OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
 		
 		glGenBuffers(1, &mesh_state.ibo);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_state.ibo);
-		glBufferData(GL_ARRAY_BUFFER, buffer_data.size(), buffer_data.data(), GL_STATIC_DRAW);
+		const std::vector<std::size_t>& tri_indices = mesh->GetTriangleIndices();
+		const char* element_array_buffer_data = reinterpret_cast<const char*>(tri_indices.data());
+		glBufferData(GL_ARRAY_BUFFER, tri_indices.size() * sizeof(std::size_t), element_array_buffer_data, GL_STATIC_DRAW);
 
 		const std::size_t num_va_buffers = mesh->GetVertexAttributeBuffers().size();
 		mesh_state.bos = new GLuint[num_va_buffers];
@@ -378,6 +360,11 @@ void OpenGLRenderer::MeshDidDestroy(MeshID mesh_id) {
 // MaterialLifecycleEventsListener
 
 void OpenGLRenderer::MaterialUniformDidChange(Material* material, std::size_t uniform_index) {
+	// Do nothing for now.
+}
+
+void OpenGLRenderer::MaterialTextureDidChange(Material* material, Texture texture) {
+	// TODO
 	std::unordered_map<MeshID, MaterialState>::iterator iter = material_state_map_.find(material->GetInstanceID());
 	if (iter != material_state_map_.end()) {
 		MaterialState mesh_state = iter->second;

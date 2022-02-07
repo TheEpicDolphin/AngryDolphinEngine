@@ -4,11 +4,17 @@
 #include <queue>
 #include <map>
 #include <core/ecs/entity.h>
+#include <core/utils/event_announcer.h>
 #include <glm/mat4x4.hpp>
 
 #include "interfaces/transform_graph.h"
 
 #define MAX_ENTITY_COUNT 16384
+
+struct EntityLifecycleEventsListener {
+	virtual void EntityDidDestroy(ecs::EntityID entity_id) = 0;
+	virtual void EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) = 0;
+};
 
 class SceneGraph : public ITransformGraph {
 public:
@@ -21,11 +27,17 @@ public:
 	/* Each parent_map element, x, that is < 0 is assumed to be referring to the (-x)th entity to be created.
 	*  Otherwise, it is assumed to be referring to an existing entity ID.
 	*/
-	std::vector<EntityID> CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<int> parent_map = {});
+	std::vector<ecs::EntityID> CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<int> parent_map = {});
 
 	void DestroyEntity(ecs::EntityID entity_id);
 
 	void DestroyEntityChunk(ecs::EntityID entity_id, std::size_t n);
+
+	bool IsValid(ecs::EntityID entity_id);
+
+	void AddLifecycleEventsListenerForEntity(EntityLifecycleEventsListener* listener, ecs::EntityID entity_id);
+
+	void RemoveLifecycleEventsListenerForEntity(EntityLifecycleEventsListener* listener, ecs::EntityID entity_id);
 	
 	const glm::mat4& GetLocalTransform(ecs::EntityID entity_id) override;
 
@@ -68,6 +80,7 @@ private:
 		TransformNode* next_sibling;
 		TransformNode* first_child;
 		TransformNode* last_child;
+		EventAnnouncer<EntityLifecycleEventsListener>* lifecycle_events_announcer;
 	};
 
 	struct SceneGraphNode {
@@ -95,4 +108,6 @@ private:
 	static void UpdateDescendantWorldTransformationMatrices(TransformNode& root_transform_node);
 
 	static void RemoveTransformNodeFromHierarchy(TransformNode* transform_node);
+
+	static void SetWorldTransformMatrix(TransformNode* transform_node, glm::mat4 new_world_matrix);
 };

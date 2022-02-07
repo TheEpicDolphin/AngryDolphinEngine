@@ -53,7 +53,7 @@ bool Mesh::IsStatic() {
 }
 
 const std::size_t& Mesh::VertexCount() {
-	return vertex_count_;
+	return vertex_attribute_buffers_[position_attribute_index_].data.size() / sizeof(glm::vec3);
 }
 
 void Mesh::SetVertexPositions(std::vector<glm::vec3> verts) {
@@ -111,13 +111,12 @@ const VertexAttributeBuffer& Mesh::GetVertexAttributeBufferAtIndex(std::size_t i
 	return vertex_attribute_buffers_[index];
 }
 
-void Mesh::SetTriangles(std::vector<Triangle> tris) 
-{
-	tris_ = tris;
+void Mesh::SetTriangleIndices(std::vector<std::size_t> tri_indices) {
+	triangle_indices_ = tri_indices;
 }
 
-const std::vector<Mesh::Triangle>& Mesh::GetTriangles() {
-	return tris_;
+const std::vector<std::size_t>& Mesh::GetTriangleIndices() {
+	return triangle_indices_;
 }
 
 void Mesh::AddLifecycleEventsListener(MeshLifecycleEventsListener* listener) {
