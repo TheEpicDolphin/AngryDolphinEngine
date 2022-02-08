@@ -59,24 +59,66 @@ public:
 			if (camera_component.enabled) {
 				const glm::mat4 view_matrix = scene.TransformGraph().GetWorldTransform(entity_id);
 
-				std::vector<glm::vec3> view_frustum_points;
+				std::vector<RenderableObject> non_culled_renderable_objects;
 				glm::mat4 projection_matrix;
 				if (camera_component.is_orthographic) {
 					// Orthographic projection matrix
 					projection_matrix = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.0f, 100.0f);
 				}
 				else {
+					float vertical_fov_radians = glm::radians(camera_component.vertical_fov);
 					// Perspective projection matrix
 					// Projection matrix : 45° Field of View, width:height ratio, display range : 0.1 unit (z near) <-> 100 units (z far)
 					projection_matrix = glm::perspective(
-						glm::radians(camera_component.vertical_fov),
+						vertical_fov_radians,
 						camera_component.aspect_ratio,
 						camera_component.near_clip_plane_z,
 						camera_component.far_clip_plane_z
 					);
+
+					const float hh_1 = tan(vertical_fov_radians / 2);
+					const float hh_near = hh_1 * camera_component.near_clip_plane_z;
+					const float hw_near = hh_near * camera_component.aspect_ratio;
+					const float hh_far = hh_1 * hh_near * camera_component.far_clip_plane_z;
+					const float hw_far = hh_far * camera_component.aspect_ratio;
+					
+					// Bounds of the view frustum when transformed to clip space.
+					geometry::Bounds view_frustum_clip_space_bounds = geometry::Bounds(
+						glm::vec3(-hw_near, -hh_near, camera_component.near_clip_plane_z), 
+						glm::vec3(hw_near, hh_near, camera_component.far_clip_plane_z)
+					);
+
+					// For each renderable object, check if any of the AABB points are in the view frustum 
+					// after transformed into clip space.
+					for (RenderableObject renderable_object : renderable_objects) {
+						for (glm::vec3 aabb_point : renderable_object.aabb.vertices()) {
+							glm::vec3 aabb_point_clip = transform::TransformPointWorldToLocal(aabb_point, projection_matrix);
+							if (view_frustum_clip_space_bounds.ContainsPoint(aabb_point_clip)) {
+								non_culled_renderable_objects.push_back(renderable_object);
+								break;
+							}
+						}
+					}
+
+					glm::vec3 camera_forward = transform::ForwardVectorFromTransform(view_matrix);
+					glm::vec3 camera_up = transform::UpVectorFromTransform(view_matrix);
+					glm::vec3 view_frustum_corners_world[8] = {
+						// TODO
+					};
+
+					// For each renderable object, check if any of the view frustum corners (in world space) 
+					// are within its AABB bounds. This catches edge cases where the renderable object AABBs
+					// do not have any points within the view frustum, but still intersect.
+					for (RenderableObject renderable_object : renderable_objects) {
+						for (std::size_t i = 0; i < 8; i++) {
+							if (renderable_object.aabb.ContainsPoint(view_frustum_corners_world[i])) {
+								non_culled_renderable_objects.push_back(renderable_object);
+							}
+						}
+					}
 				}
 
-				std::vector<RenderableObject> non_culled_renderable_objects;
+				
 				
 				// TODO: Perform frustum culling of renderables.
 				for (glm::vec3 p : view_frustum_points) {
