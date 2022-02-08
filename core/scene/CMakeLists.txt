@@ -5,6 +5,7 @@ add_library (scene ${SOURCES})
 target_link_libraries(scene PUBLIC glm::glm)
 target_link_libraries(scene PUBLIC ecs)
 target_link_libraries(scene PUBLIC utils)
+target_link_libraries(scene PUBLIC transform)
 target_link_libraries(scene PUBLIC graphics)
 
 set_target_properties(scene PROPERTIES

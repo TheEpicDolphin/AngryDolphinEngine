@@ -6,6 +6,7 @@
 
 #include <core/utils/event_announcer.h>
 
+#include "shader/shader_vars/shader_data_type.h"
 #include "shader/shader_vars/shader_var_helpers.h"
 #include "rendering_pipeline.h"
 
@@ -13,7 +14,7 @@ typedef std::uint32_t MaterialID;
 
 struct UniformValue {
 	std::size_t uniform_index;
-	ShaderDataType type;
+	shader::ShaderDataType type;
 	std::vector<char> data;
 };
 
@@ -22,6 +23,8 @@ struct MaterialInfo
 	std::unordered_map<std::string, UniformValue> uniform_settings;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
 };
+
+class Material;
 
 struct MaterialLifecycleEventsListener {
 

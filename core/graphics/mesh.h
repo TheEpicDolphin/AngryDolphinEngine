@@ -6,15 +6,16 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
-#include <core/utils/bounds.h>
 #include <core/utils/event_announcer.h>
 
+#include "shader/shader_vars/shader_data_type.h"
+#include "shader/shader_vars/shader_var_helpers.h"
 #include "rendering_pipeline.h"
 
 typedef uint32_t MeshID;
 
 struct VertexAttributeBuffer {
-	ShaderDataType data_type;
+	shader::ShaderDataType data_type;
 	std::vector<char> data;
 };
 
@@ -24,12 +25,9 @@ struct MeshInfo
 	bool is_static;
 };
 
-struct MeshGeometryEventsListener {
-	virtual void MeshVertexPositionsDidChange(Mesh* mesh) = 0;
-};
+class Mesh;
 
 struct MeshLifecycleEventsListener {
-
 	virtual void MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
 	virtual void MeshDidDestroy(MeshID mesh_id) = 0;
 };
@@ -101,9 +99,6 @@ public:
 		const std::vector<char> buffer_data = shader::BufferData(buffer);
 		vabuffer.data = buffer_data;
 
-		if (position_attribute_index_ == index) {
-			geometry_events_announcer_.Announce(&MeshGeometryEventsListener::MeshVertexPositionsDidChange, this);
-		}
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, index);
 	}
 
@@ -131,8 +126,6 @@ private:
 
 	EventAnnouncer<MeshLifecycleEventsListener> lifecycle_events_announcer_;
 
-	EventAnnouncer<MeshGeometryEventsListener> geometry_events_announcer_;
-
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>
 	void SetVertexAttributeBufferWithCachedIndex(int cached_va_index, std::vector<T> buffer)
@@ -141,9 +134,6 @@ private:
 		const std::vector<char> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
 		vertex_attribute_buffers_[cached_va_index].data = buffer;
 
-		if (position_attribute_index_ == cached_va_index) {
-			geometry_events_announcer_.Announce(&MeshGeometryEventsListener::MeshVertexPositionsDidChange, this);
-		}
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, cached_va_index);
 	}
 

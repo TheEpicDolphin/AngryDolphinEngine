@@ -7,12 +7,13 @@
 #include <core/utils/event_announcer.h>
 
 #include "shader/shader.h"
+#include "shader/shader_vars/shader_data_type.h"
 
 typedef std::uint32_t PipelineID;
 
 struct RenderingPipelineInfo
 {
-	std::vector<Shader> shader_stages;
+	std::vector<shader::Shader> shader_stages;
 };
 
 enum UniformUsageCategory
@@ -25,7 +26,7 @@ struct UniformInfo {
 	// Name of this uniform.
 	std::string name;
 	// Data type. In the case of an array, this is the type of each element.
-	ShaderDataType data_type;
+	shader::ShaderDataType data_type;
 	// Location in the shader.
 	int location;
 	// Array length. It is 1 for non-arrays.
@@ -48,7 +49,7 @@ struct VertexAttributeInfo {
 	// Name of this vertex attribute.
 	std::string name;
 	// Data type.
-	ShaderDataType data_type;
+	shader::ShaderDataType data_type;
 	// Location in the shader.
 	int location;
 	// Number of components in the data type. For example, vec3 has a dimension of 3.
@@ -74,7 +75,7 @@ public:
 
 	const PipelineID& GetInstanceID();
 
-	const std::vector<Shader>& ShaderStages();
+	const std::vector<shader::Shader>& ShaderStages();
 
 	const UniformInfo& MVPUniform();
 
@@ -90,19 +91,19 @@ public:
 
 private:
 	
-	const PipelineID id_;
+	PipelineID id_;
 
-	const UniformInfo mvp_uniform_;
+	UniformInfo mvp_uniform_;
 
 	//const UniformInfo bones_uniform_;
 
 	// The uniforms are sorted by location in shaders
-	const std::vector<UniformInfo> material_uniforms_;
+	std::vector<UniformInfo> material_uniforms_;
 
 	// The vertex attributes are sorted by appearance order in shaders
-	const std::vector<VertexAttributeInfo> vertex_attributes_;
+	std::vector<VertexAttributeInfo> vertex_attributes_;
 
-	const std::vector<Shader> shader_stages_;
+	std::vector<shader::Shader> shader_stages_;
 
 	EventAnnouncer<PipelineLifecycleEventsListener> lifecycle_events_announcer_;
 };

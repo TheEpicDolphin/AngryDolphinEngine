@@ -1,7 +1,7 @@
 
 #include "scene_graph.h"
 
-#include <core/utils/transform_utils.h>
+#include <core/transform/transform.h>
 
 using namespace ecs;
 
@@ -89,7 +89,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 		node.value.transform_node = 
 		{ 
 			entity_ids[i],
-			transform_utils::TransformWorldToLocal(world_matrices[i], 
+			transform::TransformWorldToLocal(world_matrices[i], 
 			parent->world_transform_matrix), world_matrices[i], 
 			parent, 
 			prev_sibling, 
@@ -219,7 +219,7 @@ void SceneGraph::SetLocalTransform(EntityID entity_id, glm::mat4& local_transfor
 	if (local_transform_matrix != transform_node.local_transform_matrix) {
 		transform_node.local_transform_matrix = local_transform_matrix;
 		const TransformNode* parent_transform_node = transform_node.parent;
-		SetWorldTransformMatrix(&transform_node, transform_utils::TransformLocalToWorld(local_transform_matrix, transform_node.parent->world_transform_matrix));
+		SetWorldTransformMatrix(&transform_node, transform::TransformLocalToWorld(local_transform_matrix, transform_node.parent->world_transform_matrix));
 		UpdateDescendantWorldTransformationMatrices(transform_node);
 	}
 }
@@ -237,7 +237,7 @@ void SceneGraph::SetWorldTransform(EntityID entity_id, glm::mat4& world_transfor
 	if (world_transform_matrix != transform_node.world_transform_matrix) {
 		SetWorldTransformMatrix(&transform_node, world_transform_matrix);
 		const TransformNode* parent_transform_node = transform_node.parent;
-		transform_node.local_transform_matrix = transform_utils::TransformWorldToLocal(world_transform_matrix, transform_node.parent->world_transform_matrix);
+		transform_node.local_transform_matrix = transform::TransformWorldToLocal(world_transform_matrix, transform_node.parent->world_transform_matrix);
 		UpdateDescendantWorldTransformationMatrices(transform_node);
 	}
 }
@@ -268,7 +268,7 @@ void SceneGraph::SetParent(EntityID entity_id, EntityID parent_id)
 	new_parent_transform_node.last_child = &transform_node;
 	// The entity's world transformation matrix stays the same when re-parented. However, its local
 	// local transformation matrix is updated to reflect the new parenting.
-	transform_node.local_transform_matrix = transform_utils::TransformWorldToLocal(transform_node.world_transform_matrix, new_parent_transform_node.world_transform_matrix);
+	transform_node.local_transform_matrix = transform::TransformWorldToLocal(transform_node.world_transform_matrix, new_parent_transform_node.world_transform_matrix);
 }
 
 void SceneGraph::DeleteRecycledChunkWithSwap(std::size_t chunk_size, std::size_t chunk_rank) {

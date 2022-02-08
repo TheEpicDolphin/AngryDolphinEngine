@@ -3,7 +3,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
-namespace transform_utils {
+namespace transform {
 	
 	glm::vec3 Position(glm::mat4 transform_matrix) {
 		return glm::vec3(transform_matrix[3]);

@@ -7,13 +7,15 @@
 
 #include <core/ecs/system.h>
 #include <core/ecs/registry.h>
+#include <core/geometry/bounds.h>
 #include <core/scene/scene.h>
 #include <core/scene/scene_graph.h>
+#include <core/transform/transform.h>
 
-#include "camera_component.h"
-#include "components/mesh_renderable_component.h"
-#include "components/skeletal_mesh_renderable_component.h"
-#include "renderer.h"
+#include "../components/camera_component.h"
+#include "../components/mesh_renderable_component.h"
+#include "../components/skeletal_mesh_renderable_component.h"
+#include "../renderer.h"
 
 class RenderingSystem : public ISystem
 {
@@ -53,9 +55,11 @@ public:
 		*/
 
 		std::function<void(ecs::EntityID, CameraComponent&)> cameras_block =
-			[&cameras, &scene, &renderable_objects](ecs::EntityID entity_id, CameraComponent& camera_component) {
+			[&scene, &renderable_objects](ecs::EntityID entity_id, CameraComponent& camera_component) {
 			if (camera_component.enabled) {
 				const glm::mat4 view_matrix = scene.TransformGraph().GetWorldTransform(entity_id);
+
+				std::vector<glm::vec3> view_frustum_points;
 				glm::mat4 projection_matrix;
 				if (camera_component.is_orthographic) {
 					// Orthographic projection matrix
@@ -75,7 +79,9 @@ public:
 				std::vector<RenderableObject> non_culled_renderable_objects;
 				
 				// TODO: Perform frustum culling of renderables.
+				for (glm::vec3 p : view_frustum_points) {
 
+				}
 
 				CameraParams cam_params = { view_matrix * projection_matrix, };
 				scene.Renderer().RenderFrame(cam_params, non_culled_renderable_objects);
@@ -83,8 +89,4 @@ public:
 		};
 		scene.Registry().EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
 	}
-
-private:
-	std::unordered_map<ecs::EntityID, glm::mat4> entity_transform_map_;
-	std::unordered_map<MeshID, std::vector<ecs::EntityID>>
 };

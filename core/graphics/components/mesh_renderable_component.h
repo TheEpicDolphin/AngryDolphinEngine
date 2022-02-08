@@ -29,8 +29,7 @@ struct MeshRenderableComponent : private MeshGeometryEventsListener
 private:
 
 	// Bounds of the mesh in world space
-	//Bounds mesh_bounds_;
-	float mesh_bounds_;
+	Bounds mesh_bounds_;
 
-	friend class RenderingSystem;
+	friend class MeshTransformationSystem;
 };
