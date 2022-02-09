@@ -75,13 +75,12 @@ bool OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 		int* window_width;
 		int* window_height;
 		glfwGetFramebufferSize(window_, window_width, window_height);
+		// TODO: using camera viewport rect value to set this.
 		glViewport(0, 0, *window_width, *window_height);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		std::map<RenderableObjectBatchKey, RenderableObjectBatch> sorted_renderable_batches;
 		for (RenderableObject renderable_object : renderable_objects) {
-			// TODO: perform culling
-
 			const std::shared_ptr<RenderingPipeline>& pipeline = renderable_object.mesh->GetPipeline();
 
 			if (pipeline_state_map_.find(pipeline->GetInstanceID()) == pipeline_state_map_.end()) {
@@ -191,45 +190,47 @@ void OpenGLRenderer::Cleanup() {
 	// TODO: Delete VAOs and VBOs
 }
 
-GLenum GLShaderTypeForStageType(ShaderStageType type) 
+GLenum GLShaderTypeForStageType(shader::ShaderStageType type) 
 {
 	switch (type)
 	{
-	case ShaderStageTypeVertex:
+	case shader::ShaderStageTypeVertex:
 		return GL_VERTEX_SHADER;
-	case ShaderStageTypeGeometry:
+	case shader::ShaderStageTypeGeometry:
 		return GL_GEOMETRY_SHADER;
-	case ShaderStageTypeFragment:
+	case shader::ShaderStageTypeFragment:
 		return GL_FRAGMENT_SHADER;
-	case ShaderStageTypeCompute:
+	case shader::ShaderStageTypeCompute:
 		return GL_COMPUTE_SHADER;
 	}
+	return 0;
 }
 
-std::string NameForStageType(ShaderStageType type)
+std::string NameForStageType(shader::ShaderStageType type)
 {
 	switch (type)
 	{
-	case ShaderStageTypeVertex:
+	case shader::ShaderStageTypeVertex:
 		return "Vertex Shader Stage";
-	case ShaderStageTypeGeometry:
+	case shader::ShaderStageTypeGeometry:
 		return "Geometry Shader Stage";
-	case ShaderStageTypeFragment:
+	case shader::ShaderStageTypeFragment:
 		return "Fragment Shader Stage";
-	case ShaderStageTypeCompute:
+	case shader::ShaderStageTypeCompute:
 		return "Compute Shader Stage";
 	}
+	return "";
 }
 
 OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::shared_ptr<RenderingPipeline>& pipeline)
 {
-	const std::vector<Shader> shader_stages = pipeline->ShaderStages();
+	const std::vector<shader::Shader> shader_stages = pipeline->ShaderStages();
 	GLuint program_id = glCreateProgram();
 	std::vector<GLuint> shader_ids;
 	shader_ids.reserve(shader_stages.size());
 	GLint result = GL_FALSE;
 	int info_log_length;
-	for (Shader shader : shader_stages) {
+	for (shader::Shader shader : shader_stages) {
 		// Create the shader
 		GLuint shader_id = glCreateShader(GLShaderTypeForStageType(shader.type));
 
@@ -363,6 +364,7 @@ void OpenGLRenderer::MaterialUniformDidChange(Material* material, std::size_t un
 	// Do nothing for now.
 }
 
+/*
 void OpenGLRenderer::MaterialTextureDidChange(Material* material, Texture texture) {
 	// TODO
 	std::unordered_map<MeshID, MaterialState>::iterator iter = material_state_map_.find(material->GetInstanceID());
@@ -374,6 +376,7 @@ void OpenGLRenderer::MaterialTextureDidChange(Material* material, Texture textur
 		// This shouldn't happen
 	}
 }
+*/
 
 void OpenGLRenderer::MaterialDidDestroy(MaterialID material_id) {
 	material_state_map_.erase(material_id);

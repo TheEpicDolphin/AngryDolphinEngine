@@ -1,12 +1,15 @@
 #pragma once
 
-#include <core/graphics/rendering_system.h>
+#include <core/graphics/systems/rendering_system.h>
+#include <core/graphics/systems/mesh_transformation_system.h>
 #include <core/simulation/rigidbody_system.h>
 
 #include "scene.h"
 
-class SimpleScene : SceneBase {
+class SimpleScene : public SceneBase {
 public:
+	SimpleScene(IRenderer* renderer) : SceneBase(renderer) {}
+
 	void DidLoad() override {}
 
 	void DidUnload() override {}
@@ -18,6 +21,8 @@ public:
 
 	void OnFrameUpdate(double delta_time, double alpha) override 
 	{
+		mesh_transformation_system_.OnFrameUpdate(delta_time, alpha, *this);
+
 		// interpolate physics states to avoid jitter in render
 		rigidbody_system_.OnFrameUpdate(delta_time, alpha, *this);
 
@@ -25,6 +30,8 @@ public:
 		rendering_system_.OnFrameUpdate(delta_time, alpha, *this);
 	}
 
+	// TODO: Fix below
+	/*
 	// ISerializable
 
 	std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override {
@@ -52,8 +59,10 @@ public:
 		member_des_nodes.insert(member_des_nodes.end(), derived_member_des_nodes.begin(), derived_member_des_nodes.end());
 		return member_des_nodes;
 	}
+	*/
 
 private:
+	MeshTransformationSystem mesh_transformation_system_;
 	RenderingSystem rendering_system_;
 	RigidbodySystem rigidbody_system_;
 	// TODO: Animation System, Collider System, etc.

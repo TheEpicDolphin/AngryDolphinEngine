@@ -1,21 +1,10 @@
 
 #include "material_manager.h"
 
-#include "rapidxml.hpp"
 #include "rendering_pipeline_manager.h"
 
-static void SetMaterialPropertiesForMaterial(Material *material)
-{
-	/*
-	for () {
-		switch (property_type)
-		{
-		default:
-			break;
-		}
-	}
-	*/
-}
+/*
+#include "rapidxml.hpp"
 
 std::shared_ptr<Material> MaterialManager::CreateMaterialForResourcePath(const char* resource_path_name) {
 	std::vector<char> material_asset = ResourceManager::LoadAsset(resource_path_name, "mat");
@@ -39,6 +28,7 @@ std::shared_ptr<Material> MaterialManager::CreateMaterialForResourcePath(const c
 
 	std::shared_ptr<Material> material = std::make_shared<Material>(++next_material_id_, { uniform_settings, rendering_pipeline });
 }
+*/
 
 std::shared_ptr<Material> MaterialManager::CreateMaterial(MaterialInfo info) {
 	return std::make_shared<Material>(++next_material_id_, info);

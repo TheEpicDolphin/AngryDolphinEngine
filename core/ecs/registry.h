@@ -4,7 +4,6 @@
 #include <cstring>
 #include <unordered_map>
 #include <functional>
-#include <list>
 
 #include <core/utils/set_trie.h>
 #include <core/utils/type_info.h>
@@ -13,7 +12,6 @@
 #include <core/serialize/archive.h>
 
 #include <config/engine_components.h>
-//#include <config/engine_systems.h>
 
 #include "entity.h"
 #include "archetype.h"
@@ -24,7 +22,7 @@ enum SystemUpdateType {
 };
 
 namespace ecs {
-	class Registry : public ISerializable, public IDeserializable {
+	class Registry {//: public ISerializable, public IDeserializable 
 	
 	public:
 		Registry() 
@@ -109,7 +107,7 @@ namespace ecs {
 			if (entity_archetype_map_[entity_id.index] != nullptr) {
 				// The entity currently belongs to an archetype. This archetype will be
 				// referred to as the "previous_archetype"
-				Archetype *previous_archetype = entity_archetype_map_[entity_id.index];
+				Archetype* previous_archetype = entity_archetype_map_[entity_id.index];
 				if (std::find(previous_archetype->ComponentTypes().begin(),
 					previous_archetype->ComponentTypes().end(),
 					removed_component_type) == previous_archetype->ComponentTypes().end())
@@ -132,33 +130,34 @@ namespace ecs {
 					previous_archetype->RemoveEntity(entity_id);
 					if (previous_archetype->Entities().size() == 0) {
 						DestroyArchetype(previous_archetype);
-				
-					entity_archetype_map_[entity_id.index] = nullptr;
+
+						entity_archetype_map_[entity_id.index] = nullptr;
+						return;
+					}
+
+					Archetype* existing_archetype = archetype_set_trie_.ValueForKeySet(new_component_types);
+					if (!existing_archetype) {
+						// No archetype exists for the entity's new set of component types. Create
+						// new archetype.
+						existing_archetype = previous_archetype->EmptyWithRemovedComponentType<T>();
+						archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
+					}
+
+					// Move over the entity's component data from the previous archetype to
+					// the existing one, except that of the component to be removed.
+					previous_archetype->MoveEntityToSubArchetype<T>(entity_id, *existing_archetype);
+					if (previous_archetype->Entities().size() == 0) {
+						DestroyArchetype(previous_archetype);
+					}
+					entity_archetype_map_[entity_id.index] = existing_archetype;
+				}
+				else {
+					throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
 					return;
 				}
-			
-				Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet(new_component_types);
-				if (!existing_archetype) {
-					// No archetype exists for the entity's new set of component types. Create
-					// new archetype.
-					existing_archetype = previous_archetype->EmptyWithRemovedComponentType<T>();
-					archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
-				}
-
-				// Move over the entity's component data from the previous archetype to
-				// the existing one, except that of the component to be removed.
-				previous_archetype->MoveEntityToSubArchetype<T>(entity_id, *existing_archetype);
-				if (previous_archetype->Entities().size() == 0) {
-					DestroyArchetype(previous_archetype);
-				}
-				entity_archetype_map_[entity_id.index] = existing_archetype;
-			}
-			else {
-				throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
-				return;
 			}
 		}
-		
+
 		template<typename T>
 		T* GetComponent(EntityID entity_id)
 		{
@@ -203,13 +202,15 @@ namespace ecs {
 			}
 		}
 
+		// TODO: Fix below
+		/*
 		// ISerializable
 
 		std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
 		{
-			//return archive.RegisterObjectsForSerialization(
-			//	{ "archetypes", }, 
-			//	{ "entity", });
+			return archive.RegisterObjectsForSerialization(
+				{ "archetypes", }, 
+				{ "entity", });
 			return {};
 		}
 
@@ -217,24 +218,25 @@ namespace ecs {
 
 		void ConstructFromDeserializedDependencies() override 
 		{
-			//archetype_set_trie_ = SetTrie<ComponentTypeID, Archetype>(restored_archetypes_);
-			//restored_archetypes_.clear();
+			archetype_set_trie_ = SetTrie<ComponentTypeID, Archetype>(restored_archetypes_);
+			restored_archetypes_.clear();
 		}
 
 		std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
 		{
-			//return archive.RegisterObjectsForDeserialization(
-			//	{ "archetypes", },
-			//	{});
+			return archive.RegisterObjectsForDeserialization(
+				{ "archetypes", },
+				{});
 			return {};
 		}
+		*/
 
 	private:
 		SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
 
 		std::vector<Archetype*> entity_archetype_map_;
 
-		std::vector<Archetype> restored_archetypes_;
+		//std::vector<Archetype> restored_archetypes_;
 		TypeInfo component_type_info_;
 
 		// TODO: Consider caching archetypes in systems. When a change to the ECS'
@@ -254,6 +256,5 @@ namespace ecs {
 			archetype_set_trie_.RemoveValueForKeySet(archetype->ComponentTypes());
 			delete archetype;
 		}
-
 	};
 }

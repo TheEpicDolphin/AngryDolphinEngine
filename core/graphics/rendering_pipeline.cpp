@@ -8,6 +8,9 @@
 RenderingPipeline::RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info)
 {
 	id_ = pipeline_id;
+	mvp_uniform_ = info.mvp_uniform;
+	material_uniforms_ = info.material_uniforms;
+	vertex_attributes_ = info.vertex_attributes;
 	shader_stages_ = info.shader_stages;
 }
 
@@ -20,7 +23,7 @@ const PipelineID& RenderingPipeline::GetInstanceID()
 	return id_;
 }
 
-const std::vector<Shader>& RenderingPipeline::ShaderStages()
+const std::vector<shader::Shader>& RenderingPipeline::ShaderStages()
 {
 	return shader_stages_;
 }

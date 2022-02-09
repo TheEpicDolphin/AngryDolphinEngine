@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <unordered_map>
+#include <map>
 
 #include "rapidxml.hpp"
 #include "rapidxml_print.hpp"

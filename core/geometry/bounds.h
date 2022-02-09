@@ -7,7 +7,7 @@ namespace geometry {
 		glm::vec3 min;
 		glm::vec3 max;
 
-		Bounds(glm::vec3 center, glm::vec3 extents);
+		Bounds(glm::vec3 center, float extent_x, float extent_y, float extent_z);
 
 		Bounds(glm::vec3 min, glm::vec3 max);
 

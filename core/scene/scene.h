@@ -8,6 +8,7 @@
 #include "scene_graph.h"
 
 class IScene {
+public:
 	virtual void DidLoad() = 0;
 
 	virtual void DidUnload() = 0;
@@ -27,9 +28,15 @@ class IScene {
 	virtual const IRenderer& Renderer() = 0;
 };
 
-class SceneBase : public IScene, public ISerializable, public IDeserializable
+class SceneBase : public IScene//, public ISerializable, public IDeserializable
 {
 public:
+	SceneBase() = delete;
+
+	SceneBase(IRenderer* renderer) {
+		renderer_ = renderer;
+	}
+
 	void DidLoad() override {};
 
 	void DidUnload() override {};
@@ -57,11 +64,11 @@ public:
 	}
 
 	const IRenderer& Renderer() override {
-		return renderer_;
+		return *renderer_;
 	}
 
 private:
 	SceneGraph scene_graph_;
 	ecs::Registry registry_;
-	IRenderer *renderer_;
+	IRenderer* renderer_;
 };

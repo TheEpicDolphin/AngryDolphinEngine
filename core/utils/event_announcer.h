@@ -17,7 +17,7 @@ public:
 	template<typename F, typename... Args>
 	void Announce(F func, Args... args) {
 		for (T* listener : listeners_) {
-			listener->*func(args);
+			listener->*func(args...);
 		}
 	}
 

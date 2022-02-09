@@ -1,15 +1,28 @@
 #pragma once
 
 #include <core/serialize/archive.h>
+#include <core/graphics/renderer.h>
+
 #include "scene.h"
+
+enum RendererType {
+	RendererTypeOpenGL = 0,
+	//RendererTypeVulkan
+};
 
 class SceneManager
 {
 public:
+	SceneManager() = delete;
+
+	SceneManager(RendererType renderer_type);
+
+	~SceneManager();
+
 	/*
 	 * scene_name: Name of the empty scene to create. The created scene is not loaded.
 	*/
-	IScene& CreateScene(const char* scene_name);
+	IScene& CreateSimpleScene(const char* scene_name);
 
 	/*
 	 * scene_path: Path of the Scene to load.
@@ -33,7 +46,9 @@ public:
 
 private:
 	// Used for serializing/deserializing the scenes
-	Archive archive_;
+	//Archive archive_;
 
 	std::vector<IScene*> loaded_scenes_;
+
+	IRenderer* renderer_;
 };

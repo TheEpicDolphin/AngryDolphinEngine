@@ -29,14 +29,19 @@ public:
 		std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
 		[&renderable_objects, &scene](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
 			if (mesh_rend.enabled) {
-				
 				const Mesh* mesh = mesh_rend.mesh ? mesh_rend.mesh.get() : mesh_rend.shared_mesh.get();
 				const Material* material = mesh_rend.material ? mesh_rend.material.get() : mesh_rend.shared_material.get();
 				assert(mesh->GetPipeline().InstanceID() == material->GetPipeline().InstanceID());
-				renderable_objects.push_back({ mesh, , material, scene.TransformGraph().GetWorldTransform(entity_id), {} });
+				renderable_objects.push_back({ 
+					mesh, 
+					material, 
+					scene.TransformGraph().GetWorldTransform(entity_id), 
+					mesh_rend.WorldMeshBounds(), 
+					{} 
+				});
 			}
 		};
-		scene.Registry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
+		scene.ComponentRegistry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 
 		// Iterate through skeletal mesh renderables.
 		/*
@@ -91,8 +96,20 @@ public:
 					// For each renderable object, check if any of the AABB points are in the view frustum 
 					// after transformed into clip space.
 					for (RenderableObject renderable_object : renderable_objects) {
-						for (glm::vec3 aabb_point : renderable_object.aabb.vertices()) {
-							glm::vec3 aabb_point_clip = transform::TransformPointWorldToLocal(aabb_point, projection_matrix);
+						const geometry::Bounds& aabb = renderable_object.aabb;
+						const glm::vec3 aabb_points[8] = {
+							aabb.min,
+							glm::vec3(aabb.max.x, aabb.min.y, aabb.min.z),
+							glm::vec3(aabb.max.x, aabb.max.y, aabb.min.z),
+							glm::vec3(aabb.min.x, aabb.max.y, aabb.min.z),
+							glm::vec3(aabb.min.x, aabb.max.y, aabb.max.z),
+							aabb.max,
+							glm::vec3(aabb.max.x, aabb.min.y, aabb.max.z),
+							glm::vec3(aabb.min.x, aabb.min.y, aabb.max.z),
+						};
+
+						for (std::size_t i = 0; i < 8; i++) {
+							glm::vec3 aabb_point_clip = transform::TransformPointWorldToLocal(aabb_points[i], projection_matrix);
 							if (view_frustum_clip_space_bounds.ContainsPoint(aabb_point_clip)) {
 								non_culled_renderable_objects.push_back(renderable_object);
 								break;
@@ -118,17 +135,10 @@ public:
 					}
 				}
 
-				
-				
-				// TODO: Perform frustum culling of renderables.
-				for (glm::vec3 p : view_frustum_points) {
-
-				}
-
-				CameraParams cam_params = { view_matrix * projection_matrix, };
+				CameraParams cam_params = { view_matrix * projection_matrix, camera_component.viewport_rect };
 				scene.Renderer().RenderFrame(cam_params, non_culled_renderable_objects);
 			}
 		};
-		scene.Registry().EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
+		scene.ComponentRegistry().EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
 	}
 };

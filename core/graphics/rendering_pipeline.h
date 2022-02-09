@@ -11,11 +11,6 @@
 
 typedef std::uint32_t PipelineID;
 
-struct RenderingPipelineInfo
-{
-	std::vector<shader::Shader> shader_stages;
-};
-
 enum UniformUsageCategory
 {
 	UniformUsageCategoryColor = 0,
@@ -62,6 +57,15 @@ struct VertexAttributeInfo {
 
 struct PipelineLifecycleEventsListener {
 	virtual void PipelineDidDestroy(PipelineID pipeline_id) = 0;
+};
+
+struct RenderingPipelineInfo
+{
+	UniformInfo mvp_uniform;
+	std::vector<UniformInfo> material_uniforms;
+	std::vector<VertexAttributeInfo> vertex_attributes;
+	std::vector<shader::Shader> shader_stages;
+
 };
 
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.

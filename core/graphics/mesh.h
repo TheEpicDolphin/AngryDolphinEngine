@@ -90,7 +90,7 @@ public:
 		const std::size_t vab_index = iter->second;
 
 		VertexAttributeBuffer& vabuffer = vertex_attribute_buffers_[vab_index];
-		const ShaderDataType data_type = shader::TypeID(buffer_data[0]);
+		const shader::ShaderDataType data_type = shader::TypeID(buffer_data[0]);
 		if (vabuffer.data_type != data_type) {
 			// TODO: print warning that the vertex attribute with this name does not have the inputted type.
 			return;
@@ -131,8 +131,8 @@ private:
 	void SetVertexAttributeBufferWithCachedIndex(int cached_va_index, std::vector<T> buffer)
 	{
 		char* buffer_data_ptr = reinterpret_cast<char*>(buffer.data());
-		const std::vector<char> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
-		vertex_attribute_buffers_[cached_va_index].data = buffer;
+		const std::vector<char> buffer_data(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
+		vertex_attribute_buffers_[cached_va_index].data = buffer_data;
 
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, cached_va_index);
 	}
@@ -140,9 +140,9 @@ private:
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>
 	std::vector<T> GetVertexAttributeBufferForCachedIndex(int cached_va_index) {
-		VertexAttributeBuffer& buffer = vertex_attribute_buffers_[cached_va_index];
-		T* buffer_data_ptr = reinterpret_cast<T*>(buffer.data.data());
-		const std::vector<T> buffer(buffer_data_ptr, buffer_data_ptr + (buffer.data.size() / sizeof(T)));
+		VertexAttributeBuffer& va_buffer = vertex_attribute_buffers_[cached_va_index];
+		T* buffer_data_ptr = reinterpret_cast<T*>(va_buffer.data.data());
+		const std::vector<T> buffer(buffer_data_ptr, buffer_data_ptr + (va_buffer.data.size() / sizeof(T)));
 		return buffer;
 	}
 };

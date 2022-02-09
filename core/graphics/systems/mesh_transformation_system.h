@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <glm/mat4.hpp>
+#include <glm/mat4x4.hpp>
 
 #include <core/ecs/system.h>
 #include <core/ecs/registry.h>

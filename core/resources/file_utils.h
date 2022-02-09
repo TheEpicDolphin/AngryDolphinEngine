@@ -7,7 +7,7 @@
 
 namespace fs = std::experimental::filesystem;
 
-namespace file_utils {
+namespace resources {
 
 	std::vector<fs::path> AllFilePathsInDirectoryWithExtension(std::string directory_path, std::string extension) {
 		std::vector<fs::path> paths;

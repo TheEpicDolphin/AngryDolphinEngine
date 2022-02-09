@@ -1,11 +1,11 @@
 #pragma once
 
-#include <core/utils/bounds.h>
+#include <core/geometry/bounds.h>
 
 #include "../mesh.h"
 #include "../material.h"
 
-struct MeshRenderableComponent : private MeshGeometryEventsListener
+struct MeshRenderableComponent
 {
 	bool enabled;
 	// If empty, the shared_mesh is used to define the MeshRenderable's mesh properties. 
@@ -22,14 +22,14 @@ struct MeshRenderableComponent : private MeshGeometryEventsListener
 	// Material that is shared by potentially several MeshRenderables
 	std::shared_ptr<Material> shared_material;
 
-	void const Bounds& MeshBounds() {
-		return mesh_bounds_;
+	const geometry::Bounds& WorldMeshBounds() {
+		return world_mesh_bounds;
 	}
 
 private:
 
 	// Bounds of the mesh in world space
-	Bounds mesh_bounds_;
+	geometry::Bounds world_mesh_bounds;
 
 	friend class MeshTransformationSystem;
 };

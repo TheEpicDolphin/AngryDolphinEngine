@@ -7,6 +7,7 @@ add_subdirectory(simulation)
 add_subdirectory(utils)
 add_subdirectory(geometry)
 add_subdirectory(transform)
+add_subdirectory(resources)
 
 add_library(core INTERFACE)
 
@@ -19,6 +20,7 @@ target_link_libraries(core INTERFACE simulation)
 target_link_libraries(core INTERFACE utils)
 target_link_libraries(core INTERFACE geometry)
 target_link_libraries(core INTERFACE transform)
+target_link_libraries(core INTERFACE resources)
 
 # This means that to access a header file in ecs, you would #include<core/ecs/example_header.h>
 target_include_directories(ecs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -30,3 +32,4 @@ target_include_directories(simulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(geometry PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(transform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(resources PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

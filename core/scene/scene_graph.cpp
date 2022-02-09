@@ -13,12 +13,12 @@ SceneGraph::SceneGraph() {
 	CreateEntity(glm::mat4(1.0f), { 0 });
 }
 
-EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix = glm::mat4(1.0f), EntityID parent_id = {})
+EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix, EntityID parent_id)
 {
 	return CreateEntityChunk(1, { world_matrix }, { (int)parent_id.index })[0];
 }
 
-std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices = {}, std::vector<int> parent_map = {})
+std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<glm::mat4> world_matrices, std::vector<int> parent_map)
 {
 	assert(n > 0);
 	assert(world_matrices.size() <= n);
@@ -78,7 +78,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 		node.type = SceneGraphNodeTypeTransform;
 		std::size_t parent_pool_index;
 		if (parent_map[i] < 0) {
-			assert(parent_map[i] >= -n);
+			assert(parent_map[i] >= -((int)n));
 			parent_pool_index = entity_to_scene_graph_node_map_[entity_ids[-parent_map[i] - 1].index];
 		}
 		else {

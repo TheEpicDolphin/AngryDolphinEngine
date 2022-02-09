@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <vector>
 
 #include <core/utils/event_announcer.h>
@@ -13,14 +13,14 @@
 typedef std::uint32_t MaterialID;
 
 struct UniformValue {
-	std::size_t uniform_index;
-	shader::ShaderDataType type;
+	shader::ShaderDataType data_type;
 	std::vector<char> data;
+	int array_length;
 };
 
 struct MaterialInfo
 {
-	std::unordered_map<std::string, UniformValue> uniform_settings;
+	//std::unordered_map<std::string, std::vector<char>> initial_uniform_settings;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline;
 };
 
@@ -29,7 +29,7 @@ class Material;
 struct MaterialLifecycleEventsListener {
 
 	virtual void MaterialUniformDidChange(Material* material, std::size_t uniform_index) = 0;
-	virtual void MaterialTextureDidChange(Material* material, Texture texture) = 0;
+	//virtual void MaterialTextureDidChange(Material* material, Texture texture) = 0;
 	virtual void MaterialDidDestroy(MaterialID material_id) = 0;
 };
 
@@ -42,6 +42,10 @@ public:
 
 	const MaterialID& GetInstanceID();
 
+	void SetColor(glm::vec4 color);
+
+	const glm::vec4& GetColor();
+
 	const std::vector<UniformValue>& UniformValues();
 
 	const std::shared_ptr<RenderingPipeline>& GetPipeline();
@@ -53,37 +57,52 @@ public:
 	template<typename T>
 	void SetUniform(std::string name, T value)
 	{
-		const ShaderDataType type = shader::TypeID(value);
-		const std::vector<char> value_data = shader::ValueData(value);
-		// Check if rendering pipeline actually has a uniform with this name and type.
-		const std::size_t index = rendering_pipeline_->IndexOfUniformWithNameAndType(name, type);
-		if (index != shader::index_not_found) {
-			uniform_value_index_map_[name] = uniform_values_.size();
-			uniform_values_.push_back({ index, type, value_data });
+		std::unordered_map<std::string, std::size_t>::iterator iter = uniform_value_name_map_.find(name);
+		if (iter == uniform_value_name_map_.end()) {
+			// TODO: print warning that a vertex attribute with this name does not exist for this mesh/pipeline.
+			return;
+		}
+		const std::size_t uniform_index = iter->second;
 
-			lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialUniformDidChange, this, index);
+		UniformValue& uniform_value = uniform_values_[uniform_index];
+		const shader::ShaderDataType data_type = shader::TypeID(value);
+		if (uniform_value.data_type != data_type) {
+			// TODO: print warning that the vertex attribute with this name does not have the inputted type.
+			return;
 		}
-		else {
-			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
-		}
+
+		const std::vector<char> value_data = shader::ValueData(value);
+		uniform_value.data = value_data;
+
+		lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialUniformDidChange, this, uniform_index);
 	}
 
 	template<typename T>
 	void SetUniformArray(std::string name, T value_array[])
 	{
-		const ShaderDataType type = shader::TypeID(value_array[0]);
-		const std::vector<char> value_data = shader::ValueArrayData(value_array);
-		// Check if rendering pipeline actually has a uniform with this name and type.
-		const std::size_t index = rendering_pipeline_->IndexOfUniformWithNameAndType(name, type);
-		if (index != shader::index_not_found) {
-			uniform_value_index_map_[name] = uniform_values_.size();
-			uniform_values_.push_back({ index, type, value_data });
+		std::unordered_map<std::string, std::size_t>::iterator iter = uniform_value_name_map_.find(name);
+		if (iter == uniform_value_name_map_.end()) {
+			// TODO: print warning that a vertex attribute with this name does not exist for this mesh/pipeline.
+			return;
+		}
+		const std::size_t uniform_index = iter->second;
 
-			lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialUniformDidChange, this, index);
+		UniformValue& uniform_value = uniform_values_[uniform_index];
+		const shader::ShaderDataType data_type = shader::TypeID(value_array[0]);
+		if (uniform_value.data_type != data_type) {
+			// TODO: print warning that the vertex attribute with this name does not have the inputted type.
+			return;
 		}
-		else {
-			// print warning that a uniform with this name and/or type does not exist for this rendering pipeline.
+
+		if (uniform_value.array_length != sizeof(value_array)) {
+			// TODO: print warning that value_array size does not match uniform array size.
+			return;
 		}
+
+		const std::vector<char> value_array_data = shader::ValueArrayData(value_array);
+		uniform_value.data = value_array_data;
+
+		lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialUniformDidChange, this, uniform_index);
 	}
 
 	template<typename T>
@@ -107,11 +126,29 @@ public:
 private:
 	MaterialID id_;
 
+	// Indices to commonly used material uniforms.
+	int color_uniform_index_ = -1;
+
 	std::vector<UniformValue> uniform_values_;
 	std::unordered_map<std::string, std::size_t> uniform_value_name_map_;
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 
 	EventAnnouncer<MaterialLifecycleEventsListener> lifecycle_events_announcer_;
 
-	Texture texture_;
+	//Texture texture_;
+
+	template<typename T>
+	void SetUniformWithCachedIndex(int cached_uniform_index, T value) {
+		char* buffer_data_ptr = reinterpret_cast<char*>(&value);
+		const std::vector<char> buffer(buffer_data_ptr, buffer_data_ptr + sizeof(T));
+		uniform_values_[cached_uniform_index].data = buffer;
+
+		lifecycle_events_announcer_.Announce(&MaterialLifecycleEventsListener::MaterialUniformDidChange, this, cached_uniform_index);
+	}
+
+	template<typename T>
+	void GetUniformWithCachedIndex(int cached_uniform_index, const T* value) {
+		UniformValue& uniform_value = uniform_values_[cached_uniform_index];
+		value = reinterpret_cast<T*>(uniform_value.data.data());
+	}
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <core/ecs/system.h>
 #include <core/scene/scene.h>
 #include <glm/vec3.hpp>
 

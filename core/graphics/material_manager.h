@@ -9,7 +9,8 @@
 class MaterialManager
 {
 public:
-	static std::shared_ptr<Material> CreateMaterialForResourcePath(const char* resource_path);
+	// TODO: Implement this
+	//static std::shared_ptr<Material> CreateMaterialForResourcePath(const char* resource_path);
 
 	static std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
 

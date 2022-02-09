@@ -7,23 +7,25 @@ Material::Material(MaterialID id, MaterialInfo info)
 	rendering_pipeline_ = info.rendering_pipeline;
 
 	uniform_values_ = {};
-	for (UniformInfo uniform_info : rendering_pipeline_->Uniforms()) {
+	for (const UniformInfo& uniform_info : rendering_pipeline_->MaterialUniforms()) {
 		const std::size_t index = uniform_values_.size();
 		uniform_values_.push_back({
 			uniform_info.data_type,
 			std::vector<char>()
 		});
 		uniform_value_name_map_[uniform_info.name] = index;
-		switch (vertex_attribute_info.category)
+		switch (uniform_info.category)
 		{
 		case UniformUsageCategoryColor:
-			color_uniform_index_ = index;
+			color_uniform_index_ = (int)index;
 			break;
 		case UniformUsageCategoryCustom:
 			// Do nothing
 			break;
 		}
 	}
+
+	// TODO: Set initial material uniform values.
 }
 
 Material::~Material()
@@ -34,6 +36,16 @@ Material::~Material()
 const MaterialID& Material::GetInstanceID()
 {
 	return id_;
+}
+
+void Material::SetColor(glm::vec4 color) {
+	SetUniformWithCachedIndex(color_uniform_index_, color);
+}
+
+const glm::vec4& Material::GetColor() {
+	glm::vec4 color;
+	GetUniformWithCachedIndex(color_uniform_index_, &color);
+	return color;
 }
 
 const std::vector<UniformValue>& Material::UniformValues()

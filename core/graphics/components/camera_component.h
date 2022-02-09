@@ -1,6 +1,6 @@
 #pragma once
 
-#include <core/utils/Rect.h>
+#include <core/geometry/rect.h>
 
 struct CameraComponent {
 	bool enabled;
@@ -11,5 +11,5 @@ struct CameraComponent {
 	float near_clip_plane_z;
 	float far_clip_plane_z;
 	glm::mat4 world_transform;
-	Rect viewport_rect;
+	geometry::Rect viewport_rect;
 };

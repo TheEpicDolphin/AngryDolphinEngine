@@ -1,10 +1,8 @@
 file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
-add_library(game ${SOURCES})
+add_library (resources ${SOURCES})
 
-target_link_libraries(game PUBLIC scene)
-
-set_target_properties(game PROPERTIES
+set_target_properties(resources PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO

@@ -3,38 +3,39 @@
 
 #include <GL/glew.h>
 
-const std::vector<char> shader::ValueData(float& f)
+using namespace shader;
+
+const std::vector<char> ValueData(float& f)
 {
 	const std::vector<char> data(sizeof(f));
 	std::vector<char>::insert(data.begin(), sizeof(f), f);
 	return data;
 }
 
-const std::vector<char> shader::ValueData(something_shader::CustomStruct& cs)
+const std::vector<char> ValueData(something_shader::CustomStruct& cs)
 {
-
 	return;
 }
 
-const std::vector<char> shader::ValueArrayData(float f[]) 
+const std::vector<char> ValueArrayData(float f[]) 
 {
 
 }
 
-const std::vector<char> shader::ValueArrayData(something_shader::CustomStruct cs[]) 
+const std::vector<char> ValueArrayData(something_shader::CustomStruct cs[]) 
 {
 
 }
 
-ShaderDataType shader::TypeID(float& f) { return ShaderDataTypeFloat; }
-ShaderDataType shader::TypeID(something_shader::CustomStruct& cs) { return ShaderDataTypeSomethingShaderCustomStruct; }
+ShaderDataType TypeID(float& f) { return ShaderDataTypeFloat; }
+ShaderDataType TypeID(something_shader::CustomStruct& cs) { return ShaderDataTypeSomethingShaderCustomStruct; }
 
-void shader::MakeValue(float* f, std::vector<char> data) 
+void MakeValue(float* f, std::vector<char> data) 
 {
 
 }
 
-void shader::MakeValue(something_shader::CustomStruct* cs, std::vector<char> data) 
+void MakeValue(something_shader::CustomStruct* cs, std::vector<char> data) 
 {
 
 }
@@ -107,7 +108,7 @@ void shader::opengl::SetUniform(ShaderDataType type, int location, int array_len
 		glUniformMatrix4x3fv(location, array_length, GL_FALSE, reinterpret_cast<const GLfloat*>(value_ptr));
 		break;
 	case ShaderDataTypeSomethingShaderCustomStruct:
-
+		
 		break;
 	}
 }

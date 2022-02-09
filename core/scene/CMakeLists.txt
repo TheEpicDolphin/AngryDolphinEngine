@@ -7,6 +7,7 @@ target_link_libraries(scene PUBLIC ecs)
 target_link_libraries(scene PUBLIC utils)
 target_link_libraries(scene PUBLIC transform)
 target_link_libraries(scene PUBLIC graphics)
+target_link_libraries(scene PUBLIC serialize)
 
 set_target_properties(scene PROPERTIES
     CXX_STANDARD 14

@@ -1,9 +1,12 @@
 #pragma once
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
 #include <unordered_map>
 #include <vector>
+
+#define GLFW_INCLUDE_NONE
+
+#include <GLFW/glfw3.h>
+#include <GL/glew.h>
 
 #include "renderer.h"
 #include "rendering_pipeline.h"
@@ -84,7 +87,7 @@ private:
 
 	struct MaterialState {
 		Material* material;
-
+		// TODO: Texture stuff
 	};
 
 	static MaterialState CreateMaterialState(Material* mat);
@@ -110,7 +113,7 @@ private:
 
 	void MaterialUniformDidChange(Material* material, std::size_t uniform_index) override;
 
-	void MaterialTextureDidChange(Material* material, Texture texture) override;
+	//void MaterialTextureDidChange(Material* material, Texture texture) override;
 
 	void MaterialDidDestroy(MaterialID material_id) override;
 };

@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
+#include <algorithm>
 
 #include <core/utils/type_info.h>
 
@@ -18,6 +19,8 @@ namespace ecs {
 	{
 	public:
 
+		Archetype() = delete;
+
 		Archetype(TypeInfo* component_type_info) {
 			component_type_info_ = component_type_info;
 		}
@@ -31,7 +34,7 @@ namespace ecs {
 		template<class... Ts>
 		static Archetype* ArchetypeWithComponentTypes(TypeInfo* component_type_info)
 		{
-			std::vector<ComponentTypeID> unsorted_component_types = { (component_type_info_->GetTypeId<Ts>())... };
+			std::vector<ComponentTypeID> unsorted_component_types = { (component_type_info->GetTypeId<Ts>())... };
 			std::vector<ComponentArrayBase*> unsorted_component_arrays = { (new ComponentArray<Ts>())... };
 			std::vector<std::pair<ComponentTypeID, ComponentArrayBase*>> sorted_component_type_array_pairs;
 			sorted_component_type_array_pairs.reserve(unsorted_component_types.size());
@@ -52,10 +55,10 @@ namespace ecs {
 		}
 
 		template<class T>
-		Archetype* EmptyWithAddedComponentType()
+		Archetype* EmptyWithAddedComponentType(TypeInfo* component_type_info)
 		{
-			const ComponentTypeID added_component_type = component_type_info_->GetTypeId<T>();
-			Archetype* new_archetype = new Archetype();
+			const ComponentTypeID added_component_type = component_type_info->GetTypeId<T>();
+			Archetype* new_archetype = new Archetype(component_type_info);
 			new_archetype->component_types_.reserve(component_types_.size() + 1);
 			new_archetype->component_arrays_.reserve(component_arrays_.size() + 1);
 			auto insert_component_array = [new_archetype](ComponentArrayBase* comp_array, ComponentTypeID component_type) {
@@ -80,10 +83,10 @@ namespace ecs {
 		}
 
 		template<class T>
-		Archetype* EmptyWithRemovedComponentType()
+		Archetype* EmptyWithRemovedComponentType(TypeInfo* component_type_info)
 		{
-			const ComponentTypeID removed_component_type = component_type_info_->GetTypeId<T>();
-			Archetype* new_archetype = new Archetype();
+			const ComponentTypeID removed_component_type = component_type_info->GetTypeId<T>();
+			Archetype* new_archetype = new Archetype(component_type_info);
 			new_archetype->component_types_.reserve(component_types_.size() - 1);
 			new_archetype->component_arrays_.reserve(component_arrays_.size() - 1);
 			for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {

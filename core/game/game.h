@@ -8,7 +8,7 @@ class Game {
 public:
 	Game() {}
 
-	const SceneManager& SceneManager() 
+	const SceneManager& SceneManager()
 	{
 		return scene_manager_;
 	}

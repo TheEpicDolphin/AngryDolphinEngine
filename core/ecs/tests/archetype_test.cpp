@@ -120,7 +120,7 @@ TEST(archetype_test_suite, creating_archetype_with_added_component_type)
     archetype_abc->AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
     archetype_abc->AddEntity<B, C, A>({ 0, 2 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
-    Archetype* archetype_abcd = archetype_abc->EmptyWithAddedComponentType<D>();
+    Archetype* archetype_abcd = archetype_abc->EmptyWithAddedComponentType<D>(&component_type_info);
     archetype_abcd->AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
 
     std::vector<EntityID> expected_entities = { { 0, 3 } };
@@ -155,7 +155,7 @@ TEST(archetype_test_suite, creating_archetype_with_removed_component_type)
     archetype_abcd->AddEntity<D, B, C, A>({ 0, 1 }, { d_name_0 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
     archetype_abcd->AddEntity<D, B, C, A>({ 0, 2 }, { d_name_1 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
-    Archetype* archetype_acd = archetype_abcd->EmptyWithRemovedComponentType<B>();
+    Archetype* archetype_acd = archetype_abcd->EmptyWithRemovedComponentType<B>(&component_type_info);
     archetype_acd->AddEntity<D, C, A>({ 0, 3 }, { d_name_2 }, { c_name_2 }, { a_name_2 });
 
     std::vector<EntityID> expected_entities = { { 0, 3 } };

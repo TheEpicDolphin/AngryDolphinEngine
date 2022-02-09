@@ -18,19 +18,19 @@ Mesh::Mesh(MeshID id, MeshInfo info)
 		switch (vertex_attribute_info.category)
 		{
 		case VertexAttributeUsageCategoryPosition:
-			position_attribute_index_ = index;
+			position_attribute_index_ = (int)index;
 			break;
 		case VertexAttributeUsageCategoryNormal:
-			normal_attribute_index_ = index;
+			normal_attribute_index_ = (int)index;
 			break;
 		case VertexAttributeUsageCategoryTexCoord0:
-			tex_coord0_attribute_index_ = index;
+			tex_coord0_attribute_index_ = (int)index;
 			break;
 		case VertexAttributeUsageCategoryBoneWeight:
-			bone_weight_attribute_index_ = index;
+			bone_weight_attribute_index_ = (int)index;
 			break;
 		case VertexAttributeUsageCategoryBoneIndices:
-			bone_indices_attribute_index_ = index;
+			bone_indices_attribute_index_ = (int)index;
 			break;
 		case VertexAttributeUsageCategoryCustom:
 			// Do nothing
@@ -112,6 +112,7 @@ const VertexAttributeBuffer& Mesh::GetVertexAttributeBufferAtIndex(std::size_t i
 }
 
 void Mesh::SetTriangleIndices(std::vector<std::size_t> tri_indices) {
+	// This does not affect the world mesh bounds! Yay!
 	triangle_indices_ = tri_indices;
 }
 

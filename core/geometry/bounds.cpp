@@ -3,9 +3,9 @@
 
 using namespace geometry;
 
-Bounds::Bounds(glm::vec3 center, glm::vec3 extents) {
-	this->min = glm::vec3(center.x - extents.x, center.y - extents.y, center.z - extents.z);
-	this->max = glm::vec3(center.x + extents.x, center.y + extents.y, center.z + extents.z);
+Bounds::Bounds(glm::vec3 center, float extent_x, float extent_y, float extent_z) {
+	this->min = glm::vec3(center.x - extent_x, center.y - extent_y, center.z - extent_z);
+	this->max = glm::vec3(center.x + extent_x, center.y + extent_y, center.z + extent_z);
 }
 
 Bounds::Bounds(glm::vec3 min, glm::vec3 max) {

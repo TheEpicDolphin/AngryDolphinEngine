@@ -5,13 +5,15 @@
 #include "rendering_pipeline.h"
 
 #include <glm/mat4x4.hpp>
-#include <core/utils/rect.h>
+#include <core/geometry/rect.h>
+#include <core/geometry/bounds.h>
 
 struct RenderableObject
 {
 	Mesh* mesh;
 	Material* material;
 	glm::mat4 model_matrix;
+	geometry::Bounds aabb;
 	std::vector<glm::mat4> bones;
 };
 
@@ -29,9 +31,8 @@ struct CameraParams {
 */
 
 struct CameraParams {
-	bool is_orthographic;
 	glm::mat4 view_projection_matrix;
-	Rect viewport_rect;
+	geometry::Rect viewport_rect;
 };
 
 class IRenderer {

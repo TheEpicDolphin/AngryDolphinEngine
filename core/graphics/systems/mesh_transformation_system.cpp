@@ -8,7 +8,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, co
 {
 	// Iterate through mesh renderables and calculate world mesh bounds
 	std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
-		[&this](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
+		[this, &scene](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
 		if (mesh_rend.enabled) {
 			std::shared_ptr<Mesh> mesh = mesh_rend.shared_mesh;
 			const MeshID mesh_id = mesh->GetInstanceID();
@@ -21,8 +21,8 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, co
 				calculate_mesh_bounds = true;
 			}
 
-			std::unordered_map<MeshID, std::vector<ecs::EntityID>> mesh_entities_iter = mesh_to_entities_map_.find(mesh_id);
-			if (mesh_entities_iter != mesh_to_entities_map_.end()) {
+			std::unordered_map<MeshID, std::vector<ecs::EntityID>> mesh_entities_iter = this->mesh_to_entities_map_.find(mesh_id);
+			if (mesh_entities_iter != this->mesh_to_entities_map_.end()) {
 				mesh_entities_iter->second.push_back(entity_id);
 			}
 			else {
@@ -48,7 +48,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, co
 
 		}
 	};
-	scene.Registry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
+	scene.ComponentRegistry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 }
 
 // MeshLifecycleEventsListener

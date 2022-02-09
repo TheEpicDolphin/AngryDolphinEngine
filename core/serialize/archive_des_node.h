@@ -299,10 +299,24 @@ protected:
 template<class...> using void_t = void;
 
 template<class, class = void>
-struct is_ostreamable : std::false_type {};
+struct dynamically_allocates_derived : std::false_type {};
 
 template<class T>
-struct is_ostreamable<T, void_t<decltype(std::declval<T*>().DynamicallyAllocatedDerivedObject(std::declval<rapidxml::xml_node<>&>()))>> : std::true_type {};
+struct dynamically_allocates_derived<T, void_t<decltype(std::declval<T*>().DynamicallyAllocatedDerivedObject(std::declval<rapidxml::xml_node<>&>()))>> : std::true_type {};
+
+template<class T>
+typename std::enable_if<!dynamically_allocates_derived<T>::value, void>::type 
+DynamicallyAllocate(T* object_ptr, rapidxml::xml_node<>& xml_node)
+{
+	object_ptr = new T();
+}
+
+template<class T>
+typename std::enable_if<dynamically_allocates_derived<T>::value, void>::type
+DynamicallyAllocate(T* object_ptr, rapidxml::xml_node<>& xml_node)
+{
+	object_ptr = T::DynamicallyAllocatedDerivedObject(xml_node);
+}
 
 template<typename T>
 class ArchiveDesPointerNode : public ArchiveDesPointerNodeBase {
@@ -319,12 +333,7 @@ public:
 
 	void DynamicallyAllocateObject(rapidxml::xml_node<>& xml_node) override
 	{
-		if () {
-			object_ptr_ = T::DynamicallyAllocatedDerivedObject(xml_node);
-		}
-		else {
-			object_ptr_ = new T();
-		}
+		DynamicallyAllocate(object_ptr_, xml_node);
 	}
 
 	ArchiveDesNodeBase* PointeeNode(Archive& archive, rapidxml::xml_node<>& xml_node) override

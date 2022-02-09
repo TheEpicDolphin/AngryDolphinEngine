@@ -1,7 +1,6 @@
 #pragma once
 
 #include <unordered_map>
-#include <core/resources/resource_manager.h>
 
 #include "rendering_pipeline.h"
 
