@@ -21,11 +21,11 @@ public:
 
 	virtual void DestroyEntity(ecs::EntityID entity_id) = 0;
 
-	virtual const ITransformGraph& TransformGraph() = 0;
+	virtual const ITransformGraph& TransformGraph() const = 0;
 
-	virtual const ecs::Registry& ComponentRegistry() = 0;
+	virtual const ecs::Registry& ComponentRegistry() const = 0;
 
-	virtual const IRenderer& Renderer() = 0;
+	virtual const IRenderer& Renderer() const = 0;
 };
 
 class SceneBase : public IScene//, public ISerializable, public IDeserializable
@@ -55,15 +55,15 @@ public:
 		scene_graph_.DestroyEntity(entity_id);
 	}
 
-	const ITransformGraph& TransformGraph() override {
+	const ITransformGraph& TransformGraph() const override {
 		return scene_graph_;
 	}
 
-	const ecs::Registry& ComponentRegistry() override {
+	const ecs::Registry& ComponentRegistry() const override {
 		return registry_;
 	}
 
-	const IRenderer& Renderer() override {
+	const IRenderer& Renderer() const override {
 		return *renderer_;
 	}
 

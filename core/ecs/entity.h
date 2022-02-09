@@ -10,4 +10,12 @@ namespace ecs {
 	};
 
 	extern const EntityID null_entity_id = { 0, 0 };
+
+	inline bool operator==(const EntityID& lhs, const EntityID& rhs) {
+		return (lhs.version == rhs.version) && (lhs.index == rhs.index);
+	}
+
+	inline bool operator!=(const EntityID& lhs, const EntityID& rhs) {
+		return !(lhs == rhs);
+	}
 }

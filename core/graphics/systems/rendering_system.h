@@ -10,6 +10,7 @@
 #include <core/geometry/bounds.h>
 #include <core/scene/scene.h>
 #include <core/scene/scene_graph.h>
+#include <core/scene/interfaces/transform_graph.h>
 #include <core/transform/transform.h>
 
 #include "../components/camera_component.h"
@@ -29,9 +30,9 @@ public:
 		std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
 		[&renderable_objects, &scene](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
 			if (mesh_rend.enabled) {
-				const Mesh* mesh = mesh_rend.mesh ? mesh_rend.mesh.get() : mesh_rend.shared_mesh.get();
-				const Material* material = mesh_rend.material ? mesh_rend.material.get() : mesh_rend.shared_material.get();
-				assert(mesh->GetPipeline().InstanceID() == material->GetPipeline().InstanceID());
+				Mesh* mesh = mesh_rend.mesh ? mesh_rend.mesh.get() : mesh_rend.shared_mesh.get();
+				Material* material = mesh_rend.material ? mesh_rend.material.get() : mesh_rend.shared_material.get();
+				assert(mesh->GetPipeline()->InstanceID() == material->GetPipeline()->InstanceID());
 				renderable_objects.push_back({ 
 					mesh, 
 					material, 
@@ -109,7 +110,7 @@ public:
 						};
 
 						for (std::size_t i = 0; i < 8; i++) {
-							glm::vec3 aabb_point_clip = transform::TransformPointWorldToLocal(aabb_points[i], projection_matrix);
+							glm::vec3 aabb_point_clip = transform::TransformPointWorldToLocal(projection_matrix, aabb_points[i]);
 							if (view_frustum_clip_space_bounds.ContainsPoint(aabb_point_clip)) {
 								non_culled_renderable_objects.push_back(renderable_object);
 								break;

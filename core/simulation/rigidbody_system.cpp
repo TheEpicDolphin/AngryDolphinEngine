@@ -3,32 +3,34 @@
 
 #include <core/ecs/entity.h>
 #include <core/scene/scene.h>
-#include <core/utils/transform_utils.h>
+#include <core/transform/transform.h>
 
-#include "rigidbody.h"
+#include "rigidbody_component.h"
 
 void RigidbodySystem::OnFixedUpdate(double fixed_delta_time, const IScene& scene)
 {
-	std::function<void(EntityID, Rigidbody&)> block =
-		[fixedDeltaTime](EntityID entity_id, Rigidbody& rb) {
-		rb.velocity += gravity * fixed_delta_time;
+	std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
+		[fixed_delta_time](ecs::EntityID entity_id, RigidbodyComponent& rb) {
+		rb.velocity += gravity * (float)fixed_delta_time;
 		rb.previous_position = rb.position;
-		rb.position += rb.velocity * fixed_delta_time;
+		rb.position += rb.velocity * (float)fixed_delta_time;
 	};
-	scene.Registry().EnumerateComponentsWithBlock<Rigidbody>(block);
+	scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 }
 
 void RigidbodySystem::OnFrameUpdate(double delta_time, double alpha, const IScene& scene)
 {
 	// Physics interpolation before rendering
-	std::function<void(EntityID, Rigidbody&)> block =
-		[alpha, scene](EntityID entity_id, Rigidbody& rb) {
+	std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
+		[alpha, &scene](ecs::EntityID entity_id, RigidbodyComponent& rb) {
+		glm::mat4 transform = scene.TransformGraph().GetWorldTransform(entity_id);
 		if (rb.interpolate) {
-			scene.TransformGraph().SetWorldTransform(entity_id, rb.position * alpha + rb.previous_position * (1.0f - alpha));
+			transform::SetPosition(transform, rb.position * (float)alpha + rb.previous_position * (float)(1.0f - alpha));
 		}
 		else {
-			scene.TransformGraph().SetWorldTransform(entity_id, rb.position);
+			transform::SetPosition(transform, rb.position);
 		}
+		scene.TransformGraph().SetWorldTransform(entity_id, transform);
 	};
-	scene.Registry().EnumerateComponentsWithBlock<Rigidbody>(block);
+	scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 }

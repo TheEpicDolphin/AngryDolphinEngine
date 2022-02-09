@@ -4,6 +4,7 @@ add_library (simulation ${libsrc})
 
 target_link_libraries(simulation PRIVATE glm::glm)
 target_link_libraries(simulation LINK_PUBLIC ecs)
+target_link_libraries(simulation PRIVATE transform)
 
 set_target_properties(simulation PROPERTIES
     CXX_STANDARD 14

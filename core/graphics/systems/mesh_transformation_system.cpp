@@ -34,10 +34,10 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, co
 			if (calculate_mesh_bounds) {
 				const std::vector<glm::vec3>& local_vert_positions = mesh_rend.mesh->GetVertexPositions();
 				glm::mat4 entity_transform = scene.TransformGraph().GetWorldTransform(entity_id);
-				glm::vec3 min_p = transform::TransformPointLocalToWorld(local_vert_positions[0], entity_transform);
+				glm::vec3 min_p = transform::TransformPointLocalToWorld(entity_transform, local_vert_positions[0]);
 				glm::vec3 max_p = min_p;
 				for (std::size_t i = 1; i < local_vert_positions.size(); i++) {
-					glm::vec3 world_p = transform::TransformPointLocalToWorld(local_vert_positions[i], entity_transform);
+					glm::vec3 world_p = transform::TransformPointLocalToWorld(entity_transform, local_vert_positions[i]);
 					min_p = glm::min(min_p, world_p);
 					max_p = glm::max(max_p, world_p);
 				}

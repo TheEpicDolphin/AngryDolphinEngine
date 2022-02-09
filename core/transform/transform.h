@@ -1,22 +1,41 @@
 #pragma once
 
 #include <glm/mat4x4.hpp>
+#include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
 
 namespace transform {
 	
-	glm::vec3 Position(glm::mat4 transform_matrix) {
-		return glm::vec3(transform_matrix[3]);
+	glm::vec3 Position(glm::mat4 transform) {
+		return glm::vec3(transform[3]);
 	}
 
-	glm::mat4 TransformWorldToLocal(const glm::mat4& world_matrix, const glm::mat4& transform_matrix)
-	{
-		return world_matrix * glm::inverse(transform_matrix);
+	void SetPosition(glm::mat4& transform, glm::vec3 position) {
+		transform[3][0] = position.x;
+		transform[3][1] = position.y;
+		transform[3][2] = position.z;
 	}
 
-	glm::mat4 TransformLocalToWorld(const glm::mat4& local_matrix, const glm::mat4& transform_matrix)
+	// Transforms world_matrix into transform's local space.
+	glm::mat4 TransformWorldToLocal(const glm::mat4& transform, const glm::mat4& world_matrix)
 	{
-		return local_matrix * transform_matrix;
+		return glm::inverse(transform) * world_matrix;
+	}
+
+	// Transforms local_matrix (which is in transform's local space) into world space.
+	glm::mat4 TransformLocalToWorld(const glm::mat4& transform, const glm::mat4& local_matrix)
+	{
+		return transform * local_matrix;
+	}
+
+	glm::vec3 TransformPointWorldToLocal(const glm::mat4& transform, const glm::vec3& world_point)
+	{
+		return glm::inverse(transform) * glm::vec4(world_point, 1);
+	}
+
+	glm::vec3 TransformPointLocalToWorld(const glm::mat4& transform, const glm::vec3& local_point)
+	{
+		return transform * glm::vec4(local_point, 1);
 	}
 
 }

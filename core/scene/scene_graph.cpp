@@ -27,7 +27,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 	std::vector<EntityID> entity_ids;
 	for (std::size_t i = 0; i < n; i++) {
 		if (recycled_entity_ids_.empty()) {
-			entity_ids.push_back({ 0, entity_to_scene_graph_node_map_.size() });
+			entity_ids.push_back({ 0, (EntityIndex)entity_to_scene_graph_node_map_.size() });
 			entity_to_scene_graph_node_map_.push_back(-1);
 		}
 		else {
@@ -89,8 +89,8 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 		node.value.transform_node = 
 		{ 
 			entity_ids[i],
-			transform::TransformWorldToLocal(world_matrices[i], 
-			parent->world_transform_matrix), world_matrices[i], 
+			transform::TransformWorldToLocal(parent->world_transform_matrix, world_matrices[i]),
+			world_matrices[i], 
 			parent, 
 			prev_sibling, 
 			nullptr, 
@@ -206,7 +206,7 @@ void SceneGraph::RemoveLifecycleEventsListenerForEntity(EntityLifecycleEventsLis
 	}
 }
 
-const glm::mat4& SceneGraph::GetLocalTransform(EntityID entity_id)
+const glm::mat4& SceneGraph::GetLocalTransform(EntityID entity_id) const
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	return scene_graph_node_pool_[pool_index].value.transform_node.local_transform_matrix;
@@ -219,12 +219,12 @@ void SceneGraph::SetLocalTransform(EntityID entity_id, glm::mat4& local_transfor
 	if (local_transform_matrix != transform_node.local_transform_matrix) {
 		transform_node.local_transform_matrix = local_transform_matrix;
 		const TransformNode* parent_transform_node = transform_node.parent;
-		SetWorldTransformMatrix(&transform_node, transform::TransformLocalToWorld(local_transform_matrix, transform_node.parent->world_transform_matrix));
+		SetWorldTransformMatrix(&transform_node, transform::TransformLocalToWorld(transform_node.parent->world_transform_matrix, local_transform_matrix));
 		UpdateDescendantWorldTransformationMatrices(transform_node);
 	}
 }
 
-const glm::mat4& SceneGraph::GetWorldTransform(EntityID entity_id)
+const glm::mat4& SceneGraph::GetWorldTransform(EntityID entity_id) const
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	return scene_graph_node_pool_[pool_index].value.transform_node.world_transform_matrix;
@@ -237,12 +237,12 @@ void SceneGraph::SetWorldTransform(EntityID entity_id, glm::mat4& world_transfor
 	if (world_transform_matrix != transform_node.world_transform_matrix) {
 		SetWorldTransformMatrix(&transform_node, world_transform_matrix);
 		const TransformNode* parent_transform_node = transform_node.parent;
-		transform_node.local_transform_matrix = transform::TransformWorldToLocal(world_transform_matrix, transform_node.parent->world_transform_matrix);
+		transform_node.local_transform_matrix = transform::TransformWorldToLocal(transform_node.parent->world_transform_matrix, world_transform_matrix);
 		UpdateDescendantWorldTransformationMatrices(transform_node);
 	}
 }
 
-const EntityID& SceneGraph::GetParent(EntityID entity_id)
+const EntityID& SceneGraph::GetParent(EntityID entity_id) const
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
@@ -268,7 +268,7 @@ void SceneGraph::SetParent(EntityID entity_id, EntityID parent_id)
 	new_parent_transform_node.last_child = &transform_node;
 	// The entity's world transformation matrix stays the same when re-parented. However, its local
 	// local transformation matrix is updated to reflect the new parenting.
-	transform_node.local_transform_matrix = transform::TransformWorldToLocal(transform_node.world_transform_matrix, new_parent_transform_node.world_transform_matrix);
+	transform_node.local_transform_matrix = transform::TransformWorldToLocal(new_parent_transform_node.world_transform_matrix, transform_node.world_transform_matrix);
 }
 
 void SceneGraph::DeleteRecycledChunkWithSwap(std::size_t chunk_size, std::size_t chunk_rank) {
