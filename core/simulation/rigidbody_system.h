@@ -11,7 +11,7 @@ class RigidbodySystem : public ISystem
 public:
 	RigidbodySystem() = default;
 
-	void OnFixedUpdate(double fixed_delta_time, const IScene& scene) override;
+	void OnFixedUpdate(double fixed_delta_time, IScene& scene) override;
 
-	void OnFrameUpdate(double delta_time, double alpha, const IScene& scene) override;
+	void OnFrameUpdate(double delta_time, double alpha, IScene& scene) override;
 };

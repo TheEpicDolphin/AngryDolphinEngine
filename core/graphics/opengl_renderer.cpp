@@ -115,6 +115,7 @@ bool OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 		}
 
 		const glm::mat4 vp = camera_params.view_projection_matrix;
+		GLint mvp_location = 0;
 		RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
 		for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
 			it != sorted_renderable_batches.end();
@@ -122,7 +123,6 @@ bool OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 			RenderableObjectBatchKey current_batch_key = it->first;
 			RenderableObjectBatch batch = it->second;
 
-			GLint mvp_location;
 			//GLint bones_location;
 			if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
 				// Switch rendering pipeline configuration

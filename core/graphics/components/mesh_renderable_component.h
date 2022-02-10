@@ -23,13 +23,13 @@ struct MeshRenderableComponent
 	std::shared_ptr<Material> shared_material;
 
 	const geometry::Bounds& WorldMeshBounds() {
-		return world_mesh_bounds;
+		return world_mesh_bounds_;
 	}
 
 private:
 
 	// Bounds of the mesh in world space
-	geometry::Bounds world_mesh_bounds;
+	geometry::Bounds world_mesh_bounds_;
 
 	friend class MeshTransformationSystem;
 };

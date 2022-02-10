@@ -21,7 +21,7 @@ class MeshTransformationSystem :
 public:
 	MeshTransformationSystem() = default;
 
-	void OnFrameUpdate(double delta_time, double alpha, const IScene& scene) override;
+	void OnFrameUpdate(double delta_time, double alpha, IScene& scene) override;
 
 private:
 	struct MeshTransformationState {

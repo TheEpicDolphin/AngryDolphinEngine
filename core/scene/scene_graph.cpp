@@ -212,7 +212,7 @@ const glm::mat4& SceneGraph::GetLocalTransform(EntityID entity_id) const
 	return scene_graph_node_pool_[pool_index].value.transform_node.local_transform_matrix;
 }
 
-void SceneGraph::SetLocalTransform(EntityID entity_id, glm::mat4& local_transform_matrix)
+void SceneGraph::SetLocalTransform(EntityID entity_id, glm::mat4& local_transform_matrix) const
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
@@ -230,7 +230,7 @@ const glm::mat4& SceneGraph::GetWorldTransform(EntityID entity_id) const
 	return scene_graph_node_pool_[pool_index].value.transform_node.world_transform_matrix;
 }
 
-void SceneGraph::SetWorldTransform(EntityID entity_id, glm::mat4& world_transform_matrix)
+void SceneGraph::SetWorldTransform(EntityID entity_id, glm::mat4& world_transform_matrix) const
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;
@@ -249,7 +249,7 @@ const EntityID& SceneGraph::GetParent(EntityID entity_id) const
 	return transform_node.parent->entity_id;
 }
 
-void SceneGraph::SetParent(EntityID entity_id, EntityID parent_id)
+void SceneGraph::SetParent(EntityID entity_id, EntityID parent_id) const
 {
 	const std::size_t pool_index = entity_to_scene_graph_node_map_[entity_id.index];
 	TransformNode& transform_node = scene_graph_node_pool_[pool_index].value.transform_node;

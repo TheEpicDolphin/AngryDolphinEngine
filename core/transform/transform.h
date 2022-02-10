@@ -5,8 +5,20 @@
 #include <glm/vec3.hpp>
 
 namespace transform {
-	
-	glm::vec3 Position(glm::mat4 transform) {
+
+	glm::vec3 Left(const glm::mat4& transform) {
+		return glm::vec3(transform[0]);
+	}
+
+	glm::vec3 Up(const glm::mat4& transform) {
+		return glm::vec3(transform[1]);
+	}
+
+	glm::vec3 Forward(const glm::mat4& transform) {
+		return glm::vec3(transform[2]);
+	}
+
+	glm::vec3 Position(const glm::mat4& transform) {
 		return glm::vec3(transform[3]);
 	}
 

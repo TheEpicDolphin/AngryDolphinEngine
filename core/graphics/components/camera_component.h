@@ -5,6 +5,7 @@
 struct CameraComponent {
 	bool enabled;
 	bool is_orthographic;
+	float orthographic_half_height;
 	// In degrees.
 	float vertical_fov;
 	float aspect_ratio;

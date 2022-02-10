@@ -4,7 +4,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <core/transform/transform.h>
 
-void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, const IScene& scene)
+void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, IScene& scene)
 {
 	// Iterate through mesh renderables and calculate world mesh bounds
 	std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
@@ -41,6 +41,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, co
 					min_p = glm::min(min_p, world_p);
 					max_p = glm::max(max_p, world_p);
 				}
+				
 				mesh_rend.world_mesh_bounds_ = geometry::Bounds(min_p, max_p);
 			}
 

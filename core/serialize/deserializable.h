@@ -1,5 +1,7 @@
 #pragma once
 
+#include "rapidxml.hpp"
+
 class ArchiveDesNodeBase;
 class Archive;
 

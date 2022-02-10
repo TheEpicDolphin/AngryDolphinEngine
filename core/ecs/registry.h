@@ -173,7 +173,7 @@ namespace ecs {
 		}
 
 		template<class... Ts>
-		void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block)
+		void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block) const
 		{
 			std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts...>();
 			for (Archetype *archetype : archetypes) {

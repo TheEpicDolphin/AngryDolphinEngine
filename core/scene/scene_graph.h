@@ -41,15 +41,15 @@ public:
 	
 	const glm::mat4& GetLocalTransform(ecs::EntityID entity_id) const override;
 
-	void SetLocalTransform(ecs::EntityID entity_id, glm::mat4& local_transform_matrix) override;
+	void SetLocalTransform(ecs::EntityID entity_id, glm::mat4& local_transform_matrix) const override;
 
 	const glm::mat4& GetWorldTransform(ecs::EntityID entity_id) const override;
 
-	void SetWorldTransform(ecs::EntityID entity_id, glm::mat4& world_transform_matrix) override;
+	void SetWorldTransform(ecs::EntityID entity_id, glm::mat4& world_transform_matrix) const override;
 
 	const ecs::EntityID& GetParent(ecs::EntityID entity_id) const override;
 
-	void SetParent(ecs::EntityID entity_id, ecs::EntityID parent_id) override;
+	void SetParent(ecs::EntityID entity_id, ecs::EntityID parent_id) const override;
 
 	//void PerformBlockForEach(std::vector<EntityID> entity_ids, void (*block)(void* context, EntityID entity_id, Transform& transform));
 

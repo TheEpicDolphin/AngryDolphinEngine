@@ -7,7 +7,7 @@
 
 #include "rigidbody_component.h"
 
-void RigidbodySystem::OnFixedUpdate(double fixed_delta_time, const IScene& scene)
+void RigidbodySystem::OnFixedUpdate(double fixed_delta_time, IScene& scene)
 {
 	std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
 		[fixed_delta_time](ecs::EntityID entity_id, RigidbodyComponent& rb) {
@@ -18,7 +18,7 @@ void RigidbodySystem::OnFixedUpdate(double fixed_delta_time, const IScene& scene
 	scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 }
 
-void RigidbodySystem::OnFrameUpdate(double delta_time, double alpha, const IScene& scene)
+void RigidbodySystem::OnFrameUpdate(double delta_time, double alpha, IScene& scene)
 {
 	// Physics interpolation before rendering
 	std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
