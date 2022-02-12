@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include <core/utils/event_announcer.h>
+#include <core/serialize/archive.h>
 
 #include "shader/shader.h"
 #include "shader/shader_vars/shader_data_type.h"
@@ -17,7 +18,7 @@ enum UniformUsageCategory
 	UniformUsageCategoryCustom,
 };
 
-struct UniformInfo {
+struct UniformInfo : public IDeserializable {
 	// Name of this uniform.
 	std::string name;
 	// Data type. In the case of an array, this is the type of each element.
@@ -28,6 +29,18 @@ struct UniformInfo {
 	int array_length;
 	// The usage category for this uniform.
 	UniformUsageCategory category;
+
+	std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return archive.RegisterObjectsForDeserialization<std::string&, shader::ShaderDataType&, int&, int&, UniformUsageCategory&>(
+			xml_node,
+			name,
+			data_type,
+			location,
+			array_length,
+			category
+		);
+	}
 };
 
 enum VertexAttributeUsageCategory
@@ -40,7 +53,7 @@ enum VertexAttributeUsageCategory
 	VertexAttributeUsageCategoryCustom,
 };
 
-struct VertexAttributeInfo {
+struct VertexAttributeInfo : public IDeserializable {
 	// Name of this vertex attribute.
 	std::string name;
 	// Data type.
@@ -53,6 +66,19 @@ struct VertexAttributeInfo {
 	int format;
 	// The usage category for this vertex attribute.
 	VertexAttributeUsageCategory category;
+
+	std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
+	{
+		return archive.RegisterObjectsForDeserialization<std::string&, shader::ShaderDataType&, int&, int&, int&, VertexAttributeUsageCategory&>(
+			xml_node,
+			name,
+			data_type,
+			location,
+			dimension,
+			format,
+			category
+		);
+	}
 };
 
 struct PipelineLifecycleEventsListener {

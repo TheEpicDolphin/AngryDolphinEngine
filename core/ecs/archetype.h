@@ -19,7 +19,7 @@ namespace ecs {
 	{
 	public:
 
-		Archetype() = delete;
+		Archetype() = default;
 
 		Archetype(TypeInfo* component_type_info) {
 			component_type_info_ = component_type_info;

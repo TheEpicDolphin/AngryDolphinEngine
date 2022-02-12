@@ -132,7 +132,7 @@ public:
 			const std::vector<ArchiveDesPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_id_to_des_pointer_nodes_map_.erase(object_id);
 			for (ArchiveDesPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(xml_doc_, &object, object_id);
+				pointer_listener->DidRegisterPointee(&object, object_id);
 			}
 		}
 
@@ -152,7 +152,7 @@ public:
 
 		void* pointee_object = ObjectForId(pointee_id);
 		if (pointee_object) {
-			pointer_node->DidRegisterPointee(xml_doc_, objects_[pointee_id], pointee_id);
+			pointer_node->DidRegisterPointee(objects_[pointee_id], pointee_id);
 		}
 		else {
 			// The object pointed to by object_ptr has not been registered yet.
@@ -170,7 +170,7 @@ public:
 			const std::vector<ArchiveDesPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_id_to_des_pointer_nodes_map_.erase(pointer_id);
 			for (ArchiveDesPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(xml_doc_, &object_ptr, pointer_id);
+				pointer_listener->DidRegisterPointee(&object_ptr, pointer_id);
 			}
 		}
 
@@ -193,7 +193,7 @@ public:
 	}
 
 	template<typename T>
-	void DeserializeHumanReadable(std::istream& xml_istream, const char* name, T& root_object)
+	void DeserializeHumanReadable(std::istream& xml_istream, T& root_object)
 	{
 		std::vector<char> buffer((std::istreambuf_iterator<char>(xml_istream)), std::istreambuf_iterator<char>());
 		buffer.push_back('\0');
@@ -201,7 +201,7 @@ public:
 
 		des_nodes_ = { nullptr };
 		objects_ = { nullptr };
-		DeserializeHumanReadableFromNodeBFS(xml_doc_, xml_doc_.first_node(), RegisterObjectForDeserialization(*xml_doc_.first_node(), root_object));
+		DeserializeHumanReadableFromNodeBFS(xml_doc_.first_node(), RegisterObjectForDeserialization(*xml_doc_.first_node(), root_object));
 		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.last_node("dynamic_memory");
 		rapidxml::xml_node<>* dynamic_memory_child_xml_node = dynamic_memory_xml_node->first_node();
 		while (!pointee_id_to_des_pointer_nodes_map_.empty()) {
@@ -212,7 +212,7 @@ public:
 			ArchiveDesNodeBase* pointee_node = dynamic_memory_pointer_node->PointeeNode(*this, *dynamic_memory_child_xml_node);
 			// Calling PointeeNode should have removed this dynamically-allocated node from pointee_to_pointer_node_map_.
 			assert(pointee_id_to_des_pointer_nodes_map_.find(object_id) == pointee_id_to_des_pointer_nodes_map_.end());
-			DeserializeHumanReadableFromNodeBFS(xml_doc_, dynamic_memory_child_xml_node, pointee_node);
+			DeserializeHumanReadableFromNodeBFS(dynamic_memory_child_xml_node, pointee_node);
 			dynamic_memory_child_xml_node = dynamic_memory_child_xml_node->next_sibling();
 		}
 
@@ -226,6 +226,28 @@ public:
 		des_nodes_.clear();
 		objects_.clear();
 		xml_doc_.clear();
+	}
+
+	// Assumes no dynamically allocated objects within root_object.
+	template<typename T>
+	void DeserializeHumanReadable(rapidxml::xml_node<>& root_node, T& root_object)
+	{
+		pointee_id_to_des_pointer_nodes_map_ = {};
+		des_nodes_ = { nullptr };
+		objects_ = { nullptr };
+
+		DeserializeHumanReadableFromNodeBFS(&root_node, RegisterObjectForDeserialization(root_node, root_object));
+
+		// We must do this in reverse to ensure that dependencies are constructed before their parents are.
+		for (std::vector<ArchiveDesNodeBase*>::reverse_iterator it = des_nodes_.rbegin(); it != std::prev(des_nodes_.rend()); ++it) {
+			ArchiveDesNodeBase* node = *it;
+			node->ConstructFromDeserializedDependencies();
+			delete node;
+		}
+
+		pointee_id_to_des_pointer_nodes_map_.clear();
+		des_nodes_.clear();
+		objects_.clear();
 	}
 
 private:
@@ -307,7 +329,7 @@ private:
 		}
 	}
 	
-	void DeserializeHumanReadableFromNodeBFS(rapidxml::xml_document<>& xml_doc, rapidxml::xml_node<>* root_xml_node, ArchiveDesNodeBase* root_node)
+	void DeserializeHumanReadableFromNodeBFS(rapidxml::xml_node<>* root_xml_node, ArchiveDesNodeBase* root_node)
 	{
 		std::vector<ArchiveDesNodeBase*> bfs_nodes;
 		std::queue<ArchiveDesNodeBase*> bfs_queue;

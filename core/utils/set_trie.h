@@ -23,7 +23,7 @@ public:
 		root_node_.has_value = false;
 	}
 
-	std::vector<TValue *> GetValuesInOrder()
+	std::vector<TValue*> GetValuesInOrder()
 	{
 		return FindSuperKeySetValues({});
 	}
@@ -37,8 +37,8 @@ public:
 
 	*/
 
-	std::vector<TValue *> FindSuperKeySetValues(const std::vector<TKey>& key_set) {
-		std::vector<TValue *> supersets;
+	std::vector<TValue*> FindSuperKeySetValues(const std::vector<TKey>& key_set) {
+		std::vector<TValue*> supersets;
 		std::size_t index = 0;
 		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
 		stack.push(std::make_pair(&root_node_, root_node_.children.begin()));
@@ -99,7 +99,7 @@ public:
 
 	void RemoveValueForKeySet(const std::vector<TKey>& key_set) {
 		std::size_t index = 0;
-		std::stack<SetTrieNode *> stack;
+		std::stack<SetTrieNode*> stack;
 		stack.push(&root_node_);
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top()->children.find(key_set[index]);

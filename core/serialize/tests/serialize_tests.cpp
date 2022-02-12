@@ -21,7 +21,7 @@ TEST(serialize_test_suite, serialize_simple_class_no_pointers_test)
     SimpleClass sc2;
     std::ifstream xmlifile;
     xmlifile.open("serialize_simple_class_no_pointers_test.xml", std::ios::in);
-    archive.DeserializeHumanReadable(xmlifile, "SimpleClass", sc2);
+    archive.DeserializeHumanReadable(xmlifile, sc2);
     xmlifile.close();
 
     ASSERT_EQ(sc, sc2);
@@ -40,7 +40,7 @@ TEST(serialize_test_suite, serialize_parent_class_no_pointers_test)
     ParentClass pc2;
     std::ifstream xmlifile;
     xmlifile.open("serialize_parent_class_no_pointers_test.xml", std::ios::in);
-    archive.DeserializeHumanReadable(xmlifile, "ParentClass", pc2);
+    archive.DeserializeHumanReadable(xmlifile, pc2);
     xmlifile.close();
     
     ASSERT_EQ(pc, pc2);
@@ -68,7 +68,7 @@ TEST(serialize_test_suite, serialize_cyclical_pointer_test)
     C c2(A(), B(), 'd');
     std::ifstream xmlifile;
     xmlifile.open("serialize_cyclical_pointer_test.xml", std::ios::in);
-    archive.DeserializeHumanReadable(xmlifile, "c", c2);
+    archive.DeserializeHumanReadable(xmlifile, c2);
     xmlifile.close();
 
     ASSERT_EQ(c, c2);

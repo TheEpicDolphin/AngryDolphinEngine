@@ -41,7 +41,7 @@ namespace ecs {
 			if (entity_archetype_map_[entity_id.index] != nullptr) {
 				// The entity currently belongs to an archetype. This archetype will be
 				// referred to as the "previous_archetype"
-				Archetype *previous_archetype = entity_archetype_map_[entity_id];
+				Archetype *previous_archetype = entity_archetype_map_[entity_id.index];
 				if (std::find(previous_archetype->ComponentTypes().begin(),
 					previous_archetype->ComponentTypes().end(),
 					added_component_type) != previous_archetype->ComponentTypes().end())
@@ -67,7 +67,7 @@ namespace ecs {
 				if (!existing_archetype) {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
-					existing_archetype = previous_archetype->EmptyWithAddedComponentType<T>();
+					existing_archetype = previous_archetype->EmptyWithAddedComponentType<T>(&component_type_info_);
 					archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
 				}
 
@@ -91,7 +91,7 @@ namespace ecs {
 				}
 				else {
 					// Create new archetype for entity.
-					Archetype* new_archetype = Archetype::ArchetypeWithComponentTypes<T>(component_type_info_);
+					Archetype* new_archetype = Archetype::ArchetypeWithComponentTypes<T>(&component_type_info_);
 					new_archetype->AddEntity<T>(entity_id, component);
 					archetype_set_trie_.InsertValueForKeySet(*new_archetype, new_archetype->ComponentTypes());
 					entity_archetype_map_[entity_id.index] = new_archetype;
@@ -139,7 +139,7 @@ namespace ecs {
 					if (!existing_archetype) {
 						// No archetype exists for the entity's new set of component types. Create
 						// new archetype.
-						existing_archetype = previous_archetype->EmptyWithRemovedComponentType<T>();
+						existing_archetype = previous_archetype->EmptyWithRemovedComponentType<T>(&component_type_info_);
 						archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
 					}
 
@@ -173,9 +173,9 @@ namespace ecs {
 		}
 
 		template<class... Ts>
-		void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block) const
+		void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block)
 		{
-			std::vector<Archetype *> archetypes = GetArchetypesWithComponents<Ts...>();
+			std::vector<Archetype*> archetypes = GetArchetypesWithComponents<Ts...>();
 			for (Archetype *archetype : archetypes) {
 				archetype->EnumerateComponentsWithBlock<Ts...>(block);
 			}

@@ -7,6 +7,7 @@ target_link_libraries(graphics PUBLIC glm::glm)
 target_link_libraries(graphics PUBLIC ecs)
 target_link_libraries(graphics PUBLIC glfw)
 #target_link_libraries(graphics PUBLIC rapidjson)
+target_link_libraries(graphics PUBLIC serialize)
 target_link_libraries(graphics PUBLIC utils)
 target_link_libraries(graphics PUBLIC geometry)
 

@@ -59,7 +59,6 @@ class ComponentArrayBase
 			if (index >= components_.size()) {
 				throw std::runtime_error("ComponentArray index out of range.");
 			}
-			T component = components_[index];
 			if (index < components_.size() - 1) {
 				components_[index] = components_.back();
 			}

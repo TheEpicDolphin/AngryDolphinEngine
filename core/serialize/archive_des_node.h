@@ -7,6 +7,10 @@
 #include "rapidxml.hpp"
 #include "rapidxml_print.hpp"
 
+#include "serdes_utils.h"
+
+using namespace serialize;
+
 class Archive;
 
 class ArchiveDesNodeBase {
@@ -30,7 +34,7 @@ public:
 
 	virtual void ConstructFromDeserializedDependencies() {}
 
-	virtual std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) = 0;
+	virtual std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) { return {}; };
 
 protected:
 	std::size_t id_;
@@ -44,17 +48,7 @@ public:
 		: ArchiveDesNodeBase(id, name)
 		, object_(object) 
 	{
-		throw std::runtime_error("Archive deserialization object node is not implemented for type: ", typeid(T).name());
-	}
-
-	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
-	{
-		
-	}
-
-	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
-	{
-		return {};
+		static_assert(false, "Archive deserialization object node is not implemented for this type.");
 	}
 
 private:
@@ -71,14 +65,26 @@ public:
 	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
 	{
 		ArchiveDesNodeBase::DeserializeHumanReadable(xml_node);
-		std::stringstream tmp_ss;
-		tmp_ss << xml_node.value();
-		tmp_ss >> object_;
+		serialize::DeserializeArithmeticFromString(object_, xml_node.value());
 	}
 
-	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
+private:
+	T& object_;
+};
+
+template<typename T>
+class ArchiveDesObjectNode<T, typename std::enable_if<std::is_enum<T>::value>::type> : ArchiveDesNodeBase {
+public:
+	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+		: ArchiveDesNodeBase(id, name)
+		, object_(object) {}
+
+	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
 	{
-		return {};
+		ArchiveDesNodeBase::DeserializeHumanReadable(xml_node);
+		int object_enum_value;
+		serialize::DeserializeArithmeticFromString(object_enum_value, xml_node.value());
+		object_ = (T)object_enum_value;
 	}
 
 private:
@@ -120,11 +126,6 @@ public:
 		obj_string_ = std::string(xml_node.value());
 	}
 
-	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
-	{
-		return {};
-	}
-
 private:
 	std::string& obj_string_;
 };
@@ -139,17 +140,8 @@ public:
 	void DeserializeHumanReadable(rapidxml::xml_node<>& xml_node) override
 	{
 		std::size_t count;
-
-		std::stringstream tmp_ss;
-		tmp_ss << xml_node.last_attribute("count")->value();
-		tmp_ss >> count;
-
+		DeserializeArithmeticFromString(count, xml_node.last_attribute("count")->value());
 		obj_vector_.resize(count);
-	}
-
-	void ConstructFromDeserializedDependencies() override
-	{
-		// no-op
 	}
 
 	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
@@ -281,12 +273,7 @@ public:
 		pointee_id_ = pointee_id;
 	}
 
-	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
-	{
-		return {};
-	}
-
-	virtual void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::size_t pointee_id) = 0;
+	virtual void DidRegisterPointee(void* ptr, std::size_t pointee_id) = 0;
 
 	virtual void DynamicallyAllocateObject(rapidxml::xml_node<>& xml_node) = 0;
 
@@ -325,7 +312,7 @@ public:
 		: ArchiveDesPointerNodeBase(id, name, pointee_id)
 		, object_ptr_(object_ptr) {}
 
-	void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::size_t pointee_id) override
+	void DidRegisterPointee(void* ptr, std::size_t pointee_id) override
 	{
 		object_ptr_ = static_cast<T*>(ptr);
 		pointee_id_ = pointee_id;

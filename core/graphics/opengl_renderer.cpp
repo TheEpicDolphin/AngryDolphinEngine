@@ -63,6 +63,10 @@ void OpenGLRenderer::Initialize(int width, int height)
 
 void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) {
 	// This will avoid having any lags during rendering.
+	if (pipeline_state_map_.find(pipeline->GetInstanceID()) != pipeline_state_map_.end()) {
+		// This pipeline was already preloaded.
+		return;
+	}
 	pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
 	pipeline->AddLifecycleEventsListener(this);
 }
