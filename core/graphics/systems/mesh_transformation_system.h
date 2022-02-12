@@ -39,4 +39,6 @@ private:
 	// EntityLifecycleEventsListener
 	void EntityDidDestroy(ecs::EntityID entity_id) override;
 	void EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) override;
+
+	void RemoveEntityFromMeshToEntitiesMapping(ecs::EntityID entity, MeshID mesh);
 };

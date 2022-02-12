@@ -48,6 +48,7 @@ public:
 	ecs::EntityID CreateEntity() override {
 		ecs::EntityID entity_id = scene_graph_.CreateEntity();
 		registry_.RegisterEntity(entity_id);
+		return entity_id;
 	}
 
 	void DestroyEntity(ecs::EntityID entity_id) override {

@@ -14,29 +14,25 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, IS
 		if (mesh_rend.enabled && mesh_rend.mesh) {
 			std::shared_ptr<Mesh> mesh = mesh_rend.mesh;
 			const MeshID mesh_id = mesh->GetInstanceID();
-			std::unordered_map<ecs::EntityIndex, MeshTransformationState>::iterator mesh_trans_state_iter = entity_mesh_trans_state_map_.find(entity_id.index);
-			bool calculate_mesh_bounds = false;
-			if (mesh_trans_state_iter != entity_mesh_trans_state_map_.end()) {
-				if (mesh_id != mesh_trans_state_iter->second.mesh_id) {
-					// This entity has changed meshes since the last update
-					calculate_mesh_bounds = true;
 
-					// TODO: Make function to avoid copying this code around
-					std::vector<ecs::EntityID>& entities_with_same_mesh = mesh_to_entities_map_[mesh_trans_state_iter->second.mesh_id];
-					// Erase entity_id from vector
-					entities_with_same_mesh.erase(
-						std::remove(entities_with_same_mesh.begin(), entities_with_same_mesh.end(), entity_id),
-						entities_with_same_mesh.end()
-					);
+			bool calculate_mesh_bounds;
+			std::unordered_map<ecs::EntityIndex, MeshTransformationState>::iterator mesh_trans_state_iter = entity_mesh_trans_state_map_.find(entity_id.index);
+			if (mesh_trans_state_iter != entity_mesh_trans_state_map_.end()) {
+				const MeshID previous_mesh_id = mesh_trans_state_iter->second.mesh_id;
+				const bool did_entity_change_meshes = mesh_id != previous_mesh_id;
+				if (did_entity_change_meshes) {
+					// This entity has changed meshes since the last update
+					RemoveEntityFromMeshToEntitiesMapping(entity_id, previous_mesh_id);
 				}
 
-				calculate_mesh_bounds |= mesh_trans_state_iter->second.is_stale;
+				calculate_mesh_bounds = did_entity_change_meshes || mesh_trans_state_iter->second.is_stale;
 			}
 			else {
+				// We are processing this meshrenderable entity for the first time.
 				calculate_mesh_bounds = true;
 			}
 
-			// Update mesh to entities mapping.
+			// Update mesh -> entities mapping.
 			std::unordered_map<MeshID, std::vector<ecs::EntityID>>::iterator mesh_entities_iter = mesh_to_entities_map_.find(mesh_id);
 			if (mesh_entities_iter != mesh_to_entities_map_.end()) {
 				mesh_entities_iter->second.push_back(entity_id);
@@ -46,7 +42,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, IS
 				mesh->AddLifecycleEventsListener(this);
 			}
 
-			// TODO: Calculate mesh bounds in world
+			// Calculate the mesh bounds in world space
 			if (calculate_mesh_bounds && mesh_rend.mesh->GetVertexPositions().size() > 0) {
 				const std::vector<glm::vec3>& local_vert_positions = mesh_rend.mesh->GetVertexPositions();
 				glm::mat4 entity_transform = scene.TransformGraph().GetWorldTransform(entity_id);
@@ -68,9 +64,13 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, IS
 	scene.ComponentRegistry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 }
 
+inline bool DidMeshVertexPositionsChange(Mesh* mesh, std::size_t attribute_index) {
+	return mesh->GetPipeline()->VertexAttributeInfoAtIndex(attribute_index).category == VertexAttributeUsageCategoryPosition;
+}
+
 // MeshLifecycleEventsListener
 void MeshTransformationSystem::MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) {
-	if (mesh->GetPipeline()->VertexAttributeInfoAtIndex(attribute_index).category == VertexAttributeUsageCategoryPosition) {
+	if (DidMeshVertexPositionsChange(mesh, attribute_index)) {
 		// Mesh vertex position(s) were changed.
 		std::vector<ecs::EntityID>& entities = mesh_to_entities_map_[mesh->GetInstanceID()];
 		for (ecs::EntityID entity : entities) {
@@ -88,20 +88,26 @@ void MeshTransformationSystem::EntityDidDestroy(ecs::EntityID entity_id) {
 	const MeshID mesh_id = entity_mesh_trans_state_map_[entity_id.index].mesh_id;
 	entity_mesh_trans_state_map_.erase(entity_id.index);
 
-	std::vector<ecs::EntityID>& entities_with_same_mesh = mesh_to_entities_map_[mesh_id];
-
-	// Erase entity_id from vector
-	entities_with_same_mesh.erase(
-		std::remove(entities_with_same_mesh.begin(), entities_with_same_mesh.end(), entity_id), 
-		entities_with_same_mesh.end()
-	);
-
-	if (entities_with_same_mesh.empty()) {
-		// No more entities with this mesh. Erase the mesh key.
-		mesh_to_entities_map_.erase(mesh_id);
-	}
+	RemoveEntityFromMeshToEntitiesMapping(entity_id, mesh_id);
 }
 
 void MeshTransformationSystem::EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) {
 	entity_mesh_trans_state_map_[entity_id.index].is_stale = true;
+}
+
+void MeshTransformationSystem::RemoveEntityFromMeshToEntitiesMapping(ecs::EntityID entity_id, MeshID mesh_id) {
+	if (mesh_to_entities_map_.find(mesh_id) != mesh_to_entities_map_.end()) {
+		std::vector<ecs::EntityID>& entities_with_same_mesh = mesh_to_entities_map_[mesh_id];
+
+		// Erase entity_id from vector
+		entities_with_same_mesh.erase(
+			std::remove(entities_with_same_mesh.begin(), entities_with_same_mesh.end(), entity_id),
+			entities_with_same_mesh.end()
+		);
+
+		if (entities_with_same_mesh.empty()) {
+			// No more entities with this mesh. Erase the mesh key.
+			mesh_to_entities_map_.erase(mesh_id);
+		}
+	}
 }

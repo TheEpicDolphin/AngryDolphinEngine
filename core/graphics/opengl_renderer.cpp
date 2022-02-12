@@ -332,7 +332,7 @@ OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
 }
 
 OpenGLRenderer::MaterialState OpenGLRenderer::CreateMaterialState(Material* mat) {
-
+	return { mat };
 }
 
 // PipelineLifecycleEventsListener

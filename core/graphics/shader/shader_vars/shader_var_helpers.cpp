@@ -5,40 +5,8 @@
 
 using namespace shader;
 
-const std::vector<char> ValueData(float& f)
-{
-	const std::vector<char> data(sizeof(f));
-	std::vector<char>::insert(data.begin(), sizeof(f), f);
-	return data;
-}
-
-const std::vector<char> ValueData(something_shader::CustomStruct& cs)
-{
-	return;
-}
-
-const std::vector<char> ValueArrayData(float f[]) 
-{
-
-}
-
-const std::vector<char> ValueArrayData(something_shader::CustomStruct cs[]) 
-{
-
-}
-
 ShaderDataType TypeID(float& f) { return ShaderDataTypeFloat; }
 ShaderDataType TypeID(something_shader::CustomStruct& cs) { return ShaderDataTypeSomethingShaderCustomStruct; }
-
-void MakeValue(float* f, std::vector<char> data) 
-{
-
-}
-
-void MakeValue(something_shader::CustomStruct* cs, std::vector<char> data) 
-{
-
-}
 
 void shader::opengl::SetUniform(ShaderDataType type, int location, int array_length, const char* value_ptr)
 {

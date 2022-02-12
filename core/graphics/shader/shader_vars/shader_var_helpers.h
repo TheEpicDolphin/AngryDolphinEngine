@@ -6,28 +6,41 @@
 #include "something_shader/vars.h"
 #include "shader_data_type.h"
 
-#define VERTEX_ATTRIBUTE_POSITION_NAME "_position"
-#define VERTEX_ATTRIBUTE_NORMAL_NAME "_normal"
-#define VERTEX_ATTRIBUTE_TEX_COORDS_NAME "_texCoords"
-#define VERTEX_ATTRIBUTE_BONE_WEIGHTS_NAME "_boneWeights"
-#define VERTEX_ATTRIBUTE_BONE_INDICES_NAME "_boneIndices"
-
 namespace shader{
 
 	const std::size_t index_not_found = -1;
 
 	/* Used for converting Uniform values to/from data */
-	const std::vector<char> ValueData(float& f);
-	const std::vector<char> ValueData(something_shader::CustomStruct& cs);
-	const std::vector<char> ValueArrayData(float f[]);
-	const std::vector<char> ValueArrayData(something_shader::CustomStruct cs[]);
 
-	void MakeValue(float* f, std::vector<char> data);
-	void MakeValue(something_shader::CustomStruct* cs, std::vector<char> data);
+	template<typename T>
+	std::vector<char> ValueData(T& value) {
+		char* value_data_ptr = reinterpret_cast<char*>(&value);
+		const std::vector<char> value_data(value_data_ptr, value_data_ptr + sizeof(T));
+		return value_data;
+	}
+
+	template<typename T>
+	std::vector<char> ValueArrayData(T& value[]) {
+		char* value_data_ptr = reinterpret_cast<char*>(&value);
+		const std::vector<char> value_data(value_data_ptr, value_data_ptr + sizeof(T));
+		return value_data;
+	}
+
+	template<typename T>
+	void MakeValue(T* value, std::vector<char>& data) {
+		int value;
+		assert(sizeof(T) == data.size());
+		std::memcpy(&value, data.data(), sizeof(T));
+	}
 
 	/* Used for converting Vertex Attributes buffers to data */
-	const std::vector<char> BufferData(std::vector<float>& float_buffer);
-	const std::vector<char> BufferData(std::vector<glm::vec3>& vec3_buffer);
+
+	template<typename T>
+	std::vector<char> BufferData(std::vector<T>& buffer) {
+		char* buffer_data_ptr = reinterpret_cast<char*>(buffer.data());
+		const std::vector<char> buffer_data(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
+		return buffer_data;
+	}
 
 	ShaderDataType TypeID(float& f);
 	ShaderDataType TypeID(something_shader::CustomStruct& cs);
