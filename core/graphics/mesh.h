@@ -96,8 +96,7 @@ public:
 			return;
 		}
 
-		const std::vector<char> buffer_data = shader::BufferData(buffer);
-		vabuffer.data = buffer_data;
+		vabuffer.data = shader::DataFromBuffer(buffer);
 
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, index);
 	}
@@ -130,10 +129,7 @@ private:
 	template<typename T>
 	void SetVertexAttributeBufferWithCachedIndex(int cached_va_index, std::vector<T> buffer)
 	{
-		char* buffer_data_ptr = reinterpret_cast<char*>(buffer.data());
-		const std::vector<char> buffer_data(buffer_data_ptr, buffer_data_ptr + (buffer.size() * sizeof(T)));
-		vertex_attribute_buffers_[cached_va_index].data = buffer_data;
-
+		vertex_attribute_buffers_[cached_va_index].data = shader::DataFromBuffer(buffer);
 		lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshVertexAttributeDidChange, this, cached_va_index);
 	}
 
@@ -141,8 +137,6 @@ private:
 	template<typename T>
 	std::vector<T> GetVertexAttributeBufferForCachedIndex(int cached_va_index) {
 		VertexAttributeBuffer& va_buffer = vertex_attribute_buffers_[cached_va_index];
-		T* buffer_data_ptr = reinterpret_cast<T*>(va_buffer.data.data());
-		const std::vector<T> buffer(buffer_data_ptr, buffer_data_ptr + (va_buffer.data.size() / sizeof(T)));
-		return buffer;
+		return shader::BufferFromData<T>(va_buffer.data);
 	}
 };

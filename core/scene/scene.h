@@ -9,6 +9,8 @@
 
 class IScene {
 public:
+	virtual const char* Name() = 0;
+
 	virtual void DidLoad() = 0;
 
 	virtual void DidUnload() = 0;
@@ -33,9 +35,11 @@ class SceneBase : public IScene//, public ISerializable, public IDeserializable
 public:
 	SceneBase() = delete;
 
-	SceneBase(IRenderer* renderer) {
+	SceneBase(const char* name, IRenderer* renderer) : name_(name) {
 		renderer_ = renderer;
 	}
+
+	const char* Name() override { return name_; }
 
 	void DidLoad() override {};
 
@@ -69,6 +73,7 @@ public:
 	}
 
 private:
+	const char* name_;
 	SceneGraph scene_graph_;
 	ecs::Registry registry_;
 	IRenderer* renderer_;

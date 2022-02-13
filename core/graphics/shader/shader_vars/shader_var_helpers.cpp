@@ -5,10 +5,33 @@
 
 using namespace shader;
 
-ShaderDataType TypeID(float& f) { return ShaderDataTypeFloat; }
-ShaderDataType TypeID(something_shader::CustomStruct& cs) { return ShaderDataTypeSomethingShaderCustomStruct; }
+ShaderDataType shader::TypeID(float& f) { return ShaderDataTypeFloat; }
+ShaderDataType shader::TypeID(glm::vec2& v) { return ShaderDataTypeVector2f; }
+ShaderDataType shader::TypeID(glm::vec3& v) { return ShaderDataTypeVector3f; }
+ShaderDataType shader::TypeID(glm::vec4& v) { return ShaderDataTypeVector4f; }
+ShaderDataType shader::TypeID(int& i) { return ShaderDataTypeInt; }
+ShaderDataType shader::TypeID(glm::ivec2& iv) { return ShaderDataTypeVector2i; }
+ShaderDataType shader::TypeID(glm::ivec3& iv) { return ShaderDataTypeVector3i; }
+ShaderDataType shader::TypeID(glm::ivec4& iv) { return ShaderDataTypeVector4i; }
+ShaderDataType shader::TypeID(unsigned int& ui) { return ShaderDataTypeUInt; }
+ShaderDataType shader::TypeID(glm::uvec2& uv) { return ShaderDataTypeVector2ui; }
+ShaderDataType shader::TypeID(glm::uvec3& uv) { return ShaderDataTypeVector3ui; }
+ShaderDataType shader::TypeID(glm::uvec4& uv) { return ShaderDataTypeVector4ui; }
+ShaderDataType shader::TypeID(glm::mat2& m) { return ShaderDataTypeMatrix2f; }
+ShaderDataType shader::TypeID(glm::mat3& m) { return ShaderDataTypeMatrix3f; }
+ShaderDataType shader::TypeID(glm::mat4& m) { return ShaderDataTypeMatrix4f; }
+ShaderDataType shader::TypeID(glm::mat2x3& m) { return ShaderDataTypeMatrix2x3f; }
+ShaderDataType shader::TypeID(glm::mat3x2& m) { return ShaderDataTypeMatrix3x2f; }
+ShaderDataType shader::TypeID(glm::mat2x4& m) { return ShaderDataTypeMatrix2x4f; }
+ShaderDataType shader::TypeID(glm::mat4x2& m) { return ShaderDataTypeMatrix4x2f; }
+ShaderDataType shader::TypeID(glm::mat3x4& m) { return ShaderDataTypeMatrix3x4f; }
+ShaderDataType shader::TypeID(glm::mat4x3& m) { return ShaderDataTypeMatrix4x3f; }
 
-void shader::opengl::SetUniform(ShaderDataType type, int location, int array_length, const char* value_ptr)
+bool IsFundamentalGLSLType(ShaderDataType shader_data_type) {
+	return !(shader_data_type > ShaderDataTypeMatrix4x3f);
+}
+
+void opengl::SetUniform(ShaderDataType type, int location, int array_length, const char* value_ptr)
 {
 	switch (type)
 	{

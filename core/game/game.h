@@ -4,11 +4,10 @@
 #include <core/scene/scene_manager.h>
 
 class Game {
-
 public:
-	Game() {}
+	Game(RendererType renderer_type) : scene_manager_(renderer_type) {}
 
-	const SceneManager& SceneManager()
+	SceneManager& GetSceneManager()
 	{
 		return scene_manager_;
 	}

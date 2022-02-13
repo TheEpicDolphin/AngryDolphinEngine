@@ -8,7 +8,7 @@
 
 class SimpleScene : public SceneBase {
 public:
-	SimpleScene(IRenderer* renderer) : SceneBase(renderer) {}
+	SimpleScene(const char* name, IRenderer* renderer) : SceneBase(name, renderer) {}
 
 	void DidLoad() override {}
 

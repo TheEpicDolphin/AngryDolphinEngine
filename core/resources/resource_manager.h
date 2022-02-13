@@ -15,10 +15,8 @@ namespace resources {
 		/// Loads asset in resources folder.
 		/// </summary>
 		/// <param name="asset_path_name">Path of asset relative to the resources folder.</param>
-		/// <param name="expected_extension">Expected extension of asset filename. If it doesn't match, an error
-		/// is thrown.</param>
 		/// <returns>Asset file contents</returns>
-		static const std::vector<char>& LoadAsset(const char* asset_path_name, const char* expected_extension = "*");
+		static const std::vector<char>& LoadAsset(const char* asset_path_name);
 
 	private:
 		static std::unordered_map<std::string, AssetID> asset_id_map_;
