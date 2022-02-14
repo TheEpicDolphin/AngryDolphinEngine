@@ -11,7 +11,7 @@
 #include <core/serialize/deserializable.h>
 #include <core/serialize/archive.h>
 
-#include <config/engine_components.h>
+#include <config/core_components.h>
 
 #include "entity.h"
 #include "archetype.h"
@@ -28,9 +28,9 @@ namespace ecs {
 		Registry() 
 		{
 			// This maintains the type ids of components consistent across different compilations.
-	//#define REGISTER_COMPONENT(name) component_type_info_.GetTypeId<#name>();
-	//			REGISTERED_ENGINE_COMPONENTS
-	//#undef REGISTER_COMPONENT
+			#define REGISTER_COMPONENT(name) component_type_info_.GetTypeId<name>();
+				CORE_COMPONENTS
+			#undef REGISTER_COMPONENT
 		}
 
 		template<typename T>

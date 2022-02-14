@@ -10,6 +10,7 @@ target_link_libraries(graphics PUBLIC glfw)
 target_link_libraries(graphics PUBLIC serialize)
 target_link_libraries(graphics PUBLIC utils)
 target_link_libraries(graphics PUBLIC geometry)
+target_link_libraries(graphics PUBLIC resource_manager)
 
 set_target_properties(graphics PROPERTIES
     CXX_STANDARD 14

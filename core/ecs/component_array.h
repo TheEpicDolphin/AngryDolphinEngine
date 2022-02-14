@@ -2,16 +2,18 @@
 
 #include <stdexcept>
 #include <vector>
-#include <config/engine_components.h>
+#include <config/core_components.h>
 
 namespace ecs {
+	/*
 	enum ComponentArrayType
 	{
 #define REGISTER_COMPONENT(name) nameComponentArrayType,
-		REGISTERED_ENGINE_COMPONENTS
+		CORE_COMPONENTS
 		//REGISTERED_PROJECT_COMPONENTS
 #undef REGISTER_COMPONENT
 	};
+	*/
 
 class ComponentArrayBase
 	{
@@ -25,16 +27,20 @@ class ComponentArrayBase
 			return nullptr;
 		}
 
+		/*
 		ComponentArrayBase* DynamicallyAllocatedDerivedObject()//rapidxml::xml_node<>& xml_node)
 		{
-//			switch () {
-//#define REGISTER_COMPONENT(name) case nameComponentArrayType: \
-//				return new ComponentArray<name>();
-//				REGISTERED_ENGINE_COMPONENTS
-//#undef REGISTER_COMPONENT
-//			}
+			switch () {
+				#define REGISTER_COMPONENT(name) case nameComponentArrayType: \
+					return new ComponentArray<name>();
+					CORE_COMPONENTS
+					MODULES_COMPONENTS
+					GAME_COMPONENTS
+				#undef REGISTER_COMPONENT
+			}
 			return nullptr;
 		}
+		*/
 	};
 
 	template<class T>

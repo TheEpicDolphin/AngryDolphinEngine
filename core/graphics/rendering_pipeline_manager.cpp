@@ -3,7 +3,7 @@
 
 #include "rapidxml.hpp"
 
-#include <core/resources/resource_manager.h>
+#include <core/resource_manager/resource_manager.h>
 #include <core/serialize/archive.h>
 #include <core/serialize/serdes_utils.h>
 
@@ -17,7 +17,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipelineManager::RenderingPipelineFo
 		return iter->second;
 	}
 
-	std::vector<char> pipeline_asset = resources::ResourceManager::LoadAsset(resource_path, "rp");
+	std::vector<char> pipeline_asset = resource_manager::ResourceManager::LoadAsset(resource_path);
 
 	rapidxml::xml_document<> xml_doc;
 	xml_doc.parse<0>(pipeline_asset.data());
@@ -59,7 +59,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipelineManager::RenderingPipelineFo
 		}
 
 		char* shader_code_path = shader_stage_node->first_node("code_path")->value();
-		std::vector<char> code = resources::ResourceManager::LoadAsset(shader_code_path);
+		std::vector<char> code = resource_manager::ResourceManager::LoadAsset(shader_code_path);
 		stages.push_back(shader::Shader(stage_type, code));
 		shader_stage_node = shader_stage_node->next_sibling();
 	}

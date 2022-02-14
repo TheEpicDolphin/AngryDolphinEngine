@@ -1,8 +1,13 @@
-#ifndef CONFIG_H
-#define CONFIG_H
 
-#define PROJECT_DIRECTORY "C:/Users/giand/Development/project"
-#define ENGINE_RESOURCES_DIRECTORY ""
-#define GAME_RESOURCES_DIRECTORY "C:/Users/giand/Development/project/test_game/Resources"
+// TODO: Write python script that crawls through engine & game directories and finds all "resources" folders
+// and writes them into the array below. The modules subdirectory in angery_dolphin_engine may also have "resources"
+// folders in the future.
 
-#endif // CONFIG_H
+namespace config {
+	const char* project_resources_directories[] =
+	{
+		"C:/Users/giand/Development/project/angery_dolphin_engine/core/resources", // core resources
+	};
+}
+
+

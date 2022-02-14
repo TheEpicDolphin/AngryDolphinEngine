@@ -38,5 +38,8 @@ add_subdirectory(core)
 
 add_library(angery_dolphine_engine INTERFACE)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in.txt ${CMAKE_CURRENT_SOURCE_DIR}/config/generated/config.h)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/config/)
+
+# config
+add_subdirectory(config)
+target_include_directories(config PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
