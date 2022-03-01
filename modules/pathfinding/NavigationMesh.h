@@ -27,7 +27,7 @@ static const float kMaxSimplificationError = 1.3f;
 
 namespace pathfinding {
 
-enum Result {
+enum class Result {
 	kOk = 0,
 	kErrorKeyNotFound = -1,
 	kErrorOutOfMemory = -2,

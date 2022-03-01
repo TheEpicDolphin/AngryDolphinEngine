@@ -307,7 +307,7 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	  if (tileIter != tiles_.end()) {
 		  NavigationMeshTile& tile = tileIter->second;
 		  tile.intersectedGeometryEntityTris.erase(handle);
-		  const TileKey tileKey = keyForTileCoordinates(tile.coordinates);
+
 		  if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
 			  regenCandidateTiles_[tileKey] = { &tile, false };
 		  }
@@ -331,8 +331,7 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 		// we check for new geometry entity-tile intersections after the vertices 
 		// are transformed.
 		tile.intersectedGeometryEntityTris.erase(handle);
-	  
-		const TileKey tileKey = keyForTileCoordinates(tile.coordinates);
+
 		if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
 		  regenCandidateTiles_[tileKey] = { &tile, false };
 		}
@@ -740,7 +739,6 @@ NavigationMesh::TileNavMeshGenStatus NavigationMesh::buildTileNavigationMesh(Nav
   params.ch = tileConfig_.ch;
   params.buildBvTree = true;
   
-  unsigned char* navData = 0;
   if (!dtCreateNavMeshData(&params, &navMeshData, &navMeshDataSize)) {
 	recastContext_.log(RC_LOG_ERROR, "Failed to build Detour navmesh.");
 	return TileNavMeshGenStatus::BuildFailure;
@@ -776,4 +774,4 @@ Result NavigationMesh::findPath(const float* fromPoint, const float* toPoint, ui
   return Result::kOk;
 }
 
-} // namespace logging
+} // namespace pathfinding
