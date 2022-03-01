@@ -4,7 +4,7 @@ add_library (ecs ${SOURCES})
 
 target_link_libraries(ecs PUBLIC config)
 
-add_subdirectory(tests)
+#add_subdirectory(tests)
 
 set_target_properties(ecs PROPERTIES
     CXX_STANDARD 14

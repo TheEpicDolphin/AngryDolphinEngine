@@ -71,6 +71,6 @@ std::shared_ptr<RenderingPipeline> RenderingPipelineManager::RenderingPipelineFo
 }
 
 std::shared_ptr<RenderingPipeline> RenderingPipelineManager::CreateRenderingPipeline(RenderingPipelineInfo info) {
-	return std::make_shared<RenderingPipeline>(++next_pipeline_id_, info.shader_stages);
+	return std::make_shared<RenderingPipeline>(++next_pipeline_id_, info);
 }
 

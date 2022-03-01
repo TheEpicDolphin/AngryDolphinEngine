@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 #include <core/utils/uid_generator.h>
-#include <core/resources/resource_manager.h>
+//#include <core/resources/resource_manager.h>
 
 #include "material.h"
 

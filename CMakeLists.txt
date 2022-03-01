@@ -34,7 +34,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/googletest/googletest/
 add_subdirectory(3rd_party/rapidxml)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/rapidxml)
 
+# Recastnavigation
+add_subdirectory(3rd_party/recastnavigation)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/recastnavigation)
+
 add_subdirectory(core)
+
+add_subdirectory(modules)
 
 add_library(angery_dolphine_engine INTERFACE)
 

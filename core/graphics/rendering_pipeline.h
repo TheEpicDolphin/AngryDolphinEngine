@@ -99,6 +99,7 @@ struct RenderingPipelineInfo
 class RenderingPipeline 
 {
 public:
+	RenderingPipeline() {}
 	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info);
 
 	~RenderingPipeline();
