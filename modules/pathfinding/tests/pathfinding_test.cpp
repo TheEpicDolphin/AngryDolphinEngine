@@ -57,5 +57,47 @@ TEST(pathfinding_test_suite, creation_test)
             std::cout << "(" << removedTileRegenResults.tx << " ," << removedTileRegenResults.ty << ")" << std::endl;
         }
     });
+
+    float newTransform[16] = {
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        1, 0, 1, 1,
+    };
+    navigationMesh.setNavigationMeshGeometryEntityTransform(handle, newTransform);
+
+    navigationMesh.regenerateIfNeeded([](pathfinding::NavigationMeshRegenerationChangeset changeset) {
+        std::cout << "Finished regenerating" << std::endl;
+        std::cout << "Added:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults addedTileRegenResults : changeset.addedTiles) {
+            std::cout << "(" << addedTileRegenResults.tx << " ," << addedTileRegenResults.ty << ")" << std::endl;
+        }
+        std::cout << "Modifed:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults modifiedTileRegenResults: changeset.modifiedTiles) {
+            std::cout << "(" << modifiedTileRegenResults.tx << " ," << modifiedTileRegenResults.ty << ")" << std::endl;
+        }
+        std::cout << "Removed:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults removedTileRegenResults : changeset.removedTiles) {
+            std::cout << "(" << removedTileRegenResults.tx << " ," << removedTileRegenResults.ty << ")" << std::endl;
+        }
+    });
+
+    navigationMesh.unregisterNavigationMeshGeometryEntity(handle);
+
+    navigationMesh.regenerateIfNeeded([](pathfinding::NavigationMeshRegenerationChangeset changeset) {
+        std::cout << "Finished regenerating" << std::endl;
+        std::cout << "Added:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults addedTileRegenResults : changeset.addedTiles) {
+            std::cout << "(" << addedTileRegenResults.tx << " ," << addedTileRegenResults.ty << ")" << std::endl;
+        }
+        std::cout << "Modifed:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults modifiedTileRegenResults : changeset.modifiedTiles) {
+            std::cout << "(" << modifiedTileRegenResults.tx << " ," << modifiedTileRegenResults.ty << ")" << std::endl;
+        }
+        std::cout << "Removed:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults removedTileRegenResults : changeset.removedTiles) {
+            std::cout << "(" << removedTileRegenResults.tx << " ," << removedTileRegenResults.ty << ")" << std::endl;
+        }
+        });
 }
 

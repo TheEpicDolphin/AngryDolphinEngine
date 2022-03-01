@@ -220,9 +220,6 @@ Result NavigationMesh::initialize(
   tileConfig_.detailSampleDist = kDetailSampleDistance < 0.9f ? 0 : tileConfig_.cs * kDetailSampleDistance;
   tileConfig_.detailSampleMaxError = tileConfig_.ch * kDetailSampleMaxError;
 
-  std::cout << "tile size: " << tileConfig_.tileSize << std::endl;
-  std::cout << "cell size: " << tileConfig_.cs << std::endl;
-
   return Result::kOk;
 }
 
@@ -317,7 +314,7 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	  }
 	}
   }
-  
+
   // Phase 2: Process geometry entity geometry changes.
   for (auto iter = queuedSpatiallyChangedGeometryEntities_.begin(); iter != queuedSpatiallyChangedGeometryEntities_.end(); ++iter) {
 	const NavigationMeshGeometryEntityHandle handle = *iter;
@@ -350,13 +347,11 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	geometryEntity.transformedGeometryVertices.clear();
 	for (std::size_t i = 0; i < geometryEntity.geometry.vertices.size(); i+=3) {
 	  float vertex[3] = { geometryEntity.geometry.vertices[i], geometryEntity.geometry.vertices[i + 1], geometryEntity.geometry.vertices[i + 2] };
-	  //std::cout << "(" << vertex[0] << ", " << vertex[1] << ", " << vertex[2] << ")" << std::endl;
 	  float transformedVertex[3];
 	  TransformPoint(geometryEntity.transform, vertex, transformedVertex);
 	  geometryEntity.transformedGeometryVertices.push_back(transformedVertex[0]); // push_back x
 	  geometryEntity.transformedGeometryVertices.push_back(transformedVertex[1]); // push_back y
 	  geometryEntity.transformedGeometryVertices.push_back(transformedVertex[2]); // push_back z
-	  //std::cout << "(" << transformedVertex[0] << ", " << transformedVertex[1] << ", " << transformedVertex[2] << ")" << std::endl;
 	}
 	
 	// Find tiles affected by the geometry entity after its geometry is transformed.
@@ -421,6 +416,7 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
   std::vector<NavigationMeshTileRegenerationResults> addedTiles;
   std::vector<NavigationMeshTileRegenerationResults> modifiedTiles;
   std::vector<NavigationMeshTileRegenerationResults> removedTiles;
+  std::vector<TileKey> newlyCreatedFalsePositives;
 
   for (std::unordered_map<TileKey, RegenerationCandidateTile>::iterator regenCandidateTileIter = regenCandidateTiles_.begin(); 
 	  regenCandidateTileIter != regenCandidateTiles_.end(); 
@@ -429,13 +425,14 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	const bool isTileNewlyCreated = regenCandidateTileIter->second.isNewlyCreated;
 	NavigationMeshTile* regenCandidateTile = regenCandidateTileIter->second.tile;
 	
-	std::cout << "(" << regenCandidateTile->coordinates.tx << ", " << regenCandidateTile->coordinates.ty << ")" << std::endl;
-	
 	if (!regenCandidateTile->intersectedGeometryEntityTris.empty()) {
 	  // This tile potentially intersects with geometry entities.
 	  int navmeshDataSize = 0;
-	  unsigned char* navmeshData = buildTileNavigationMesh(regenCandidateTile, navmeshDataSize);
-	  if (navmeshData) {
+	  unsigned char* navmeshData;
+	  TileNavMeshGenStatus genStatus = buildTileNavigationMesh(regenCandidateTile, navmeshData, navmeshDataSize);
+
+	  switch (genStatus) {
+	  case TileNavMeshGenStatus::Success: {
 		// Clear old navigation mesh for this tile.
 		clearTileNavigationMesh(regenCandidateTile);
 
@@ -444,30 +441,37 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 		if (dtStatusFailed(status)) {
 		  // Free the navmesh data because we failed to add the tile's navigation mesh.
 		  dtFree(navmeshData);
-		} else {
-		  // This tile's navigation mesh was built successfully
+		}
+		else {
+		  // The tile's navigation mesh was successfully incorporated into the main navigation mesh.
 		  // 
 		  // Fetch vertices for this tile's generated navigation mesh.
 		  std::vector<float> polymeshVertices = tileNavigationMeshGeometry(*tilePolyMesh_);
 		  NavigationMeshTileRegenerationResults results = { regenCandidateTile->coordinates.tx, regenCandidateTile->coordinates.ty, polymeshVertices };
 		  if (isTileNewlyCreated) {
-			  addedTiles.push_back(results);
+			addedTiles.push_back(results);
 		  } else {
-			  modifiedTiles.push_back(results);
+			modifiedTiles.push_back(results);
 		  }
 		}
 	  }
-	  else {
-		  // This candidate tile was a false positive. It does not intersect any geometry entites.
-		  if (isTileNewlyCreated) {
-			  // If tile was newly created, delete it.
-			  tiles_.erase(regenCandidateTileKey);
-		  }
+		break;
+	  case TileNavMeshGenStatus::NoGeneration: {
+		// No navigation mesh was generated for this tile. It is a false positive.
+		if (isTileNewlyCreated) {
+		  // If tile was newly created, delete it.
+		  newlyCreatedFalsePositives.push_back(regenCandidateTileKey);
+		  tiles_.erase(regenCandidateTileKey);
+		}
+	  }
+		break;
+	  default:
+		// no-op. There was straight up an issue with this tile's navmesh generation.
+		break;
 	  }
 	} else {
-	  // This tile has no geometry intersecting it. Delete it. We dont have to worry about removing 
-	  // this tile from the intersectedTiles vector of intersected geometry entities because it wasn't 
-	  // intersecting any triangles of any geometry entities.
+	  // This tile has no geometry intersecting it. Delete it.
+	  // TODO: Assert that isTileNewlyCreated is false. 
 	  removedTiles.push_back({ regenCandidateTile->coordinates.tx, regenCandidateTile->coordinates.ty, {} });
 	  clearTileNavigationMesh(regenCandidateTile);
 	  tiles_.erase(regenCandidateTileKey);
@@ -485,6 +489,10 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 
   for (NavigationMeshTileRegenerationResults removedTileResults : removedTiles) {
 	  regenCandidateTiles_.erase(keyForTileCoordinates(removedTileResults.tx, removedTileResults.ty));
+  }
+
+  for (TileKey newlyCreatedFalsePositiveTileKey : newlyCreatedFalsePositives) {
+	  regenCandidateTiles_.erase(newlyCreatedFalsePositiveTileKey);
   }
   
   // Clear queued events.
@@ -538,7 +546,7 @@ void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
   recastNavMesh_->removeTile(recastNavMesh_->getTileRefAt(tile->coordinates.tx, tile->coordinates.ty, 0), 0, 0);
 }
 
-unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile, int& navDataSize) {
+NavigationMesh::TileNavMeshGenStatus NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile, unsigned char*& navMeshData, int& navMeshDataSize) {
   // Find axis aligned bounding box of the tile. 
   float tileAABBMin[3];
   float tileAABBMax[3];
@@ -570,12 +578,12 @@ unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
   if (!tileHeightfield_)
   {
   	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Out of memory for heightfield allocation for 'tileHeightfield_'.");
-  	return 0;
+	return TileNavMeshGenStatus::AllocationFailure;
   }
   if (!rcCreateHeightfield(&recastContext_, *tileHeightfield_, tileConfig_.width, tileConfig_.height, tileConfig_.bmin, tileConfig_.bmax, tileConfig_.cs, tileConfig_.ch))
   {
   	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to create solid heightfield.");
-  	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
   
   // Rasterize all intersecting geometry entities onto the tile.
@@ -612,7 +620,7 @@ unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
 
 	if (!success) {
 	  recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to rasterize triangles.");
-	  return 0;
+	  return TileNavMeshGenStatus::RasterizationFailure;
 	}
   }
   
@@ -629,11 +637,11 @@ unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
   tileCompactHeightfield_ = rcAllocCompactHeightfield();
   if (!tileCompactHeightfield_) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Out of memory for compact heightfield allocation for 'tileCompactHeightfield_'.");
-	return 0;
+	return TileNavMeshGenStatus::AllocationFailure;
   }
   if (!rcBuildCompactHeightfield(&recastContext_, tileConfig_.walkableHeight, tileConfig_.walkableClimb, *tileHeightfield_, *tileCompactHeightfield_)) {
 	  recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to build compact heightfield.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
 
   // Erode the walkable area by agent radius.
@@ -653,55 +661,55 @@ unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
   // Prepare for Watershed region partitioning by calculating distance field along the walkable surface.
   if (!rcBuildDistanceField(&recastContext_, *tileCompactHeightfield_)) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Could not build distance field.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
 
   // Partition the walkable surface into simple regions without holes.
   if (!rcBuildRegions(&recastContext_, *tileCompactHeightfield_, tileConfig_.borderSize, tileConfig_.minRegionArea, tileConfig_.mergeRegionArea)) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Could not build watershed regions.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
   
   // Create contours.
   tileContourSet_ = rcAllocContourSet();
   if (!tileContourSet_) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Out of memory for contour set allocation for 'tileContourSet_'.");
-	return 0;
+	return TileNavMeshGenStatus::AllocationFailure;
   }
   if (!rcBuildContours(&recastContext_, *tileCompactHeightfield_, tileConfig_.maxSimplificationError, tileConfig_.maxEdgeLen, *tileContourSet_)) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to create contours.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
 
   if (tileContourSet_->nconts == 0) {
 	// Zero contours were produce. Return early because no navmesh will be generated for this tile.
-	return 0;
+	return TileNavMeshGenStatus::NoGeneration;
   }
-  std::cout << "CONTOUR MADE" << std::endl;
+
   // Build polygon navmesh from the contours.
   tilePolyMesh_ = rcAllocPolyMesh();
   if (!tilePolyMesh_) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Out of memory for poly mesh allocation for 'tilePolyMesh_'.");
-	return 0;
+	return TileNavMeshGenStatus::AllocationFailure;
   }
   
   if (!rcBuildPolyMesh(&recastContext_, *tileContourSet_, tileConfig_.maxVertsPerPoly, *tilePolyMesh_)) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to triangulate contours.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
 
   // Build detail mesh.
   tilePolyMeshDetail_ = rcAllocPolyMeshDetail();
   if (!tilePolyMeshDetail_) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Out of memory for poly mesh detail allocation for 'tilePolyMeshDetail_'.");
-	return 0;
+	return TileNavMeshGenStatus::AllocationFailure;
   }
 	
   if (!rcBuildPolyMeshDetail(&recastContext_, *tilePolyMesh_, *tileCompactHeightfield_,
   						   tileConfig_.detailSampleDist, tileConfig_.detailSampleMaxError,
 							   *tilePolyMeshDetail_)) {
 	recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to build polymesh detail.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
   
   // Build the navmesh for this tile.
@@ -733,20 +741,20 @@ unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
   params.buildBvTree = true;
   
   unsigned char* navData = 0;
-  if (!dtCreateNavMeshData(&params, &navData, &navDataSize)) {
+  if (!dtCreateNavMeshData(&params, &navMeshData, &navMeshDataSize)) {
 	recastContext_.log(RC_LOG_ERROR, "Failed to build Detour navmesh.");
-	return 0;
+	return TileNavMeshGenStatus::BuildFailure;
   }
   
   recastContext_.stopTimer(RC_TIMER_TOTAL);
   float tileBuildTime = recastContext_.getAccumulatedTime(RC_TIMER_TOTAL)/1000.0f;
-  float tileMemoryUsage = navDataSize/1024.0f;
+  float tileMemoryUsage = navMeshDataSize /1024.0f;
   
   recastContext_.log(RC_LOG_PROGRESS, ">> Tile Build Time: %f sec", tileBuildTime);
   recastContext_.log(RC_LOG_PROGRESS, ">> Tile Memory Usage: %f KB", tileMemoryUsage);
   recastContext_.log(RC_LOG_PROGRESS, ">> Tile polymesh has: %d vertices and %d polygons", tilePolyMesh_->nverts, tilePolyMesh_->npolys);
 
-  return navData;
+  return TileNavMeshGenStatus::Success;
 }
 
 void NavigationMesh::CalculateTileAABB(NavigationMeshTile* tile, float* AABBMin, float* AABBMax) {

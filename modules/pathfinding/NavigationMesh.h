@@ -123,6 +123,17 @@ public:
 
 private:  
  
+  enum class TileNavMeshGenStatus {
+	AllocationFailure = -4,
+	BuildFailure = -3,
+	RasterizationFailure = -2,
+	ErosionFailure = -1,
+
+	Success = 0,
+
+	NoGeneration = 1,
+  };
+
   using TileKey = uint64_t;
 
   struct TileCoordinates {
@@ -160,7 +171,7 @@ private:
   NavigationMeshTile* tileForTileCoordinates(int32_t tx, int32_t ty);
   NavigationMeshTile* createTileAtCoordinates(int32_t tx, int32_t ty);
   void clearTileNavigationMesh(NavigationMeshTile* tile);
-  unsigned char* buildTileNavigationMesh(NavigationMeshTile* tile, int& navDataSize);
+  TileNavMeshGenStatus buildTileNavigationMesh(NavigationMeshTile* tile, unsigned char*& navMeshData, int& navMeshDataSize);
   void CalculateTileAABB(NavigationMeshTile* tile, float* AABBMin, float* AABBMax);
 
   std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity> geometryEntities_;
