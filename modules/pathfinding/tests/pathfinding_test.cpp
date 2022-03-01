@@ -42,11 +42,19 @@ TEST(pathfinding_test_suite, creation_test)
     navigationMesh.registerNavigationMeshGeometryEntity(transform, indices, 2, vertices, 4, handle);
     std::cout << "Registered geometry entity with handle: " << handle << std::endl;
 
-    navigationMesh.regenerateIfNeeded([](std::vector<pathfinding::TileRegenerationResults> tileResults) {
+    navigationMesh.regenerateIfNeeded([](pathfinding::NavigationMeshRegenerationChangeset changeset) {
         std::cout << "Finished regenerating" << std::endl;
-        for (pathfinding::TileRegenerationResults tileResult : tileResults) {
-            std::cout << "(" << tileResult.tx << " ," << tileResult.ty << ")" << std::endl;
-
+        std::cout << "Added:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults addedTileRegenResults : changeset.addedTiles) {
+            std::cout << "(" << addedTileRegenResults.tx << " ," << addedTileRegenResults.ty << ")" << std::endl;
+        }
+        std::cout << "Modifed:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults modifiedTileRegenResults: changeset.modifiedTiles) {
+            std::cout << "(" << modifiedTileRegenResults.tx << " ," << modifiedTileRegenResults.ty << ")" << std::endl;
+        }
+        std::cout << "Removed:" << std::endl;
+        for (pathfinding::NavigationMeshTileRegenerationResults removedTileRegenResults : changeset.removedTiles) {
+            std::cout << "(" << removedTileRegenResults.tx << " ," << removedTileRegenResults.ty << ")" << std::endl;
         }
     });
 }

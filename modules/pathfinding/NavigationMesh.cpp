@@ -7,6 +7,7 @@
 #include <Detour/Include/DetourNavMeshBuilder.h>
 
 #include <iostream>
+#include <set>
 
 namespace pathfinding {
 
@@ -250,7 +251,7 @@ Result NavigationMesh::unregisterNavigationMeshGeometryEntity(NavigationMeshGeom
 	queuedSpatiallyChangedGeometryEntities_.erase(handle);
 	
 	NavigationMeshGeometryEntity& geometryEntity = geometryEntities_[handle];
-	queuedUnregisteredGeometryEntities_.insert({ handle, geometryEntity.intersectedTiles });
+	queuedUnregisteredGeometryEntities_.insert({ handle, geometryEntity.intersectionCandidateTiles });
 	geometryEntities_.erase(handle);
 	
 	return Result::kOk;
@@ -300,15 +301,19 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
   // Phase 1: Process removed geometry entities
   for (auto iter = queuedUnregisteredGeometryEntities_.begin(); iter != queuedUnregisteredGeometryEntities_.end(); ++iter) {
 	const NavigationMeshGeometryEntityHandle handle = iter->first;
-	std::vector<NavigationMeshTile*>& previouslyIntersectedTiles = iter->second;
+	std::vector<TileKey>& previouslyIntersectedTiles = iter->second;
 	
 	// For each tile previously intersected by this geometry entity, remove this geometry entity's
-	// handle from its dictionary of intersections, and consider the tile as "affected".
-	for (NavigationMeshTile* tile : previouslyIntersectedTiles) {
-	  tile->intersectedGeometryEntityTris.erase(handle);
-	  const uint64_t tileKey = keyForTileCoordinates(tile->coordinates);
-	  if (dirtyTiles_.find(tileKey) == dirtyTiles_.end()) {
-		dirtyTiles_.insert({tileKey, tile});
+	// handle from its dictionary of intersections, and consider the tile "dirty".
+	for (TileKey tileKey : previouslyIntersectedTiles) {
+	  std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
+	  if (tileIter != tiles_.end()) {
+		  NavigationMeshTile& tile = tileIter->second;
+		  tile.intersectedGeometryEntityTris.erase(handle);
+		  const TileKey tileKey = keyForTileCoordinates(tile.coordinates);
+		  if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
+			  regenCandidateTiles_[tileKey] = { &tile, false };
+		  }
 	  }
 	}
   }
@@ -320,22 +325,26 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	
 	// Find tiles that were previously intersected by this geometry entity. They are likely
 	// affected by the spatial changes applied to this geometry entity.
-	for (NavigationMeshTile* tile : geometryEntity.intersectedTiles) {
-		
-	  // Assume that this geometry entity no longer intersects this tile.
-	  // If we are wrong, it will be corrected in the next step anyway, where 
-	  // we check for new geometry entity-tile intersections after the vertices 
-	  // are transformed.
-	  tile->intersectedGeometryEntityTris.erase(handle);
+	for (TileKey tileKey : geometryEntity.intersectionCandidateTiles) {
+	  std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
+	  if (tileIter != tiles_.end()) {
+		NavigationMeshTile& tile = tileIter->second;
+		// Assume that this geometry entity no longer intersects this tile.
+		// If we are wrong, it will be corrected in the next step anyway, where 
+		// we check for new geometry entity-tile intersections after the vertices 
+		// are transformed.
+		tile.intersectedGeometryEntityTris.erase(handle);
 	  
-	  const uint64_t tileKey = keyForTileCoordinates(tile->coordinates);
-	  if (dirtyTiles_.find(tileKey) == dirtyTiles_.end()) {
-		dirtyTiles_.insert({tileKey, tile});
+		const TileKey tileKey = keyForTileCoordinates(tile.coordinates);
+		if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
+		  regenCandidateTiles_[tileKey] = { &tile, false };
+		}
 	  }
+	  
 	}
 	
 	// Clear previously intersected tiles. We will calculate new ones.
-	geometryEntity.intersectedTiles.clear();
+	geometryEntity.intersectionCandidateTiles.clear();
 	
 	// Transform geometry verts to navigation mesh local space using new transform and/or new geometry.
 	geometryEntity.transformedGeometryVertices.clear();
@@ -381,7 +390,15 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	  // the false positives are later filtered out internally by Recast during the rasterization process.
 	  for (int32_t tx = minTileCoords.tx; tx <= maxTileCoords.tx; tx++) {
 		for (int32_t ty = minTileCoords.ty; ty <= maxTileCoords.ty; ty++) {
+			const TileKey tileKey = keyForTileCoordinates(tx, ty);
 			NavigationMeshTile* tile = tileForTileCoordinates(tx, ty);
+			if (!tile) {
+				// Create a new tile.
+				tile = createTileAtCoordinates(tx, ty);
+				regenCandidateTiles_[tileKey] = { tile, true };
+			} else if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
+				regenCandidateTiles_[tileKey] = { tile, false };
+			}
 			
 			auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
 			if (geometryEntityTrisIter != tile->intersectedGeometryEntityTris.end()) {
@@ -392,12 +409,7 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 				tile->intersectedGeometryEntityTris[handle] = { (unsigned short)vi0, (unsigned short)vi1, (unsigned short)vi2 };
 			}
 			
-			geometryEntity.intersectedTiles.push_back(tile);
-			
-			const uint64_t tileKey = keyForTileCoordinates(tile->coordinates);
-			if (dirtyTiles_.find(tileKey) == dirtyTiles_.end()) {
-		      dirtyTiles_.insert({tileKey, tile});
-			}
+			geometryEntity.intersectionCandidateTiles.push_back(tileKey);
 		}
 	  }
 	}
@@ -405,47 +417,74 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 
   // TODO: Phase 3: Process geometry entity flag/area changes.
 
-  // Phase 4: Regenerate dirty tiles.
-  std::vector<uint64_t> cleanedTiles;
-  std::vector<TileRegenerationResults> navMeshRegenerationResults;
-  for (std::unordered_map<uint64_t, NavigationMeshTile*>::iterator dirtyTileIter = dirtyTiles_.begin(); dirtyTileIter != dirtyTiles_.end(); ++dirtyTileIter) {
-	const uint64_t dirtyTileKey = dirtyTileIter->first;
-	NavigationMeshTile* dirtyTile = dirtyTileIter->second;
-	
-	std::cout << "(" << dirtyTile->coordinates.tx << ", " << dirtyTile->coordinates.ty << ")" << std::endl;
+  // Phase 4: Iterate candidate tiles and perform navigation mesh generation if necessary.
+  std::vector<NavigationMeshTileRegenerationResults> addedTiles;
+  std::vector<NavigationMeshTileRegenerationResults> modifiedTiles;
+  std::vector<NavigationMeshTileRegenerationResults> removedTiles;
 
-	// First, destroy the affected tile. If necessary, we will rebuild it.
-	destroyTile(dirtyTile);
+  for (std::unordered_map<TileKey, RegenerationCandidateTile>::iterator regenCandidateTileIter = regenCandidateTiles_.begin(); 
+	  regenCandidateTileIter != regenCandidateTiles_.end(); 
+	  ++regenCandidateTileIter) {
+	const TileKey regenCandidateTileKey = regenCandidateTileIter->first;
+	const bool isTileNewlyCreated = regenCandidateTileIter->second.isNewlyCreated;
+	NavigationMeshTile* regenCandidateTile = regenCandidateTileIter->second.tile;
 	
-	// Don't even bother rebuilding the tile if there is no geometry intersecting it.
-	if (!dirtyTile->intersectedGeometryEntityTris.empty()) {
+	std::cout << "(" << regenCandidateTile->coordinates.tx << ", " << regenCandidateTile->coordinates.ty << ")" << std::endl;
+	
+	if (!regenCandidateTile->intersectedGeometryEntityTris.empty()) {
+	  // This tile potentially intersects with geometry entities.
 	  int navmeshDataSize = 0;
-	  unsigned char* navmeshData = rebuildTile(dirtyTile, navmeshDataSize);
+	  unsigned char* navmeshData = buildTileNavigationMesh(regenCandidateTile, navmeshDataSize);
 	  if (navmeshData) {
+		// Clear old navigation mesh for this tile.
+		clearTileNavigationMesh(regenCandidateTile);
+
+		// Add newly built navigation mesh for this tile.
 		dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, 0);
 		if (dtStatusFailed(status)) {
-		  // Free the navmesh data because we failed to add the tile.
+		  // Free the navmesh data because we failed to add the tile's navigation mesh.
 		  dtFree(navmeshData);
 		} else {
-		  // Tile was rebuilt successfully
-		  std::cout << "REBUILT SUCCESSFULLY" << std::endl;
+		  // This tile's navigation mesh was built successfully
+		  // 
+		  // Fetch vertices for this tile's generated navigation mesh.
 		  std::vector<float> polymeshVertices = tileNavigationMeshGeometry(*tilePolyMesh_);
-		  
-		  navMeshRegenerationResults.push_back({dirtyTile->coordinates.tx, dirtyTile->coordinates.ty, polymeshVertices});
-		  cleanedTiles.push_back(dirtyTileKey);
+		  NavigationMeshTileRegenerationResults results = { regenCandidateTile->coordinates.tx, regenCandidateTile->coordinates.ty, polymeshVertices };
+		  if (isTileNewlyCreated) {
+			  addedTiles.push_back(results);
+		  } else {
+			  modifiedTiles.push_back(results);
+		  }
 		}
 	  }
+	  else {
+		  // This candidate tile was a false positive. It does not intersect any geometry entites.
+		  if (isTileNewlyCreated) {
+			  // If tile was newly created, delete it.
+			  tiles_.erase(regenCandidateTileKey);
+		  }
+	  }
 	} else {
-	  cleanedTiles.push_back(dirtyTileKey);
-	  // Delete this tile. We dont have to worry about removing this tile from the intersectedTiles vector of 
-	  // intersected geometry entities because it wasn't intersecting any triangles of any geometry entities.
-	  tiles_.erase(dirtyTileKey);
+	  // This tile has no geometry intersecting it. Delete it. We dont have to worry about removing 
+	  // this tile from the intersectedTiles vector of intersected geometry entities because it wasn't 
+	  // intersecting any triangles of any geometry entities.
+	  removedTiles.push_back({ regenCandidateTile->coordinates.tx, regenCandidateTile->coordinates.ty, {} });
+	  clearTileNavigationMesh(regenCandidateTile);
+	  tiles_.erase(regenCandidateTileKey);
 	}
   }
 
-  // Delete cleaned tiles from dirtyTiles_.
-  for (uint64_t cleanedTileKey : cleanedTiles) {
-	  dirtyTiles_.erase(cleanedTileKey);
+  // Delete added/modified/removed tiles from regenCandidateTiles_.
+  for (NavigationMeshTileRegenerationResults addedTileResults : addedTiles) {
+	  regenCandidateTiles_.erase(keyForTileCoordinates(addedTileResults.tx, addedTileResults.ty));
+  }
+
+  for (NavigationMeshTileRegenerationResults modifiedTileResults : modifiedTiles) {
+	  regenCandidateTiles_.erase(keyForTileCoordinates(modifiedTileResults.tx, modifiedTileResults.ty));
+  }
+
+  for (NavigationMeshTileRegenerationResults removedTileResults : removedTiles) {
+	  regenCandidateTiles_.erase(keyForTileCoordinates(removedTileResults.tx, removedTileResults.ty));
   }
   
   // Clear queued events.
@@ -453,15 +492,9 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
   queuedUnregisteredGeometryEntities_.clear();
   
   // Report that the navigation mesh finished regenerating
-  didFinishRegenerationCallback(navMeshRegenerationResults);
+  didFinishRegenerationCallback({ addedTiles, modifiedTiles, removedTiles});
 	
   return Result::kOk;
-}
-
-// Returns the existing tile containing localPos. If there is no such tile exists, one is created.
-NavigationMesh::NavigationMeshTile* NavigationMesh::tileForLocalPosition(float x, float y, float z) {
-  const TileCoordinates coordinates = tileCoordinatesForLocalPosition(x, y, z);
-  return tileForTileCoordinates(coordinates.tx, coordinates.ty);
 }
 
 NavigationMesh::TileCoordinates NavigationMesh::tileCoordinatesForLocalPosition(float x, float y, float z) {
@@ -472,35 +505,40 @@ NavigationMesh::TileCoordinates NavigationMesh::tileCoordinatesForLocalPosition(
   return coordinates;
 }
 
-uint64_t NavigationMesh::keyForTileCoordinates(TileCoordinates coordinates){
-  uint64_t tileKey;
+NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(TileCoordinates coordinates){
+  return keyForTileCoordinates(coordinates.tx, coordinates.ty);
+}
+
+NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(int32_t tx, int32_t ty){
+  TileKey tileKey;
   char* tileKeyPtr = reinterpret_cast<char*>(&tileKey);
-  memcpy(tileKeyPtr, &coordinates.tx, sizeof(coordinates.tx));
-  memcpy(tileKeyPtr + sizeof(coordinates.tx), &coordinates.ty, sizeof(coordinates.ty));
+  memcpy(tileKeyPtr, &tx, sizeof(tx));
+  memcpy(tileKeyPtr + sizeof(tx), &ty, sizeof(ty));
   return tileKey;
 }
 
 NavigationMesh::NavigationMeshTile* NavigationMesh::tileForTileCoordinates(int32_t tx, int32_t ty) {
   TileCoordinates coordinates = { tx, ty };
-  const uint64_t tileKey = keyForTileCoordinates(coordinates);
-  std::unordered_map<uint64_t, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
+  const TileKey tileKey = keyForTileCoordinates(coordinates);
+  std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
   if (tileIter == tiles_.end()) {
-	return createTileAtCoordinates(coordinates);
+	return nullptr;
   }
   return &tileIter->second;
 }
 
-NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(TileCoordinates coordinates) {
-  const uint64_t tileKey = keyForTileCoordinates(coordinates);
-  std::pair<std::unordered_map<uint64_t, NavigationMeshTile>::iterator, bool> insertion = tiles_.insert({tileKey, {coordinates, {}}});
+NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(int32_t tx, int32_t ty) {
+  TileCoordinates coordinates = { tx, ty };
+  const TileKey tileKey = keyForTileCoordinates(coordinates);
+  std::pair<std::unordered_map<TileKey, NavigationMeshTile>::iterator, bool> insertion = tiles_.insert({tileKey, {coordinates, {}}});
   return &(insertion.first->second);
 }
 
-void NavigationMesh::destroyTile(NavigationMeshTile* tile) {
+void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
   recastNavMesh_->removeTile(recastNavMesh_->getTileRefAt(tile->coordinates.tx, tile->coordinates.ty, 0), 0, 0);
 }
 
-unsigned char* NavigationMesh::rebuildTile(NavigationMeshTile* tile, int& navDataSize) {
+unsigned char* NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile, int& navDataSize) {
   // Find axis aligned bounding box of the tile. 
   float tileAABBMin[3];
   float tileAABBMax[3];

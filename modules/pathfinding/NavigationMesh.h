@@ -34,14 +34,20 @@ enum Result {
 	kErrorUnexpected = -3,
 };
 
-struct TileRegenerationResults {
-  int32_t tx;
-  int32_t ty;
-  std::vector<float> navMeshVertices;
-  //float duration;	
+struct NavigationMeshTileRegenerationResults {
+	int32_t tx;
+	int32_t ty;
+	std::vector<float> navMeshVertices;
+	//float duration;	
+};
+
+struct NavigationMeshRegenerationChangeset {
+	std::vector<NavigationMeshTileRegenerationResults> addedTiles;
+	std::vector<NavigationMeshTileRegenerationResults> modifiedTiles;
+	std::vector<NavigationMeshTileRegenerationResults> removedTiles;
 };
   
-using NavigationMeshDidFinishRegenerationCallback = std::function<void(std::vector<TileRegenerationResults>)>;
+using NavigationMeshDidFinishRegenerationCallback = std::function<void(NavigationMeshRegenerationChangeset)>;
 	
 struct ManagedFuncPackage {
   uint64_t didFinishRegeneratingFunc;
@@ -116,11 +122,9 @@ public:
   Result findPath(const float* fromPoint, const float* toPoint, uint32_t maxPathPointsCount, float* pathPoints, uint32_t& foundPathPointsCount);
 
 private:  
-  struct Geometry {
-	std::vector<unsigned short> triangles;
-	std::vector<float> vertices;
-  };
-  
+ 
+  using TileKey = uint64_t;
+
   struct TileCoordinates {
 	int32_t tx;
 	int32_t ty;
@@ -133,6 +137,11 @@ private:
 	std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<unsigned short>> intersectedGeometryEntityTris;
   };
 
+  struct Geometry {
+	  std::vector<unsigned short> triangles;
+	  std::vector<float> vertices;
+  };
+
   struct NavigationMeshGeometryEntity {
 	float transform[16];
 	Geometry geometry;
@@ -141,17 +150,17 @@ private:
 	// TODO: Area id
 	// The fields below are only updated when regenerateIfNeeded is called.
 	std::vector<float> transformedGeometryVertices;
-	std::vector<NavigationMeshTile*> intersectedTiles;
+	std::vector<TileKey> intersectionCandidateTiles;
   };
   
   void cleanup();
-  NavigationMeshTile* tileForLocalPosition(float x, float y, float z);
   TileCoordinates tileCoordinatesForLocalPosition(float x, float y, float z);
-  uint64_t keyForTileCoordinates(TileCoordinates coordinates);
+  TileKey keyForTileCoordinates(TileCoordinates coordinates);
+  TileKey keyForTileCoordinates(int32_t tx, int32_t ty);
   NavigationMeshTile* tileForTileCoordinates(int32_t tx, int32_t ty);
-  NavigationMeshTile* createTileAtCoordinates(TileCoordinates coordinates);
-  void destroyTile(NavigationMeshTile* tile);
-  unsigned char* rebuildTile(NavigationMeshTile* tile, int& navDataSize);
+  NavigationMeshTile* createTileAtCoordinates(int32_t tx, int32_t ty);
+  void clearTileNavigationMesh(NavigationMeshTile* tile);
+  unsigned char* buildTileNavigationMesh(NavigationMeshTile* tile, int& navDataSize);
   void CalculateTileAABB(NavigationMeshTile* tile, float* AABBMin, float* AABBMax);
 
   std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity> geometryEntities_;
@@ -159,7 +168,7 @@ private:
   std::atomic_uint64_t nextHandle_{1};
   
   std::unordered_set<NavigationMeshGeometryEntityHandle> queuedSpatiallyChangedGeometryEntities_;
-  std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<NavigationMeshTile*>> queuedUnregisteredGeometryEntities_;
+  std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<TileKey>> queuedUnregisteredGeometryEntities_;
   
   rcConfig tileConfig_;
   rcHeightfield* tileHeightfield_;
@@ -184,10 +193,14 @@ private:
   
   float navMeshBoundsY_[2];
   
-  std::unordered_map<uint64_t, NavigationMeshTile> tiles_;
+  std::unordered_map<TileKey, NavigationMeshTile> tiles_;
   
+  struct RegenerationCandidateTile {
+	  NavigationMeshTile* tile;
+	  bool isNewlyCreated;
+  };
   // TODO: Sort these by time since first dirty, and rebuild longest first.
-  std::unordered_map<uint64_t, NavigationMeshTile*> dirtyTiles_;
+  std::unordered_map<TileKey, RegenerationCandidateTile> regenCandidateTiles_;
 };
 
 } // namespace pathfinding
