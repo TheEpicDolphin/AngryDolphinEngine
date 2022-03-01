@@ -43,11 +43,11 @@ TEST(pathfinding_test_suite, creation_test)
     std::cout << "Registered geometry entity with handle: " << handle << std::endl;
 
     navigationMesh.regenerateIfNeeded([](std::vector<pathfinding::TileRegenerationResults> tileResults) {
+        std::cout << "Finished regenerating" << std::endl;
         for (pathfinding::TileRegenerationResults tileResult : tileResults) {
             std::cout << "(" << tileResult.tx << " ," << tileResult.ty << ")" << std::endl;
 
         }
     });
-    std::cout << "Finished regenerating" << std::endl;
 }
 

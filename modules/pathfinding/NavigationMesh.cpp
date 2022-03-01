@@ -45,7 +45,7 @@ bool IsEqual(const unsigned short* values1, uint32_t count1, const unsigned shor
   return true;
 }
 
-std::vector<float> tileNavigationMeshGeometry(rcPolyMesh polyMesh){
+std::vector<float> tileNavigationMeshGeometry(const rcPolyMesh& polyMesh){
 	const int nvp = polyMesh.nvp;
 	const float cs = polyMesh.cs;
 	const float ch = polyMesh.ch;
@@ -126,7 +126,6 @@ void NavigationMesh::cleanup() {
 	}
 
 	if (tilePolyMesh_) {
-		std::cout << tilePolyMesh_ << std::endl;
 		rcFreePolyMesh(tilePolyMesh_);
 		tilePolyMesh_ = 0;
 	}
@@ -405,12 +404,6 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
   }
 
   // TODO: Phase 3: Process geometry entity flag/area changes.
-  
-  std::cout << dirtyTiles_.size() << std::endl;
-  for (std::unordered_map<uint64_t, NavigationMeshTile*>::iterator dirtyTileIter = dirtyTiles_.begin(); dirtyTileIter != dirtyTiles_.end(); ++dirtyTileIter) {
-	  NavigationMeshTile* dirtyTile = dirtyTileIter->second;
-	  std::cout << "(" << dirtyTile->coordinates.tx << ", " << dirtyTile->coordinates.ty << ")" << std::endl;
-  }
 
   // Phase 4: Regenerate dirty tiles.
   std::vector<uint64_t> cleanedTiles;
@@ -427,9 +420,7 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 	// Don't even bother rebuilding the tile if there is no geometry intersecting it.
 	if (!dirtyTile->intersectedGeometryEntityTris.empty()) {
 	  int navmeshDataSize = 0;
-	  std::cout << "rebuilding tile..." << std::endl;
 	  unsigned char* navmeshData = rebuildTile(dirtyTile, navmeshDataSize);
-	  std::cout << "rebuilt tile SUCCEEDED" << std::endl;
 	  if (navmeshData) {
 		dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, 0);
 		if (dtStatusFailed(status)) {
@@ -437,8 +428,9 @@ Result NavigationMesh::regenerateIfNeeded(NavigationMeshDidFinishRegenerationCal
 		  dtFree(navmeshData);
 		} else {
 		  // Tile was rebuilt successfully
-			std::cout << "REBUILT SUCCESSFULLY" << std::endl;
+		  std::cout << "REBUILT SUCCESSFULLY" << std::endl;
 		  std::vector<float> polymeshVertices = tileNavigationMeshGeometry(*tilePolyMesh_);
+		  
 		  navMeshRegenerationResults.push_back({dirtyTile->coordinates.tx, dirtyTile->coordinates.ty, polymeshVertices});
 		  cleanedTiles.push_back(dirtyTileKey);
 		}
@@ -525,9 +517,7 @@ unsigned char* NavigationMesh::rebuildTile(NavigationMeshTile* tile, int& navDat
   tileConfig_.bmax[2] += bs;
   
   // Clean up intermediate tile pipeline stuff.
-  std::cout << "cleaning up..." << std::endl;
   cleanup();
-  std::cout << "cleaned up!" << std::endl;
 
   // Reset build times gathering.
   recastContext_.resetTimers();
@@ -564,12 +554,6 @@ unsigned char* NavigationMesh::rebuildTile(NavigationMeshTile* tile, int& navDat
 
 	//memset(m_triareas, 0, nctris*sizeof(unsigned char));
     //rcMarkWalkableTriangles(&recastContext_, tileConfig_.walkableSlopeAngle, verts, nverts, ctris, nctris, m_triareas);
-	for (std::size_t i = 0; i < geometryEntity.transformedGeometryVertices.size(); i+=3) {
-		float x = geometryEntity.transformedGeometryVertices[i];
-		float y = geometryEntity.transformedGeometryVertices[i + 1];
-		float z = geometryEntity.transformedGeometryVertices[i + 2];
-		//std::cout << "(" << x << ", " << y << ", " << z << ")" << std::endl;
-	}
 	
 	unsigned char* triareas = new unsigned char[nctris];
 	memset(triareas, RC_WALKABLE_AREA, nctris * sizeof(unsigned char));
@@ -652,7 +636,6 @@ unsigned char* NavigationMesh::rebuildTile(NavigationMeshTile* tile, int& navDat
   }
 
   if (tileContourSet_->nconts == 0) {
-	  std::cout << "NO CONTOURS" << std::endl;
 	// Zero contours were produce. Return early because no navmesh will be generated for this tile.
 	return 0;
   }
@@ -724,7 +707,7 @@ unsigned char* NavigationMesh::rebuildTile(NavigationMeshTile* tile, int& navDat
   recastContext_.log(RC_LOG_PROGRESS, ">> Tile Build Time: %f sec", tileBuildTime);
   recastContext_.log(RC_LOG_PROGRESS, ">> Tile Memory Usage: %f KB", tileMemoryUsage);
   recastContext_.log(RC_LOG_PROGRESS, ">> Tile polymesh has: %d vertices and %d polygons", tilePolyMesh_->nverts, tilePolyMesh_->npolys);
-  
+
   return navData;
 }
 
