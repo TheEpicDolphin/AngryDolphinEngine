@@ -52,7 +52,7 @@ std::vector<float> tileNavigationMeshGeometry(const rcPolyMesh& polyMesh){
 	const float ch = polyMesh.ch;
 	const float* orig = polyMesh.bmin;
 	
-	std::vector<float> polyMeshVertices(3 * polyMesh.npolys);
+	std::vector<float> polyMeshVertices(3 * 3 * (nvp - 2) * polyMesh.npolys);
 	// TODO: area ids
 	// std::vector<unsigned char> polyMeshAreas(polyMesh.npolys);
 	
@@ -74,9 +74,10 @@ std::vector<float> tileNavigationMeshGeometry(const rcPolyMesh& polyMesh){
 				const float y = orig[1] + (v[1]+1)*ch;
 				const float z = orig[2] + v[2]*cs;
 				
-				polyMeshVertices[3 * i] = x;
-				polyMeshVertices[3 * i + 1] = y;
-				polyMeshVertices[3 * i + 2] = z;
+				const int vertexStartingIndex = 3 * (3 * ((nvp - 2) * i + (j - 2)) + k);
+				polyMeshVertices[vertexStartingIndex] = x;
+				polyMeshVertices[vertexStartingIndex + 1] = y;
+				polyMeshVertices[vertexStartingIndex + 2] = z;
 			}
 		}
 		//polyMeshAreas[i] = area;
