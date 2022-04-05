@@ -1320,6 +1320,24 @@ static void paintRectRegion(int minx, int maxx, int miny, int maxy, unsigned sho
 	}
 }
 
+static void paintRectRegionOutsideRange(int minx, int maxx, int miny, int maxy, int minLength, int maxLength, unsigned short regId,
+	rcCompactHeightfield& chf, unsigned short* srcReg)
+{
+	const int w = chf.width;
+	for (int y = miny; y < maxy; ++y)
+	{
+		for (int x = minx; x < maxx; ++x)
+		{
+			const rcCompactCell& c = chf.cells[x + y * w];
+			for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+			{
+				if (chf.areas[i] != RC_NULL_AREA && (chf.spans[i].y < minLength || chf.spans[i].y >= maxLength))
+					srcReg[i] = regId;
+			}
+		}
+	}
+}
+
 
 static const unsigned short RC_NULL_NEI = 0xffff;
 
@@ -1524,7 +1542,7 @@ bool rcBuildRegionsMonotone(rcContext* ctx, rcCompactHeightfield& chf,
 /// 
 /// @see rcCompactHeightfield, rcCompactSpan, rcBuildDistanceField, rcBuildRegionsMonotone, rcConfig
 bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
-					const int borderSize, const int minRegionArea, const int mergeRegionArea)
+					const int borderSize, const int layerBorderSize, const int minRegionArea, const int mergeRegionArea)
 {
 	rcAssert(ctx);
 	
@@ -1577,9 +1595,12 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 		paintRectRegion(w-bw, w, 0, h, regionId|RC_BORDER_REG, chf, srcReg); regionId++;
 		paintRectRegion(0, w, 0, bh, regionId|RC_BORDER_REG, chf, srcReg); regionId++;
 		paintRectRegion(0, w, h-bh, h, regionId|RC_BORDER_REG, chf, srcReg); regionId++;
+
+		paintRectRegionOutsideRange(bw, w - bw, bh, h - bh, layerBorderSize, chf.length - layerBorderSize, regionId | RC_BORDER_REG, chf, srcReg); regionId++;
 	}
 
 	chf.borderSize = borderSize;
+	chf.layerBorderSize = layerBorderSize;
 	
 	int sId = -1;
 	while (level > 0)

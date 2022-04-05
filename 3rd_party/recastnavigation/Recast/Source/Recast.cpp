@@ -295,7 +295,7 @@ void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int*
 /// See the #rcConfig documentation for more information on the configuration parameters.
 /// 
 /// @see rcAllocHeightfield, rcHeightfield 
-bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int height,
+bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int height, int length,
 						 const float* bmin, const float* bmax,
 						 float cs, float ch)
 {
@@ -303,6 +303,7 @@ bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int heigh
 	
 	hf.width = width;
 	hf.height = height;
+	hf.length = length;
 	rcVcopy(hf.bmin, bmin);
 	rcVcopy(hf.bmax, bmax);
 	hf.cs = cs;
@@ -426,13 +427,14 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	// Fill in header.
 	chf.width = w;
 	chf.height = h;
+	chf.length = hf.length;
 	chf.spanCount = spanCount;
 	chf.walkableHeight = walkableHeight;
 	chf.walkableClimb = walkableClimb;
 	chf.maxRegions = 0;
 	rcVcopy(chf.bmin, hf.bmin);
 	rcVcopy(chf.bmax, hf.bmax);
-	chf.bmax[1] += walkableHeight*hf.ch;
+	//chf.bmax[1] += walkableHeight*hf.ch;
 	chf.cs = hf.cs;
 	chf.ch = hf.ch;
 	chf.cells = (rcCompactCell*)rcAlloc(sizeof(rcCompactCell)*w*h, RC_ALLOC_PERM);

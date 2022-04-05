@@ -25,6 +25,8 @@
 #include "RecastAlloc.h"
 #include "RecastAssert.h"
 
+#include <iostream>
+
 
 static int getCornerHeight(int x, int y, int i, int dir,
 						   const rcCompactHeightfield& chf,
@@ -33,6 +35,8 @@ static int getCornerHeight(int x, int y, int i, int dir,
 	const rcCompactSpan& s = chf.spans[i];
 	int ch = (int)s.y;
 	int dirp = (dir+1) & 0x3;
+
+	int min_ch = ch;
 	
 	unsigned int regs[4] = {0,0,0,0};
 	
@@ -47,6 +51,9 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dir);
 		const rcCompactSpan& as = chf.spans[ai];
 		ch = rcMax(ch, (int)as.y);
+
+		min_ch = rcMin(min_ch, (int)as.y);
+
 		regs[1] = chf.spans[ai].reg | (chf.areas[ai] << 16);
 		if (rcGetCon(as, dirp) != RC_NOT_CONNECTED)
 		{
@@ -55,6 +62,9 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			const int ai2 = (int)chf.cells[ax2+ay2*chf.width].index + rcGetCon(as, dirp);
 			const rcCompactSpan& as2 = chf.spans[ai2];
 			ch = rcMax(ch, (int)as2.y);
+
+			min_ch = rcMin(min_ch, (int)as2.y);
+
 			regs[2] = chf.spans[ai2].reg | (chf.areas[ai2] << 16);
 		}
 	}
@@ -65,6 +75,9 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dirp);
 		const rcCompactSpan& as = chf.spans[ai];
 		ch = rcMax(ch, (int)as.y);
+
+		min_ch = rcMin(min_ch, (int)as.y);
+
 		regs[3] = chf.spans[ai].reg | (chf.areas[ai] << 16);
 		if (rcGetCon(as, dir) != RC_NOT_CONNECTED)
 		{
@@ -73,6 +86,9 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			const int ai2 = (int)chf.cells[ax2+ay2*chf.width].index + rcGetCon(as, dir);
 			const rcCompactSpan& as2 = chf.spans[ai2];
 			ch = rcMax(ch, (int)as2.y);
+
+			min_ch = rcMin(min_ch, (int)as2.y);
+
 			regs[2] = chf.spans[ai2].reg | (chf.areas[ai2] << 16);
 		}
 	}
@@ -95,6 +111,16 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		{
 			isBorderVertex = true;
 			break;
+		}
+	}
+
+	if ((min_ch < chf.layerBorderSize && ch > chf.layerBorderSize) || (min_ch < (chf.length - chf.layerBorderSize) && ch > (chf.length - chf.layerBorderSize))) {
+		//std::cout << "THERE IS ONE! min_ch: " << min_ch << " max_ch: " << ch << std::endl;
+		if (isBorderVertex) {
+			//std::cout << "AND IT WAS CLASSIFIED AS BORDER!" << std::endl;
+		}
+		else {
+			std::cout << "UH OH! min: " << (min_ch - chf.layerBorderSize) * chf.ch << " max: " << (ch - chf.layerBorderSize) * chf.ch << std::endl;
 		}
 	}
 	
@@ -843,6 +869,9 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 		cset.bmin[2] += pad;
 		cset.bmax[0] -= pad;
 		cset.bmax[2] -= pad;
+
+		cset.bmin[1] += chf.layerBorderSize * chf.ch;
+		cset.bmax[1] -= chf.layerBorderSize * chf.ch;
 	}
 	cset.cs = chf.cs;
 	cset.ch = chf.ch;
@@ -975,6 +1004,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						{
 							int* v = &cont->verts[j*4];
 							v[0] -= borderSize;
+							v[1] -= chf.layerBorderSize;
 							v[2] -= borderSize;
 						}
 					}
@@ -994,6 +1024,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						{
 							int* v = &cont->rverts[j*4];
 							v[0] -= borderSize;
+							v[1] -= chf.layerBorderSize;
 							v[2] -= borderSize;
 						}
 					}
