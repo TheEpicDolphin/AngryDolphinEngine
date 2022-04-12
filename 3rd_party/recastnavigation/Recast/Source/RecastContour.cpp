@@ -113,16 +113,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			break;
 		}
 	}
-
-	if ((min_ch < chf.layerBorderSize && ch > chf.layerBorderSize) || (min_ch < (chf.length - chf.layerBorderSize) && ch > (chf.length - chf.layerBorderSize))) {
-		//std::cout << "THERE IS ONE! min_ch: " << min_ch << " max_ch: " << ch << std::endl;
-		if (isBorderVertex) {
-			//std::cout << "AND IT WAS CLASSIFIED AS BORDER!" << std::endl;
-		}
-		else {
-			std::cout << "UH OH! min: " << (min_ch - chf.layerBorderSize) * chf.ch << " max: " << (ch - chf.layerBorderSize) * chf.ch << std::endl;
-		}
-	}
 	
 	return ch;
 }
@@ -869,9 +859,6 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 		cset.bmin[2] += pad;
 		cset.bmax[0] -= pad;
 		cset.bmax[2] -= pad;
-
-		cset.bmin[1] += chf.layerBorderSize * chf.ch;
-		cset.bmax[1] -= chf.layerBorderSize * chf.ch;
 	}
 	cset.cs = chf.cs;
 	cset.ch = chf.ch;
@@ -1004,7 +991,6 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						{
 							int* v = &cont->verts[j*4];
 							v[0] -= borderSize;
-							v[1] -= chf.layerBorderSize;
 							v[2] -= borderSize;
 						}
 					}
@@ -1024,7 +1010,6 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						{
 							int* v = &cont->rverts[j*4];
 							v[0] -= borderSize;
-							v[1] -= chf.layerBorderSize;
 							v[2] -= borderSize;
 						}
 					}

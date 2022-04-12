@@ -88,7 +88,7 @@ TEST(pathfinding_test_suite, creation_test)
         1, 0, 0, 0,
         0, 0.5f * sqrt(3), 0.5f, 0,
         0, -0.5f, 0.5f * sqrt(3), 0,
-        0, 1, 0, 1,
+        0, 0, 0, 1,
     };
     float vertices[] = {
         25, 0, 25,

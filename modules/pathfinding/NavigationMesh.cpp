@@ -146,7 +146,7 @@ namespace pathfinding {
         for (int i = 0; i < polyMesh.nverts; ++i) {
             const uint16_t* v = &polyMesh.verts[3 * i];
             const float x = v[0] * cs;
-            const float y = v[1] * ch;
+            const float y = (v[1] + 1) * ch;
             const float z = v[2] * cs;
             vertices[3 * i] = x;
             vertices[3 * i + 1] = y;
@@ -251,7 +251,7 @@ namespace pathfinding {
         voxelHeight_ = voxelSize_ / 2.0f;
 
         // The author of recast recommends agent radius * 8 for the max edge length.
-        maxEdgeLen_ = agentRadius * 16.0f;
+        maxEdgeLen_ = agentRadius * 8.0f;
 
         // There are only 22 bits available to be divided among identifying tiles
         // and identifying polys within those tiles.
@@ -332,10 +332,6 @@ namespace pathfinding {
         tileConfig_.height = tileConfig_.tileSize + tileConfig_.borderSize * 2;
         tileConfig_.detailSampleDist = kDetailSampleDistance < 0.9f ? 0 : tileConfig_.cs * kDetailSampleDistance;
         tileConfig_.detailSampleMaxError = tileConfig_.ch * kDetailSampleMaxError;
-
-        tileLayerVoxelHeight_ = tileConfig_.walkableHeight * 5;
-        tileLayerBorder_ = tileConfig_.walkableHeight;
-        //tileLayerBorder_ = 3;
 
         return Result::kOk;
     }
@@ -577,10 +573,10 @@ namespace pathfinding {
                 switch (genStatus) {
                 case TileNavMeshGenStatus::Success: {
                     // Clear old navigation mesh for this tile.
-                    recastNavMesh_->removeTile(regenCandidateTile->tileRef, 0, 0);
+                    clearTileNavigationMesh(regenCandidateTile);
 
                     // Add newly built navigation mesh for this tile.
-                    dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, &regenCandidateTile->tileRef);
+                    dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, 0);
                     if (dtStatusFailed(status)) {
                         // Free the navmesh data because we failed to add the tile's navigation mesh.
                         dtFree(navmeshData);
@@ -592,7 +588,6 @@ namespace pathfinding {
                         NavigationMeshTileData navMeshTileData;
                         navMeshTileData.tileCoordinates[0] = regenCandidateTile->coordinates.tx;
                         navMeshTileData.tileCoordinates[1] = regenCandidateTile->coordinates.ty;
-                        navMeshTileData.tileCoordinates[2] = regenCandidateTile->coordinates.tz;
                         getTileNavigationMeshTriangulation(*tilePolyMesh_,
                             navMeshTileData.origin,
                             navMeshTileData.triangles,
@@ -626,7 +621,6 @@ namespace pathfinding {
                 NavigationMeshTileData navMeshTileData;
                 navMeshTileData.tileCoordinates[0] = regenCandidateTile->coordinates.tx;
                 navMeshTileData.tileCoordinates[1] = regenCandidateTile->coordinates.ty;
-                navMeshTileData.tileCoordinates[2] = regenCandidateTile->coordinates.tz;
                 navigationMeshRegenerationChangeset.removedTiles.push_back(navMeshTileData);
                 clearTileNavigationMesh(regenCandidateTile);
                 tiles_.erase(regenCandidateTileKey);
@@ -695,15 +689,11 @@ namespace pathfinding {
             // with surrounding tiles than it is to expand each tile AABB by the border size and check if
             // it intersects this triangle.
             const float bs = tileConfig_.borderSize * tileConfig_.cs;
-            const float bh = tileLayerBorder_ * tileConfig_.ch;
             triAABBMin[0] -= bs;
-            triAABBMin[1] -= bh;
             triAABBMin[2] -= bs;
             triAABBMax[0] += bs;
-            triAABBMax[1] += bh;
             triAABBMax[2] += bs;
 
-            /*
             if (isNavMeshBounded_) {
                 if (triAABBMax[0] <= navMeshBoundsMin_[0] || triAABBMin[0] >= navMeshBoundsMax_[0] ||
                     triAABBMax[1] <= navMeshBoundsMin_[1] || triAABBMin[1] >= navMeshBoundsMax_[1] ||
@@ -712,38 +702,36 @@ namespace pathfinding {
                     continue;
                 }
                 clampAABBToNavigationMeshBounds(triAABBMin, triAABBMax);
-            }*/
+            }
 
             const TileCoordinates minTileCoords = tileCoordinatesForLocalPosition(triAABBMin[0], triAABBMin[1], triAABBMin[2]);
             const TileCoordinates maxTileCoords = tileCoordinatesForLocalPosition(triAABBMax[0], triAABBMax[1], triAABBMax[2]);
             // This may produce some false positives for tile-triangle intersections, but that is ok because
             // the false positives are later filtered out internally by Recast during the rasterization process.
-            for (int16_t tx = minTileCoords.tx; tx <= maxTileCoords.tx; tx++) {
-                for (int16_t tz = minTileCoords.tz; tz <= maxTileCoords.tz; tz++) {
-                    for (int16_t ty = minTileCoords.ty; ty <= maxTileCoords.ty; ty++) {
-                        const TileKey tileKey = keyForTileCoordinates(tx, ty, tz);
-                        NavigationMeshTile* tile = tileForTileCoordinates(tx, ty, tz);
-                        if (!tile) {
-                            // Create a new tile.
-                            tile = createTileAtCoordinates(tx, ty, tz);
-                            regenCandidateTiles_[tileKey] = { tile, true };
-                        }
-                        else if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
-                            regenCandidateTiles_[tileKey] = { tile, false };
-                        }
-
-                        auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
-                        if (geometryEntityTrisIter != tile->intersectedGeometryEntityTris.end()) {
-                            geometryEntityTrisIter->second.push_back(v0i);
-                            geometryEntityTrisIter->second.push_back(v1i);
-                            geometryEntityTrisIter->second.push_back(v2i);
-                        }
-                        else {
-                            tile->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
-                        }
-
-                        geometryEntity.intersectionCandidateTiles.push_back(tileKey);
+            for (int32_t tx = minTileCoords.tx; tx <= maxTileCoords.tx; tx++) {
+                for (int32_t ty = minTileCoords.ty; ty <= maxTileCoords.ty; ty++) {
+                    const TileKey tileKey = keyForTileCoordinates(tx, ty);
+                    NavigationMeshTile* tile = tileForTileCoordinates(tx, ty);
+                    if (!tile) {
+                        // Create a new tile.
+                        tile = createTileAtCoordinates(tx, ty);
+                        regenCandidateTiles_[tileKey] = { tile, true };
                     }
+                    else if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
+                        regenCandidateTiles_[tileKey] = { tile, false };
+                    }
+
+                    auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
+                    if (geometryEntityTrisIter != tile->intersectedGeometryEntityTris.end()) {
+                        geometryEntityTrisIter->second.push_back(v0i);
+                        geometryEntityTrisIter->second.push_back(v1i);
+                        geometryEntityTrisIter->second.push_back(v2i);
+                    }
+                    else {
+                        tile->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
+                    }
+
+                    geometryEntity.intersectionCandidateTiles.push_back(tileKey);
                 }
             }
         }
@@ -794,35 +782,28 @@ namespace pathfinding {
     }
 
     NavigationMesh::TileCoordinates NavigationMesh::tileCoordinatesForLocalPosition(float x, float y, float z) {
-        //(void)y;
-        
+        (void)y;
         const float ts = tileConfig_.tileSize * tileConfig_.cs;
         const int32_t tx = (int32_t)(floorf(x / ts));
-        const int32_t tz = (int32_t)(floorf(z / ts));
-
-        const float th = tileLayerVoxelHeight_ * tileConfig_.ch;
-        const int32_t ty = (int32_t)(floorf(y / th));
-
-        TileCoordinates coordinates = { tx, ty, tz };
+        const int32_t ty = (int32_t)(floorf(z / ts));
+        TileCoordinates coordinates = { tx, ty };
         return coordinates;
     }
 
     NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(TileCoordinates coordinates) {
-        return keyForTileCoordinates(coordinates.tx, coordinates.ty, coordinates.tz);
+        return keyForTileCoordinates(coordinates.tx, coordinates.ty);
     }
 
-    NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(int16_t tx, int16_t ty, int16_t tz) {
+    NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(int32_t tx, int32_t ty) {
         TileKey tileKey;
         char* tileKeyPtr = reinterpret_cast<char*>(&tileKey);
         memcpy(tileKeyPtr, &tx, sizeof(tx));
         memcpy(tileKeyPtr + sizeof(tx), &ty, sizeof(ty));
-
-        memcpy(tileKeyPtr + sizeof(tx) + sizeof(ty), &tz, sizeof(tz));
         return tileKey;
     }
 
-    NavigationMesh::NavigationMeshTile* NavigationMesh::tileForTileCoordinates(int16_t tx, int16_t ty, int16_t tz) {
-        TileCoordinates coordinates = { tx, ty, tz };
+    NavigationMesh::NavigationMeshTile* NavigationMesh::tileForTileCoordinates(int32_t tx, int32_t ty) {
+        TileCoordinates coordinates = { tx, ty };
         const TileKey tileKey = keyForTileCoordinates(coordinates);
         std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
         if (tileIter == tiles_.end()) {
@@ -831,8 +812,8 @@ namespace pathfinding {
         return &tileIter->second;
     }
 
-    NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(int16_t tx, int16_t ty, int16_t tz) {
-        TileCoordinates coordinates = { tx, ty, tz };
+    NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(int32_t tx, int32_t ty) {
+        TileCoordinates coordinates = { tx, ty };
         const TileKey tileKey = keyForTileCoordinates(coordinates);
         std::pair<std::unordered_map<TileKey, NavigationMeshTile>::iterator, bool> insertion =
             tiles_.insert({ tileKey, {coordinates, {}} });
@@ -840,7 +821,7 @@ namespace pathfinding {
     }
 
     void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
-        recastNavMesh_->removeTile(tile->tileRef, 0, 0);
+        recastNavMesh_->removeTile(recastNavMesh_->getTileRefAt(tile->coordinates.tx, tile->coordinates.ty, 0), 0, 0);
     }
 
     NavigationMesh::TileNavMeshGenStatus NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
@@ -848,15 +829,11 @@ namespace pathfinding {
         int& navMeshDataSize) {
         // Find axis aligned bounding box of the tile.
         const float ts = tileConfig_.tileSize * tileConfig_.cs;
-        const float th = tileLayerVoxelHeight_ * tileConfig_.ch;
         const float minX = tile->coordinates.tx * ts;
-        const float minY = tile->coordinates.ty * th;
-        const float minZ = tile->coordinates.tz * ts;
+        const float minZ = tile->coordinates.ty * ts;
 
-        float tileAABBMin[3] = { minX, minY, minZ };
-        float tileAABBMax[3] = { minX + ts, minY + th, minZ + ts };
-
-        /*
+        float tileAABBMin[3] = { minX, 0, minZ };
+        float tileAABBMax[3] = { minX + ts, 0, minZ + ts };
         if (isNavMeshBounded_) {
             tileAABBMin[1] = navMeshBoundsMin_[1];
             tileAABBMax[1] = navMeshBoundsMax_[1];
@@ -876,7 +853,7 @@ namespace pathfinding {
                 }
             }
             tileAABBMax[1] += agentHeight_ + 3;
-        }*/
+        }
 
         rcVcopy(tileConfig_.bmin, tileAABBMin);
         rcVcopy(tileConfig_.bmax, tileAABBMax);
@@ -884,12 +861,9 @@ namespace pathfinding {
         // Expand this box along xz plane by borderSize * cellSize to account for geometry near
         // the edges of the tile.
         const float bs = tileConfig_.borderSize * tileConfig_.cs;
-        const float bh = tileLayerBorder_ * tileConfig_.ch;
         tileConfig_.bmin[0] -= bs;
-        tileConfig_.bmin[1] -= bh;
         tileConfig_.bmin[2] -= bs;
         tileConfig_.bmax[0] += bs;
-        tileConfig_.bmax[1] += bh;
         tileConfig_.bmax[2] += bs;
 
         // Clean up intermediate tile pipeline stuff.
@@ -901,7 +875,7 @@ namespace pathfinding {
         // Start the build process.
         recastContext_.startTimer(RC_TIMER_TOTAL);
 
-        recastContext_.log(RC_LOG_PROGRESS, "Building tile at: (%d, %d)", tile->coordinates.tx, tile->coordinates.tz);
+        recastContext_.log(RC_LOG_PROGRESS, "Building tile at: (%d, %d)", tile->coordinates.tx, tile->coordinates.ty);
 
         // Allocate voxel heightfield where we rasterize our input data to.
         tileHeightfield_ = rcAllocHeightfield();
@@ -914,7 +888,6 @@ namespace pathfinding {
             *tileHeightfield_,
             tileConfig_.width,
             tileConfig_.height,
-            tileLayerVoxelHeight_ + 2 * tileLayerBorder_,
             tileConfig_.bmin,
             tileConfig_.bmax,
             tileConfig_.cs,
@@ -989,10 +962,10 @@ namespace pathfinding {
         }
 
         // Erode the walkable area by agent radius.
-        //if (!rcErodeWalkableArea(&recastContext_, tileConfig_.walkableRadius, *tileCompactHeightfield_)) {
-        //  recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to erode.");
-        //  return TileNavMeshGenStatus::ErosionFailure;
-        //}
+        if (!rcErodeWalkableArea(&recastContext_, tileConfig_.walkableRadius, *tileCompactHeightfield_)) {
+          recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to erode.");
+          return TileNavMeshGenStatus::ErosionFailure;
+        }
 
         // Prepare for Watershed region partitioning by calculating distance field along the walkable surface.
         if (!rcBuildDistanceField(&recastContext_, *tileCompactHeightfield_)) {
@@ -1004,7 +977,6 @@ namespace pathfinding {
         if (!rcBuildRegions(&recastContext_,
             *tileCompactHeightfield_,
             tileConfig_.borderSize,
-            tileLayerBorder_,
             tileConfig_.minRegionArea,
             tileConfig_.mergeRegionArea)) {
             recastContext_.log(RC_LOG_ERROR, "buildNavigation: Could not build watershed regions.");
@@ -1082,8 +1054,8 @@ namespace pathfinding {
         params.walkableRadius = agentRadius_;
         params.walkableClimb = agentMaxClimb_;
         params.tileX = tile->coordinates.tx;
-        params.tileY = tile->coordinates.tz;
-        params.tileLayer = tile->coordinates.ty;
+        params.tileY = tile->coordinates.ty;
+        params.tileLayer = 0;
         rcVcopy(params.bmin, tilePolyMesh_->bmin);
         rcVcopy(params.bmax, tilePolyMesh_->bmax);
         params.cs = tileConfig_.cs;

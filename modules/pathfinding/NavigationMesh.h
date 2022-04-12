@@ -35,7 +35,7 @@ namespace pathfinding {
 	};
 
 	struct NavigationMeshTileData {
-		int16_t tileCoordinates[3];
+		int32_t tileCoordinates[2];
 		float origin[3];
 		uint16_t trianglesCount;
 		uint16_t* triangles;
@@ -160,14 +160,13 @@ namespace pathfinding {
 		using TileKey = uint64_t;
 
 		struct TileCoordinates {
-			int16_t tx;
-			int16_t ty;
-			int16_t tz;
+			int32_t tx;
+			int32_t ty;
 		};
 
 		struct NavigationMeshTile {
 			TileCoordinates coordinates;
-			dtTileRef tileRef;
+
 			// The field below is only updated when regenerateIfNeeded is called.
 			std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<uint16_t>> intersectedGeometryEntityTris;
 		};
@@ -201,9 +200,9 @@ namespace pathfinding {
 		NavigationMeshGeometryEntity* findGeometryEntitySafe(NavigationMeshGeometryEntityHandle handle);
 		TileCoordinates tileCoordinatesForLocalPosition(float x, float y, float z);
 		TileKey keyForTileCoordinates(TileCoordinates coordinates);
-		TileKey keyForTileCoordinates(int16_t tx, int16_t ty, int16_t tz);
-		NavigationMeshTile* tileForTileCoordinates(int16_t tx, int16_t ty, int16_t tz);
-		NavigationMeshTile* createTileAtCoordinates(int16_t tx, int16_t ty, int16_t tz);
+		TileKey keyForTileCoordinates(int32_t tx, int32_t ty);
+		NavigationMeshTile* tileForTileCoordinates(int32_t tx, int32_t ty);
+		NavigationMeshTile* createTileAtCoordinates(int32_t tx, int32_t ty);
 		void clearTileNavigationMesh(NavigationMeshTile* tile);
 		TileNavMeshGenStatus buildTileNavigationMesh(NavigationMeshTile* tile,
 			unsigned char*& navMeshData,
@@ -250,8 +249,6 @@ namespace pathfinding {
 
 		int32_t maxTiles_;
 		int32_t maxPolysPerTile_;
-		int32_t tileLayerVoxelHeight_;
-		int32_t tileLayerBorder_;
 
 		std::unordered_map<TileKey, NavigationMeshTile> tiles_;
 
