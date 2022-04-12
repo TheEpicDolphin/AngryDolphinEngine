@@ -36,8 +36,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 	int ch = (int)s.y;
 	int dirp = (dir+1) & 0x3;
 
-	int min_ch = ch;
-	
 	unsigned int regs[4] = {0,0,0,0};
 	
 	// Combine region and area codes in order to prevent
@@ -52,8 +50,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		const rcCompactSpan& as = chf.spans[ai];
 		ch = rcMax(ch, (int)as.y);
 
-		min_ch = rcMin(min_ch, (int)as.y);
-
 		regs[1] = chf.spans[ai].reg | (chf.areas[ai] << 16);
 		if (rcGetCon(as, dirp) != RC_NOT_CONNECTED)
 		{
@@ -62,8 +58,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			const int ai2 = (int)chf.cells[ax2+ay2*chf.width].index + rcGetCon(as, dirp);
 			const rcCompactSpan& as2 = chf.spans[ai2];
 			ch = rcMax(ch, (int)as2.y);
-
-			min_ch = rcMin(min_ch, (int)as2.y);
 
 			regs[2] = chf.spans[ai2].reg | (chf.areas[ai2] << 16);
 		}
@@ -76,8 +70,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		const rcCompactSpan& as = chf.spans[ai];
 		ch = rcMax(ch, (int)as.y);
 
-		min_ch = rcMin(min_ch, (int)as.y);
-
 		regs[3] = chf.spans[ai].reg | (chf.areas[ai] << 16);
 		if (rcGetCon(as, dir) != RC_NOT_CONNECTED)
 		{
@@ -86,8 +78,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			const int ai2 = (int)chf.cells[ax2+ay2*chf.width].index + rcGetCon(as, dir);
 			const rcCompactSpan& as2 = chf.spans[ai2];
 			ch = rcMax(ch, (int)as2.y);
-
-			min_ch = rcMin(min_ch, (int)as2.y);
 
 			regs[2] = chf.spans[ai2].reg | (chf.areas[ai2] << 16);
 		}

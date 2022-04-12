@@ -26,8 +26,7 @@ void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& 
     for (const pathfinding::NavigationMeshTileData& tileNavMeshData : tiles) {
         objFile << "\n# tile: ("
             << tileNavMeshData.tileCoordinates[0] << ", "
-            << tileNavMeshData.tileCoordinates[1] << ", "
-            << tileNavMeshData.tileCoordinates[2] << ")"
+            << tileNavMeshData.tileCoordinates[1] << ")"
             << std::endl;
         for (int i = 0; i < tileNavMeshData.verticesCount * 3; i += 3) {
             objFile << "v "
@@ -57,8 +56,7 @@ void _PrintNavigationMeshTriangulation(const std::vector<pathfinding::Navigation
     for (const pathfinding::NavigationMeshTileData& tileNavMeshData : tiles) {
         std::cout << "Tile Coordinates: (" 
             << tileNavMeshData.tileCoordinates[0] << " ," 
-            << tileNavMeshData.tileCoordinates[1] << " ," 
-            << tileNavMeshData.tileCoordinates[2] << ")" << std::endl;
+            << tileNavMeshData.tileCoordinates[1] << ")" << std::endl;
         std::cout << "Tile Origin: ("
             << tileNavMeshData.origin[0] << ", "
             << tileNavMeshData.origin[1] << ", "
@@ -75,24 +73,26 @@ TEST(pathfinding_test_suite, creation_test)
     float boundsMin[3] = { -1000, -1000, -1000 };
     float boundsMax[3] = { 1000, 1000, 1000 };
    
-    navigationMesh.initialize(60.0f, 0.5f, 1.5f, 0.5f, boundsMin, boundsMax);
-
-    /*
+    //navigationMesh.initialize(60.0f, 0.5f, 1.5f, 0.5f, boundsMin, boundsMax);
+    navigationMesh.initialize(60.0f, 0.5f, 1.5f, 0.5f);
+    
     float transform[16] = {
         1, 0, 0, 0,
         0, 1, 0, 0,
         0, 0, 1, 0,
         0, 0, 0, 1,
-    };*/
+    };
+    /*
     float transform[16] = {
         1, 0, 0, 0,
         0, 0.5f * sqrt(3), 0.5f, 0,
         0, -0.5f, 0.5f * sqrt(3), 0,
         0, 0, 0, 1,
     };
+    */
     float vertices[] = {
-        25, 0, 25,
-        -25, 0, 25,
+        25, 30, 25,
+        -25, 30, 25,
         -25, 0, -25,
         25, 0, -25
     };

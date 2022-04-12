@@ -166,7 +166,7 @@ namespace pathfinding {
 
 		struct NavigationMeshTile {
 			TileCoordinates coordinates;
-
+			dtTileRef tileRef;
 			// The field below is only updated when regenerateIfNeeded is called.
 			std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<uint16_t>> intersectedGeometryEntityTris;
 		};

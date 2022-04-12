@@ -576,7 +576,7 @@ namespace pathfinding {
                     clearTileNavigationMesh(regenCandidateTile);
 
                     // Add newly built navigation mesh for this tile.
-                    dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, 0);
+                    dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, &regenCandidateTile->tileRef);
                     if (dtStatusFailed(status)) {
                         // Free the navmesh data because we failed to add the tile's navigation mesh.
                         dtFree(navmeshData);
@@ -821,7 +821,7 @@ namespace pathfinding {
     }
 
     void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
-        recastNavMesh_->removeTile(recastNavMesh_->getTileRefAt(tile->coordinates.tx, tile->coordinates.ty, 0), 0, 0);
+        recastNavMesh_->removeTile(tile->tileRef, 0, 0);
     }
 
     NavigationMesh::TileNavMeshGenStatus NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
@@ -834,26 +834,16 @@ namespace pathfinding {
 
         float tileAABBMin[3] = { minX, 0, minZ };
         float tileAABBMax[3] = { minX + ts, 0, minZ + ts };
-        if (isNavMeshBounded_) {
-            tileAABBMin[1] = navMeshBoundsMin_[1];
-            tileAABBMax[1] = navMeshBoundsMax_[1];
-            clampAABBToNavigationMeshBounds(tileAABBMin, tileAABBMax);
-        }
-        else {
-            // This navigation mesh is unbounded, but we should not set the tile min/max Y values
-            // to large neg/pos values because it would introduce significant floating-point
-            // precision errors in Recast's internal calculations. Instead, we set the min/max
-            // Y values to those of the intersected triangle vertices.
-            for (auto& intersectedGeometryEntityTris : tile->intersectedGeometryEntityTris) {
-                const NavigationMeshGeometryEntity& geometryEntity = geometryEntities_[intersectedGeometryEntityTris.first];
-                const std::vector<uint16_t>& intersectedTriangles = intersectedGeometryEntityTris.second;
-                for (uint16_t vi : intersectedTriangles) {
-                    tileAABBMin[1] = std::min(tileAABBMin[1], geometryEntity.transformedGeometryVertices[3 * vi + 1]);
-                    tileAABBMax[1] = std::max(tileAABBMax[1], geometryEntity.transformedGeometryVertices[3 * vi + 1]);
-                }
+        // Calculate the min/max Y values of all triangles intersecting this tile.
+        for (auto& intersectedGeometryEntityTris : tile->intersectedGeometryEntityTris) {
+            const NavigationMeshGeometryEntity& geometryEntity = geometryEntities_[intersectedGeometryEntityTris.first];
+            const std::vector<uint16_t>& intersectedTriangles = intersectedGeometryEntityTris.second;
+            for (uint16_t vi : intersectedTriangles) {
+                tileAABBMin[1] = std::min(tileAABBMin[1], geometryEntity.transformedGeometryVertices[3 * vi + 1]);
+                tileAABBMax[1] = std::max(tileAABBMax[1], geometryEntity.transformedGeometryVertices[3 * vi + 1]);
             }
-            tileAABBMax[1] += agentHeight_ + 3;
         }
+        tileAABBMax[1] += agentHeight_ + 3;
 
         rcVcopy(tileConfig_.bmin, tileAABBMin);
         rcVcopy(tileConfig_.bmax, tileAABBMax);

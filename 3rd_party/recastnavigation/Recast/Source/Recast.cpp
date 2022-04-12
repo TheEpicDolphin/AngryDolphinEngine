@@ -432,7 +432,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	chf.maxRegions = 0;
 	rcVcopy(chf.bmin, hf.bmin);
 	rcVcopy(chf.bmax, hf.bmax);
-	//chf.bmax[1] += walkableHeight*hf.ch;
+	chf.bmax[1] += walkableHeight*hf.ch;
 	chf.cs = hf.cs;
 	chf.ch = hf.ch;
 	chf.cells = (rcCompactCell*)rcAlloc(sizeof(rcCompactCell)*w*h, RC_ALLOC_PERM);
