@@ -17,7 +17,7 @@ public:
 
 	T& ObjectForCellRef(QuadtreeCellRef cellRef);
 
-	QuadtreeCellRef GetCellRefAtLocation(int i, int j);
+	QuadtreeCellRef GetCellRefAtLocation(int x, int y);
 
 	void QueryAroundPoint(const float* point, std::function<, float>);
 
@@ -42,6 +42,7 @@ private:
 
 	// Leaf nodes.
 	struct QuadtreeCell {
+		bool isEmpty;
 		int parent;
 		int32_t x;
 		int32_t y;
@@ -62,4 +63,6 @@ private:
 
 	void AllocateChildrenNodes(const QuadtreeNodeRef parentNodeRef);
 	void DeallocateChildrenNodes(const QuadtreeNodeRef parentNodeRef);
+	void AllocateChildrenCells(const QuadtreeNodeRef parentNodeRef, int x, int y);
+	void DeallocateChildrenCells(const QuadtreeNodeRef parentNodeRef);
 };

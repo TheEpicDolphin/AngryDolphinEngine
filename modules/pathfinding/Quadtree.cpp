@@ -21,7 +21,7 @@ QuadtreeCellRef Quadtree<T>::AddCellAt(int x, int y, T object) {
 		int midX = (xRange[0] + xRange[1]) >> 1;
 		int midY = (yRange[0] + yRange[1]) >> 1;
 		if (nodes_[currentNodeRef]->firstNode == -1) {
-			AllocateChildrenNodes(rootNodeRef);
+			AllocateChildrenNodes(currentNodeRef);
 		}
 
 		const bool isLeft = x < midX;
@@ -32,6 +32,7 @@ QuadtreeCellRef Quadtree<T>::AddCellAt(int x, int y, T object) {
 		currentDepth++;
 	}
 
+	AllocateChildrenCells(currentNodeRef, midX, midY);
 	QuadtreeCellRef cellRef = 0;
 	if (freeCellSlots_.empty()) {
 		cellRef = cells_.size();
@@ -49,27 +50,44 @@ QuadtreeCellRef Quadtree<T>::AddCellAt(int x, int y, T object) {
 template<typename T>
 void Quadtree<T>::RemoveCell(QuadtreeCellRef cellRef) {
 	const QuadtreeCell& cell = cells_.at(cellRef);
-	int currentDepth = depth_;
 	QuadtreeNodeRef currentNodeRef = cell.parent;
-	while (currentDepth > 0) {
-		int midX = (xRange[0] + xRange[1]) >> 1;
-		int midY = (yRange[0] + yRange[1]) >> 1;
-		if (nodes_[currentNodeRef]->firstNode == -1) {
-			AllocateChildrenNodes(rootNodeRef);
+	cell.isEmpty = true;
+	// Check if this node has any descendant cells left.
+	{
+		const int firstChildIndex = nodes_[currentNodeRef].firstChild;
+		for (int i = 0; i < 4; i++) {
+			if (!cells_[firstChildIndex + i].isEmpty) {
+				return;
+			}
+		}
+	}
+	DeallocateChildrenCells(currentNodeRef);
+	nodes_[currentNodeRef].firstChild = -1;
+	currentNodeRef = nodes_[currentNodeRef].parent;
+	while (currentNodeRef >= 0) {
+		const int firstChildIndex = nodes_[currentNodeRef].firstChild;
+
+		// Check if this node has any descendant cells left.
+		for (int i = 0; i < 4; i++) {
+			if (nodes_[firstChildIndex + i].firstChild > -1) {
+				return;
+			}
 		}
 
-		const bool isLeft = x < midX;
-		const bool isBelow = y < midY;
-		currentNodeRef = nodes_[currentNodeRef]->firstNode + (isLeft ^ isBelow) + (isBelow << 1);
-		xRange[isLeft] = midX;
-		xRange[isBelow] = midY;
-		currentDepth++;
+		DeallocateChildrenNodes(currentNodeRef);
+		nodes_[currentNodeRef].firstChild = -1;
+		currentNodeRef = nodes_[currentNodeRef].parent;
 	}
 }
 
 template<typename T>
 T& Quadtree<T>::ObjectForCellRef(QuadtreeCellRef cellRef) {
 	return cells_.at(cellRef).object;
+}
+
+template<typename T>
+QuadtreeCellRef Quadtree<T>::GetCellRefAtLocation(int x, int y) {
+
 }
 
 template<typename T>
@@ -92,5 +110,28 @@ void Quadtree<T>::AllocateChildrenNodes(const Quadtree<T>::QuadtreeNodeRef paren
 
 template<typename T>
 void Quadtree<T>::DeallocateChildrenNodes(const Quadtree<T>::QuadtreeNodeRef parentNodeRef) {
+
+}
+
+template<typename T>
+void Quadtree<T>::AllocateChildrenCells(const Quadtree<T>::QuadtreeNodeRef parentNodeRef, int x, int y) {
+	if (freeCellSlots_.empty()) {
+		nodes_.push_back({ true, parentNodeRef, x, y, {} });
+		nodes_.push_back({ true, parentNodeRef, x, y, {} });
+		nodes_.push_back({ true, parentNodeRef, x, y, {} });
+		nodes_.push_back({ true, parentNodeRef, x, y, {} });
+	}
+	else {
+		const int freeCellSlot = freeCellSlots_.front();
+		nodes_[freeCellSlot] = { true, parentNodeRef, x, y, {} };
+		nodes_[freeCellSlot + 1] = { true, parentNodeRef, x, y, {} };
+		nodes_[freeCellSlot + 2] = { true, parentNodeRef, x, y, {} };
+		nodes_[freeCellSlot + 3] = { true, parentNodeRef, x, y, {} };
+		freeCellSlots_.pop();
+	}
+}
+
+template<typename T>
+void Quadtree<T>::DeallocateChildrenCells(const QuadtreeNodeRef parentNodeRef) {
 
 }
