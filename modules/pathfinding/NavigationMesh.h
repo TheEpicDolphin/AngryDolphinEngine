@@ -13,6 +13,8 @@
 #include <Detour/Include/DetourNavMesh.h>
 #include <Detour/Include/DetourNavMeshQuery.h>
 
+#include "Quadtree.h"
+
 static const int32_t kTileSizeVoxels = 128; // A reasonable tile size.
 static const int32_t kMaxVertsPerPoly = 3; // Ensure standard triangular navigation mesh.
 
@@ -185,6 +187,7 @@ namespace pathfinding {
 			// The fields below are only updated when regenerateIfNeeded is called.
 			std::vector<float> transformedGeometryVertices;
 			std::vector<TileKey> intersectionCandidateTiles;
+			std::vector<QuadtreeCellRef> intersectionCandidateTiles;
 		};
 
 		void cleanup();
@@ -250,6 +253,7 @@ namespace pathfinding {
 		int32_t maxTiles_;
 		int32_t maxPolysPerTile_;
 
+		Quadtree<NavigationMeshTile> tileQuadtree_;
 		std::unordered_map<TileKey, NavigationMeshTile> tiles_;
 
 		struct RegenerationCandidateTile {

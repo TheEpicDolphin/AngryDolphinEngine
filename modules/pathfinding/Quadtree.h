@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <queue>
+#include <functional>
 
 using QuadtreeCellRef = uint32_t;
 
@@ -11,15 +12,15 @@ class Quadtree {
 public:
 	Quadtree(float cellSize, int depth);
 
-	QuadtreeCellRef AddCellAt(int x, int y, T object);
+	QuadtreeCellRef AddCellAt(int32_t x, int32_t y, T object);
 
 	void RemoveCell(QuadtreeCellRef cellRef);
 
 	T& ObjectForCellRef(QuadtreeCellRef cellRef);
 
-	QuadtreeCellRef GetCellRefAtLocation(int x, int y);
+	QuadtreeCellRef GetCellRefForCoordinates(int32_t x, int32_t y);
 
-	void QueryAroundPoint(const float* point, std::function<, float>);
+	void QueryCellsAroundPoint(const float* point, std::function<float(int32_t, int32_t, T)>);
 
 private:
 	using QuadtreeNodeRef = int32_t;
@@ -27,7 +28,7 @@ private:
 
 	// Non-leaf nodes.
 	struct QuadtreeNode {
-		int parent;
+		QuadtreeNodeRef parent;
 
 		// Children go in counter-clockwise order. If -1, this node has no children.
 		//					|
@@ -43,26 +44,27 @@ private:
 	// Leaf nodes.
 	struct QuadtreeCell {
 		bool isEmpty;
-		int parent;
+		QuadtreeNodeRef parent;
 		int32_t x;
 		int32_t y;
 		T object;
 	};
 
 	std::vector<QuadtreeNode> nodes_;
-	std::queue<int> freeNodeSlots_;
+	std::queue<QuadtreeNodeRef> freeNodeSlots_;
 	std::vector<QuadtreeCell> cells_;
-	std::queue<int> freeCellSlots_;
+	std::queue<QuadtreeCellRef> freeCellSlots_;
 
 	// Used for fast cell retrieval by coordinates.
 	std::unordered_map<CellCoordinatesKey, QuadtreeCellRef> cellCoordinatesMap_;
 
 	int depth_;
-	int size_;
+	int32_t size_;
 	float cellSize_;
 
-	void AllocateChildrenNodes(const QuadtreeNodeRef parentNodeRef);
+	QuadtreeNodeRef AllocateChildrenNodes(const QuadtreeNodeRef parentNodeRef);
 	void DeallocateChildrenNodes(const QuadtreeNodeRef parentNodeRef);
-	void AllocateChildrenCells(const QuadtreeNodeRef parentNodeRef, int x, int y);
+	QuadtreeCellRef AllocateChildrenCells(const QuadtreeNodeRef parentNodeRef, int32_t midX, int32_t midY);
 	void DeallocateChildrenCells(const QuadtreeNodeRef parentNodeRef);
+	CellCoordinatesKey keyForCellCoordinates(int32_t x, int32_t y);
 };
