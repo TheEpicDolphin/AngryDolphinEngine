@@ -105,8 +105,12 @@ void Quadtree<T>::RemoveCell(QuadtreeCellRef cellRef) {
 }
 
 template<typename T>
-T& Quadtree<T>::ObjectForCellRef(QuadtreeCellRef cellRef) {
-	return cells_.at(cellRef).object;
+bool Quadtree<T>::ObjectForCellRef(QuadtreeCellRef cellRef, T*& object) {
+	if (cellRef > 0 && cellRef < cells_.size() && !cells_[cellRef].isEmpty) {
+		object = &cells_[cellRef].object;
+		return true;
+	}
+	return false;
 }
 
 template<typename T>
@@ -115,9 +119,24 @@ QuadtreeCellRef Quadtree<T>::GetCellRefForCoordinates(int32_t x, int32_t y) {
 	const std::unordered_map<CellCoordinatesKey, QuadtreeCellRef>::iterator iter = cellCoordinatesMap_.find(key);
 	if (iter != cellCoordinatesMap_.end()) {
 		return iter->second;
-	} else {
-		return 0;
 	}
+	return 0;
+}
+
+template<typename T>
+void Quadtree<T>::GetCellCoordinatesForPosition(const float* pos, int32_t& x, int32_t& y) {
+	x = (int32_t)(floorf(pos[0] / cellSize_));
+	y = (int32_t)(floorf(pos[2] / cellSize_));
+}
+
+template<typename T>
+bool Quadtree<T>::GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, int32_t& y) {
+	if (cellRef > 0 && cellRef < cells_.size() && !cells_[cellRef].isEmpty) {
+		x = cells_[cellRef].x;
+		y = cells_[cellRef].y;
+		return true;
+	}
+	return false;
 }
 
 template<typename T>

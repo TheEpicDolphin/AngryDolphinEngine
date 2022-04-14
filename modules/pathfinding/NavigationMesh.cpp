@@ -181,8 +181,6 @@ namespace pathfinding {
         tilePolyMeshDetail_ = 0;
         recastNavMesh_ = 0;
         recastNavQuery_ = 0;
-
-        isNavMeshBounded_ = false;
     }
 
     NavigationMesh::~NavigationMesh() {
@@ -227,18 +225,6 @@ namespace pathfinding {
         }
     }
 
-    Result NavigationMesh::initialize(float maxWalkableSlope,
-        float agentRadius,
-        float agentHeight,
-        float agentMaxClimb,
-        const float* navMeshBoundsMin,
-        const float* navMeshBoundsMax) {
-        isNavMeshBounded_ = true;
-        rcVcopy(navMeshBoundsMin_, navMeshBoundsMin);
-        rcVcopy(navMeshBoundsMax_, navMeshBoundsMax);
-        return initialize(maxWalkableSlope, agentRadius, agentHeight, agentMaxClimb);
-    }
-
     Result NavigationMesh::initialize(float maxWalkableSlope, float agentRadius, float agentHeight, float agentMaxClimb) {
         maxWalkableSlope_ = maxWalkableSlope;
         agentRadius_ = agentRadius;
@@ -253,27 +239,11 @@ namespace pathfinding {
         // The author of recast recommends agent radius * 8 for the max edge length.
         maxEdgeLen_ = agentRadius * 8.0f;
 
+        tileQuadtree_ = Quadtree<NavigationMeshTile>(kTileSizeVoxels * voxelSize_, std::max());
+
         // There are only 22 bits available to be divided among identifying tiles
         // and identifying polys within those tiles.
-        uint32_t tileBits;
-        if (isNavMeshBounded_) {
-            // Find the number of tiles contained in the navigation mesh bounds. We will use this value
-            // to determine how many bits should be allocated for identifying tiles.
-            int gridWidthVoxels;
-            int gridHeightVoxels;
-            rcCalcGridSize(navMeshBoundsMin_, navMeshBoundsMax_, voxelSize_, &gridWidthVoxels, &gridHeightVoxels);
-            const int gridWidthTiles = (gridWidthVoxels + kTileSizeVoxels - 1) / kTileSizeVoxels;
-            const int gridHeightTiles = (gridHeightVoxels + kTileSizeVoxels - 1) / kTileSizeVoxels;
-            const uint32_t expectedNumTiles = gridWidthTiles * gridHeightTiles;
-
-            // Finds the number of bits required to identify expectedNumTiles different tiles.
-            // The number of bits is clamped to the range [6, 14].
-            tileBits = std::min<uint32_t>(std::max<uint32_t>(ilog2(nextPow2(expectedNumTiles)), 6), 14);
-        }
-        else {
-            tileBits = 12;
-        }
-
+        const uint32_t tileBits = 12;
         const uint32_t polyBits = 22 - tileBits;
         maxTiles_ = 1 << tileBits;
         maxPolysPerTile_ = 1 << polyBits;
@@ -513,18 +483,17 @@ namespace pathfinding {
                 const NavigationMeshGeometryEntityHandle handle = *iter;
 
                 NavigationMeshGeometryEntity& geometryEntity = getGeometryEntitySafe(handle);
-                std::vector<TileKey>& previouslyIntersectedTiles = geometryEntity.intersectionCandidateTiles;
+                std::vector<QuadtreeCellRef>& previouslyIntersectedTiles = geometryEntity.intersectionCandidateTiles;
 
                 // For each tile previously intersected by this geometry entity, remove this geometry entity's
                 // handle from its dictionary of intersections, and consider the tile "dirty".
-                for (TileKey tileKey : previouslyIntersectedTiles) {
-                    std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
-                    if (tileIter != tiles_.end()) {
-                        NavigationMeshTile& tile = tileIter->second;
-                        tile.intersectedGeometryEntityTris.erase(handle);
+                for (QuadtreeCellRef tileCellRef : previouslyIntersectedTiles) {
+                    NavigationMeshTile* tile;
+                    if (tileQuadtree_.ObjectForCellRef(tileCellRef, tile)) {
+                        tile->intersectedGeometryEntityTris.erase(handle);
 
-                        if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
-                            regenCandidateTiles_[tileKey] = { &tile, false };
+                        if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
+                            regenCandidateTiles_[tileCellRef] = { false };
                         }
                     }
                 }
@@ -556,19 +525,26 @@ namespace pathfinding {
 
         // Phase 5: Iterate candidate tiles and perform navigation mesh generation if necessary.
 
-        for (std::unordered_map<TileKey, RegenerationCandidateTile>::iterator regenCandidateTileIter =
+        for (std::unordered_map<QuadtreeCellRef, RegenerationCandidateTileData>::iterator regenCandidateTileIter =
             regenCandidateTiles_.begin();
             regenCandidateTileIter != regenCandidateTiles_.end();
             ++regenCandidateTileIter) {
-            const TileKey regenCandidateTileKey = regenCandidateTileIter->first;
+            const QuadtreeCellRef regenCandidateTileCellRef = regenCandidateTileIter->first;
             const bool isTileNewlyCreated = regenCandidateTileIter->second.isNewlyCreated;
-            NavigationMeshTile* regenCandidateTile = regenCandidateTileIter->second.tile;
+
+            NavigationMeshTile* regenCandidateTile;
+            int32_t tx;
+            int32_t ty;
+            if (!tileQuadtree_.ObjectForCellRef(regenCandidateTileCellRef, regenCandidateTile)
+                || !tileQuadtree_.GetCoordinatesForCellRef(regenCandidateTileCellRef, tx, ty)) {
+                continue;
+            }
 
             if (!regenCandidateTile->intersectedGeometryEntityTris.empty()) {
                 // This tile potentially intersects with geometry entities.
                 int navmeshDataSize = 0;
                 unsigned char* navmeshData;
-                TileNavMeshGenStatus genStatus = buildTileNavigationMesh(regenCandidateTile, navmeshData, navmeshDataSize);
+                TileNavMeshGenStatus genStatus = buildTileNavigationMesh(regenCandidateTile, tx, ty, navmeshData, navmeshDataSize);
 
                 switch (genStatus) {
                 case TileNavMeshGenStatus::Success: {
@@ -586,8 +562,8 @@ namespace pathfinding {
                         //
                         // Fetch data for this tile's generated navigation mesh.
                         NavigationMeshTileData navMeshTileData;
-                        navMeshTileData.tileCoordinates[0] = regenCandidateTile->coordinates.tx;
-                        navMeshTileData.tileCoordinates[1] = regenCandidateTile->coordinates.ty;
+                        navMeshTileData.tileCoordinates[0] = tx;
+                        navMeshTileData.tileCoordinates[1] = ty;
                         getTileNavigationMeshTriangulation(*tilePolyMesh_,
                             navMeshTileData.origin,
                             navMeshTileData.triangles,
@@ -607,7 +583,7 @@ namespace pathfinding {
                     // No navigation mesh was generated for this tile. It is a false positive.
                     if (isTileNewlyCreated) {
                         // If tile was newly created, delete it.
-                        tiles_.erase(regenCandidateTileKey);
+                        tileQuadtree_.RemoveCell(regenCandidateTileCellRef);
                     }
                 } break;
                 default:
@@ -619,11 +595,11 @@ namespace pathfinding {
                 // This tile has no geometry intersecting it. Delete it.
                 // TODO: Assert that isTileNewlyCreated is false.
                 NavigationMeshTileData navMeshTileData;
-                navMeshTileData.tileCoordinates[0] = regenCandidateTile->coordinates.tx;
-                navMeshTileData.tileCoordinates[1] = regenCandidateTile->coordinates.ty;
+                navMeshTileData.tileCoordinates[0] = tx;
+                navMeshTileData.tileCoordinates[1] = ty;
                 navigationMeshRegenerationChangeset.removedTiles.push_back(navMeshTileData);
                 clearTileNavigationMesh(regenCandidateTile);
-                tiles_.erase(regenCandidateTileKey);
+                tileQuadtree_.RemoveCell(regenCandidateTileCellRef);
             }
         }
 
@@ -637,18 +613,17 @@ namespace pathfinding {
 
         // Find tiles that were previously intersected by this geometry entity. They are likely
         // affected by the spatial changes applied to this geometry entity.
-        for (TileKey tileKey : geometryEntity.intersectionCandidateTiles) {
-            std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
-            if (tileIter != tiles_.end()) {
-                NavigationMeshTile& tile = tileIter->second;
+        for (QuadtreeCellRef tileCellRef : geometryEntity.intersectionCandidateTiles) {
+            NavigationMeshTile* tile;
+            if (tileQuadtree_.ObjectForCellRef(tileCellRef, tile)) {
                 // Assume that this geometry entity no longer intersects this tile.
                 // If we are wrong, it will be corrected in the next step anyway, where
                 // we check for new geometry entity-tile intersections after the vertices
                 // are transformed.
-                tile.intersectedGeometryEntityTris.erase(handle);
+                tile->intersectedGeometryEntityTris.erase(handle);
 
-                if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
-                    regenCandidateTiles_[tileKey] = { &tile, false };
+                if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
+                    regenCandidateTiles_[tileCellRef] = { false };
                 }
             }
         }
@@ -694,31 +669,23 @@ namespace pathfinding {
             triAABBMax[0] += bs;
             triAABBMax[2] += bs;
 
-            if (isNavMeshBounded_) {
-                if (triAABBMax[0] <= navMeshBoundsMin_[0] || triAABBMin[0] >= navMeshBoundsMax_[0] ||
-                    triAABBMax[1] <= navMeshBoundsMin_[1] || triAABBMin[1] >= navMeshBoundsMax_[1] ||
-                    triAABBMax[2] <= navMeshBoundsMin_[2] || triAABBMin[2] >= navMeshBoundsMax_[2]) {
-                    // The triangle AABB is entirely outside of the navigation mesh bounds. Skip.
-                    continue;
-                }
-                clampAABBToNavigationMeshBounds(triAABBMin, triAABBMax);
-            }
-
-            const TileCoordinates minTileCoords = tileCoordinatesForLocalPosition(triAABBMin[0], triAABBMin[1], triAABBMin[2]);
-            const TileCoordinates maxTileCoords = tileCoordinatesForLocalPosition(triAABBMax[0], triAABBMax[1], triAABBMax[2]);
+            int32_t minTx; int32_t minTy;
+            tileCoordinatesForLocalPosition(triAABBMin, minTx, minTy);
+            int32_t maxTx; int32_t maxTy;
+            tileCoordinatesForLocalPosition(triAABBMax, maxTx, maxTy);
             // This may produce some false positives for tile-triangle intersections, but that is ok because
             // the false positives are later filtered out internally by Recast during the rasterization process.
-            for (int32_t tx = minTileCoords.tx; tx <= maxTileCoords.tx; tx++) {
-                for (int32_t ty = minTileCoords.ty; ty <= maxTileCoords.ty; ty++) {
-                    const TileKey tileKey = keyForTileCoordinates(tx, ty);
-                    NavigationMeshTile* tile = tileForTileCoordinates(tx, ty);
-                    if (!tile) {
+            for (int32_t tx = minTx; tx <= maxTx; tx++) {
+                for (int32_t ty = minTy; ty <= maxTy; ty++) {
+                    const QuadtreeCellRef tileCellRef = tileQuadtree_.GetCellRefForCoordinates(tx, ty);
+                    NavigationMeshTile* tile;
+                    if (!tileQuadtree_.ObjectForCellRef(tileCellRef, tile)) {
                         // Create a new tile.
                         tile = createTileAtCoordinates(tx, ty);
-                        regenCandidateTiles_[tileKey] = { tile, true };
+                        regenCandidateTiles_[tileCellRef] = { true };
                     }
-                    else if (regenCandidateTiles_.find(tileKey) == regenCandidateTiles_.end()) {
-                        regenCandidateTiles_[tileKey] = { tile, false };
+                    else if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
+                        regenCandidateTiles_[tileCellRef] = { false };
                     }
 
                     auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
@@ -731,7 +698,7 @@ namespace pathfinding {
                         tile->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
                     }
 
-                    geometryEntity.intersectionCandidateTiles.push_back(tileKey);
+                    geometryEntity.intersectionCandidateTiles.push_back(tileCellRef);
                 }
             }
         }
@@ -781,43 +748,15 @@ namespace pathfinding {
         }
     }
 
-    NavigationMesh::TileCoordinates NavigationMesh::tileCoordinatesForLocalPosition(float x, float y, float z) {
-        (void)y;
-        const float ts = tileConfig_.tileSize * tileConfig_.cs;
-        const int32_t tx = (int32_t)(floorf(x / ts));
-        const int32_t ty = (int32_t)(floorf(z / ts));
-        TileCoordinates coordinates = { tx, ty };
-        return coordinates;
-    }
-
-    NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(TileCoordinates coordinates) {
-        return keyForTileCoordinates(coordinates.tx, coordinates.ty);
-    }
-
-    NavigationMesh::TileKey NavigationMesh::keyForTileCoordinates(int32_t tx, int32_t ty) {
-        TileKey tileKey;
-        char* tileKeyPtr = reinterpret_cast<char*>(&tileKey);
-        memcpy(tileKeyPtr, &tx, sizeof(tx));
-        memcpy(tileKeyPtr + sizeof(tx), &ty, sizeof(ty));
-        return tileKey;
-    }
-
-    NavigationMesh::NavigationMeshTile* NavigationMesh::tileForTileCoordinates(int32_t tx, int32_t ty) {
-        TileCoordinates coordinates = { tx, ty };
-        const TileKey tileKey = keyForTileCoordinates(coordinates);
-        std::unordered_map<TileKey, NavigationMeshTile>::iterator tileIter = tiles_.find(tileKey);
-        if (tileIter == tiles_.end()) {
-            return nullptr;
-        }
-        return &tileIter->second;
+    void NavigationMesh::tileCoordinatesForLocalPosition(const float* pos, int32_t& tx, int32_t& ty) {
+        tileQuadtree_.GetCellCoordinatesForPosition(pos, tx, ty);
     }
 
     NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(int32_t tx, int32_t ty) {
-        TileCoordinates coordinates = { tx, ty };
-        const TileKey tileKey = keyForTileCoordinates(coordinates);
-        std::pair<std::unordered_map<TileKey, NavigationMeshTile>::iterator, bool> insertion =
-            tiles_.insert({ tileKey, {coordinates, {}} });
-        return &(insertion.first->second);
+        const QuadtreeCellRef tileCellRef = tileQuadtree_.AddCellAt(tx, ty, { 0, {} });
+        NavigationMeshTile* tile;
+        tileQuadtree_.ObjectForCellRef(tileCellRef, tile);
+        return tile;
     }
 
     void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
@@ -825,12 +764,14 @@ namespace pathfinding {
     }
 
     NavigationMesh::TileNavMeshGenStatus NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
+        int32_t tx,
+        int32_t ty,
         unsigned char*& navMeshData,
         int& navMeshDataSize) {
         // Find axis aligned bounding box of the tile.
         const float ts = tileConfig_.tileSize * tileConfig_.cs;
-        const float minX = tile->coordinates.tx * ts;
-        const float minZ = tile->coordinates.ty * ts;
+        const float minX = tx * ts;
+        const float minZ = ty * ts;
 
         float tileAABBMin[3] = { minX, 0, minZ };
         float tileAABBMax[3] = { minX + ts, 0, minZ + ts };
@@ -865,7 +806,7 @@ namespace pathfinding {
         // Start the build process.
         recastContext_.startTimer(RC_TIMER_TOTAL);
 
-        recastContext_.log(RC_LOG_PROGRESS, "Building tile at: (%d, %d)", tile->coordinates.tx, tile->coordinates.ty);
+        recastContext_.log(RC_LOG_PROGRESS, "Building tile at: (%d, %d)", tx, ty);
 
         // Allocate voxel heightfield where we rasterize our input data to.
         tileHeightfield_ = rcAllocHeightfield();
@@ -1043,8 +984,8 @@ namespace pathfinding {
         params.walkableHeight = agentHeight_;
         params.walkableRadius = agentRadius_;
         params.walkableClimb = agentMaxClimb_;
-        params.tileX = tile->coordinates.tx;
-        params.tileY = tile->coordinates.ty;
+        params.tileX = tx;
+        params.tileY = ty;
         params.tileLayer = 0;
         rcVcopy(params.bmin, tilePolyMesh_->bmin);
         rcVcopy(params.bmax, tilePolyMesh_->bmax);
@@ -1069,16 +1010,6 @@ namespace pathfinding {
             tilePolyMesh_->npolys);
 
         return TileNavMeshGenStatus::Success;
-    }
-
-    void NavigationMesh::clampAABBToNavigationMeshBounds(float* AABBMin, float* AABBMax) {
-        AABBMin[0] = std::max(AABBMin[0], navMeshBoundsMin_[0]);
-        AABBMin[1] = std::max(AABBMin[1], navMeshBoundsMin_[1]);
-        AABBMin[2] = std::max(AABBMin[2], navMeshBoundsMin_[2]);
-
-        AABBMax[0] = std::min(AABBMax[0], navMeshBoundsMax_[0]);
-        AABBMax[1] = std::min(AABBMax[1], navMeshBoundsMax_[1]);
-        AABBMax[2] = std::min(AABBMax[2], navMeshBoundsMax_[2]);
     }
 
     Result NavigationMesh::findPath(const float* fromPoint,

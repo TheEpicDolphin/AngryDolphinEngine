@@ -159,15 +159,7 @@ namespace pathfinding {
 			NoGeneration = 1,
 		};
 
-		using TileKey = uint64_t;
-
-		struct TileCoordinates {
-			int32_t tx;
-			int32_t ty;
-		};
-
 		struct NavigationMeshTile {
-			TileCoordinates coordinates;
 			dtTileRef tileRef;
 			// The field below is only updated when regenerateIfNeeded is called.
 			std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<uint16_t>> intersectedGeometryEntityTris;
@@ -186,7 +178,6 @@ namespace pathfinding {
 			// TODO: Area id
 			// The fields below are only updated when regenerateIfNeeded is called.
 			std::vector<float> transformedGeometryVertices;
-			std::vector<TileKey> intersectionCandidateTiles;
 			std::vector<QuadtreeCellRef> intersectionCandidateTiles;
 		};
 
@@ -201,16 +192,14 @@ namespace pathfinding {
 		bool isGeometryEntityPendingDestruction(NavigationMeshGeometryEntityHandle handle);
 		NavigationMeshGeometryEntity& getGeometryEntitySafe(NavigationMeshGeometryEntityHandle handle);
 		NavigationMeshGeometryEntity* findGeometryEntitySafe(NavigationMeshGeometryEntityHandle handle);
-		TileCoordinates tileCoordinatesForLocalPosition(float x, float y, float z);
-		TileKey keyForTileCoordinates(TileCoordinates coordinates);
-		TileKey keyForTileCoordinates(int32_t tx, int32_t ty);
-		NavigationMeshTile* tileForTileCoordinates(int32_t tx, int32_t ty);
+		void NavigationMesh::tileCoordinatesForLocalPosition(const float* pos, int32_t& tx, int32_t& ty);
 		NavigationMeshTile* createTileAtCoordinates(int32_t tx, int32_t ty);
 		void clearTileNavigationMesh(NavigationMeshTile* tile);
 		TileNavMeshGenStatus buildTileNavigationMesh(NavigationMeshTile* tile,
+			int32_t tx,
+			int32_t ty,
 			unsigned char*& navMeshData,
 			int& navMeshDataSize);
-		void clampAABBToNavigationMeshBounds(float* AABBMin, float* AABBMax);
 
 		std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity> geometryEntities_;
 		// 0 is reserved for the "Invalid" handle.
@@ -238,10 +227,6 @@ namespace pathfinding {
 		dtNavMeshQuery* recastNavQuery_;
 		rcContext recastContext_;
 
-		bool isNavMeshBounded_;
-		float navMeshBoundsMin_[3];
-		float navMeshBoundsMax_[3];
-
 		float voxelSize_;
 		float voxelHeight_;
 		float maxWalkableSlope_;
@@ -254,14 +239,12 @@ namespace pathfinding {
 		int32_t maxPolysPerTile_;
 
 		Quadtree<NavigationMeshTile> tileQuadtree_;
-		std::unordered_map<TileKey, NavigationMeshTile> tiles_;
 
-		struct RegenerationCandidateTile {
-			NavigationMeshTile* tile;
+		struct RegenerationCandidateTileData {
 			bool isNewlyCreated;
 		};
 
-		std::unordered_map<TileKey, RegenerationCandidateTile> regenCandidateTiles_;
+		std::unordered_map<QuadtreeCellRef, RegenerationCandidateTileData> regenCandidateTiles_;
 	};
 
 } // namespace pathfinding

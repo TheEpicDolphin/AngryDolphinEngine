@@ -16,9 +16,13 @@ public:
 
 	void RemoveCell(QuadtreeCellRef cellRef);
 
-	T& ObjectForCellRef(QuadtreeCellRef cellRef);
+	bool ObjectForCellRef(QuadtreeCellRef cellRef, T*& object);
 
 	QuadtreeCellRef GetCellRefForCoordinates(int32_t x, int32_t y);
+
+	void GetCellCoordinatesForPosition(const float* pos, int32_t& x, int32_t& y);
+
+	bool GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, int32_t& y);
 
 	void QueryCellsAroundPoint(const float* point, std::function<float(int32_t, int32_t, T)>);
 
