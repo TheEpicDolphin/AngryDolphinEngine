@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <unordered_map>
 #include <queue>
@@ -24,7 +25,7 @@ public:
 
 	bool GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, int32_t& y);
 
-	void QueryCellsAroundPoint(const float* point, std::function<float(int32_t, int32_t, T)>);
+	void QueryNearestNeighbourCells(const float* point, std::function<float(T&)> action);
 
 private:
 	using QuadtreeNodeRef = int32_t;

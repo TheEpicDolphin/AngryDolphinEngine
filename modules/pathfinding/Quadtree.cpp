@@ -1,6 +1,6 @@
 #include "Quadtree.h"
 
-#include <assert.h> 
+#include <assert.h>
 
 uint64_t keyForCellCoordinates(int32_t x, int32_t y) {
 	uint64_t cellCoordsKey;
@@ -137,6 +137,107 @@ bool Quadtree<T>::GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, 
 		return true;
 	}
 	return false;
+}
+
+template<typename T>
+void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<float(T&)> action) {
+	/*
+	int32_t x;
+	int32_t y;
+	GetCellCoordinatesForPosition(point, x, y);
+
+	QuadtreeNodeRef containingNode;
+	const QuadtreeCellRef cellRef = GetCellRefForCoordinates(x, y);
+	if (cellRef) {
+		containingNode = cells_[cellRef].parent;
+	}
+	*/
+
+	float minSqrDist = ;
+
+	struct QueryCandidateNode {
+		int nodeRef;
+		int depth;
+		int32_t xBounds[2];
+		int32_t yBounds[2];
+		float sqrDist;
+
+		bool operator > (const QueryCandidateNode& other) const
+		{
+			return (sqrDist > other.sqrDist);
+		}
+	};
+
+	const int32_t halfSize = size_ >> 1;
+	std::vector<QueryCandidateNode> dfsStack;
+	// Start with root node.
+	dfsStack.push_back({ 0, 0, {}, {}, 0.0f });
+	dfsStack[0].xBounds[0] = -halfSize;
+	dfsStack[0].xBounds[1] = halfSize;
+	dfsStack[0].yBounds[0] = -halfSize;
+	dfsStack[0].yBounds[1] = halfSize;
+
+	std::vector<QueryCandidateNode> childQueryCandidates;
+	childQueryCandidates.reserve(4);
+
+	while (!dfsStack.empty()) {
+		const QueryCandidateNode queryCandidate = dfsStack.back();
+		dfsStack.pop_back();
+
+		if (queryCandidate.sqrDist >= minSqrDist) {
+			// It is no longer possible for this node to have contents
+			// closer than minSqrDist to point.
+			continue;
+		}
+
+		int firstChildRef = nodes_[queryCandidate.nodeRef].firstChild;
+		if (firstChildRef < 0) {
+			// This node has no children. Skip.
+			continue;
+		}
+
+		const int32_t midX = (queryCandidate.xBounds[0] + queryCandidate.xBounds[1]) >> 1;
+		const int32_t midY = (queryCandidate.yBounds[0] + queryCandidate.yBounds[1]) >> 1;
+
+		if (queryCandidate.depth == depth_ - 1) {
+			for (int i = 0; i < 4; i++) {
+				minSqrDist = std::min(minSqrDist, action(cells_[firstChildRef + i].object));
+			}
+		} else {
+			for (int i = 0; i < 4; i++) {
+				QueryCandidateNode childQueryCandidate = {
+					firstChildRef + i,
+					queryCandidate.depth + 1,
+					{},
+					{},
+					0.0f,
+				};
+
+				childQueryCandidate.xBounds[] = midX;
+				childQueryCandidate.yBounds[] = midY;
+
+				float pointClamped[2] = {
+					std::min(std::max(childQueryCandidate.xBounds[0] * cellSize_, point[0]), childQueryCandidate.xBounds[1] * cellSize_),
+					std::min(std::max(childQueryCandidate.yBounds[0] * cellSize_, point[2]), childQueryCandidate.yBounds[1] * cellSize_),
+				};
+				const float diff[2] = { point[0] - pointClamped[0], point[2] - pointClamped[1] };
+				const float sqrDist = diff[0] * diff[0] + diff[1] * diff[1];
+
+				if (queryCandidate.sqrDist < minSqrDist) {
+					// Only consider this child node if it is less than minSqrDist to point.
+					childQueryCandidates.push_back(childQueryCandidate);
+				}
+			}
+
+			if (!childQueryCandidates.empty()) {
+				// Sort nodes by descending order of squared distance to point. This is the order we want to
+				// append them to the queue to ensure a depth-first search traversal.
+				std::sort(childQueryCandidates.begin(), childQueryCandidates.end(), std::greater<QueryCandidateNode>());
+				dfsStack.insert(dfsStack.end(), childQueryCandidates.begin(), childQueryCandidates.end());
+				childQueryCandidates.clear();
+			}
+		}
+	}
 }
 
 template<typename T>
