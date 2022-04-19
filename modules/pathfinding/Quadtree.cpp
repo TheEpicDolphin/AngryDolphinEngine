@@ -153,7 +153,7 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 	}
 	*/
 
-	float minSqrDist = ;
+	float minSqrDist = FLT_MAX;
 
 	struct QueryCandidateNode {
 		int nodeRef;
@@ -184,7 +184,7 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 		const QueryCandidateNode queryCandidate = dfsStack.back();
 		dfsStack.pop_back();
 
-		if (queryCandidate.sqrDist >= minSqrDist) {
+		if (!(queryCandidate.sqrDist < minSqrDist)) {
 			// It is no longer possible for this node to have contents
 			// closer than minSqrDist to point.
 			continue;
@@ -213,8 +213,13 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 					0.0f,
 				};
 
-				childQueryCandidate.xBounds[] = midX;
-				childQueryCandidate.yBounds[] = midY;
+				const bool isRightOfCenter = i % 3 == 0;
+				childQueryCandidate.xBounds[!isRightOfCenter] = midX;
+				childQueryCandidate.xBounds[isRightOfCenter] = queryCandidate.xBounds[isRightOfCenter];
+
+				const bool isAboveCenter = i < 2;
+				childQueryCandidate.yBounds[!isAboveCenter] = midY;
+				childQueryCandidate.yBounds[isAboveCenter] = queryCandidate.yBounds[isAboveCenter];
 
 				float pointClamped[2] = {
 					std::min(std::max(childQueryCandidate.xBounds[0] * cellSize_, point[0]), childQueryCandidate.xBounds[1] * cellSize_),

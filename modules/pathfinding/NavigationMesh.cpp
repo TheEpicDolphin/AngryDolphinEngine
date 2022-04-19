@@ -1023,6 +1023,10 @@ namespace pathfinding {
         (void)maxPathPointsCount;
         foundPathPointsCount = 0;
         pathPoints = nullptr;
+
+        tileQuadtree_.QueryNearestNeighbourCells(fromPoint, );
+
+        tileQuadtree_.QueryNearestNeighbourCells(toPoint, );
         return Result::kOk;
     }
 
