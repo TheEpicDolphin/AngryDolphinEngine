@@ -140,7 +140,7 @@ bool Quadtree<T>::GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, 
 }
 
 template<typename T>
-void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<float(T&)> action) {
+void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<float(T&, float)> action) {
 	/*
 	int32_t x;
 	int32_t y;
@@ -201,7 +201,7 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 
 		if (queryCandidate.depth == depth_ - 1) {
 			for (int i = 0; i < 4; i++) {
-				minSqrDist = std::min(minSqrDist, action(cells_[firstChildRef + i].object));
+				minSqrDist = std::min(minSqrDist, action(cells_[firstChildRef + i].object, minSqrDist));
 			}
 		} else {
 			for (int i = 0; i < 4; i++) {

@@ -25,7 +25,7 @@ public:
 
 	bool GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, int32_t& y);
 
-	void QueryNearestNeighbourCells(const float* point, std::function<float(T&)> action);
+	void QueryNearestNeighbourCells(const float* point, std::function<float(T&, float)> action);
 
 private:
 	using QuadtreeNodeRef = int32_t;

@@ -1017,16 +1017,91 @@ namespace pathfinding {
         uint32_t maxPathPointsCount,
         float* pathPoints,
         uint32_t& foundPathPointsCount) {
-        // TODO: Call detour methods to find path.
-        (void)fromPoint;
-        (void)toPoint;
-        (void)maxPathPointsCount;
-        foundPathPointsCount = 0;
-        pathPoints = nullptr;
+        float* point;
+        dtPolyRef closestPoly;
+        float* closestPolyPoint;
+        std::function<float(NavigationMeshTile&, float)> actionBlock =
+            [this, &closestPoly, &closestPolyPoint, point](NavigationMeshTile& tile, float closestPolySqrDist) {
+            float closestTilePolySqrDist = closestPolySqrDist;
+            const dtMeshTile* meshTile = recastNavMesh_->getTileByRef(tile.tileRef);
+            const dtPolyRef polyRefBase = recastNavMesh_->getPolyRefBase(meshTile);
+            const int polyCount = meshTile->header->polyCount;
+            for (int polyIdx = 0; polyIdx < polyCount; ++polyIdx) {
+                const dtPoly poly = meshTile->polys[polyIdx];
 
-        tileQuadtree_.QueryNearestNeighbourCells(fromPoint, );
+                const float* v0 = &meshTile->verts[poly.verts[0]];
+                const float* v1 = &meshTile->verts[poly.verts[1]];
+                const float* v2 = &meshTile->verts[poly.verts[2]];
 
-        tileQuadtree_.QueryNearestNeighbourCells(toPoint, );
+                // TODO: Calculate closest point on triangle to 
+
+                if () {
+                    closestPoly = polyRefBase + polyIdx;
+                    closestPolyPoint = ;
+                    closestTilePolySqrDist = ;
+                }
+            }
+
+            return closestTilePolySqrDist;
+        };
+
+        rcVcopy(point, fromPoint);
+        dtPolyRef closestPoly = 0;
+        float* closestPolyPoint = nullptr;
+        tileQuadtree_.QueryNearestNeighbourCells(fromPoint, actionBlock);
+
+        if (!closestPolyPoint) {
+            pathPoints = nullptr;
+            foundPathPointsCount = 0;
+            return;
+        }
+        const dtPolyRef closestStartPoly = closestPoly;
+        float* closestStartPoint;
+        rcVcopy(closestStartPoint, closestPolyPoint);
+
+        rcVcopy(point, toPoint);
+        dtPolyRef closestPoly = 0;
+        float* closestPolyPoint = nullptr;
+        tileQuadtree_.QueryNearestNeighbourCells(toPoint, actionBlock);
+
+        if (!closestPolyPoint) {
+            pathPoints = nullptr;
+            foundPathPointsCount = 0;
+            return;
+        }
+        const dtPolyRef closestEndPoly = closestPoly;
+        float* closestEndPoint;
+        rcVcopy(closestEndPoint, closestPolyPoint);
+
+        // TODO: Change maxPathPointsCount to something else.
+        dtPolyRef* polyPath = new dtPolyRef[maxPathPointsCount];
+        int polyPathCount;
+        dtQueryFilter queryFilter;
+        recastNavQuery_->findPath(
+            closestStartPoly, 
+            closestEndPoly, 
+            closestStartPoint,
+            closestEndPoint,
+            &queryFilter, 
+            polyPath,
+            &polyPathCount,
+            maxPathPointsCount);
+        
+        unsigned char* straightPathFlags;
+        dtPolyRef* straightPathPolyRefs;
+        int straightPathCount;
+        recastNavQuery_->findStraightPath(
+            closestStartPoint,
+            closestEndPoint,
+            polyPath,
+            polyPathCount,
+            pathPoints,
+            straightPathFlags,
+            straightPathPolyRefs,
+            &straightPathCount,
+            maxPathPointsCount);
+        foundPathPointsCount = straightPathCount;
+
         return Result::kOk;
     }
 
