@@ -76,23 +76,24 @@ void Quadtree<T>::RemoveCell(QuadtreeCellRef cellRef) {
 	QuadtreeNodeRef currentNodeRef = cell.parent;
 	cell.isEmpty = true;
 	cellCoordinatesMap_.erase(keyForCellCoordinates(cell.x, cell.y));
-	// Check if this node has any descendant cells left.
 	{
 		const int firstChildIndex = nodes_[currentNodeRef].firstChild;
-		for (int i = 0; i < 4; i++) {
+		// Check if this node has any descendant cells left.
+		for (int i = 0; i < 4; ++i) {
 			if (!cells_[firstChildIndex + i].isEmpty) {
 				return;
 			}
 		}
+
+		DeallocateChildrenCells(currentNodeRef);
+		nodes_[currentNodeRef].firstChild = -1;
+		currentNodeRef = nodes_[currentNodeRef].parent;
 	}
-	DeallocateChildrenCells(currentNodeRef);
-	nodes_[currentNodeRef].firstChild = -1;
-	currentNodeRef = nodes_[currentNodeRef].parent;
+
 	while (currentNodeRef >= 0) {
 		const int firstChildIndex = nodes_[currentNodeRef].firstChild;
-
 		// Check if this node has any descendant cells left.
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 4; ++i) {
 			if (nodes_[firstChildIndex + i].firstChild > -1) {
 				return;
 			}
@@ -141,18 +142,6 @@ bool Quadtree<T>::GetCoordinatesForCellRef(QuadtreeCellRef cellRef, int32_t& x, 
 
 template<typename T>
 void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<float(T&, float)> action) {
-	/*
-	int32_t x;
-	int32_t y;
-	GetCellCoordinatesForPosition(point, x, y);
-
-	QuadtreeNodeRef containingNode;
-	const QuadtreeCellRef cellRef = GetCellRefForCoordinates(x, y);
-	if (cellRef) {
-		containingNode = cells_[cellRef].parent;
-	}
-	*/
-
 	float minSqrDist = FLT_MAX;
 
 	struct QueryCandidateNode {
@@ -200,11 +189,11 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 		const int32_t midY = (queryCandidate.yBounds[0] + queryCandidate.yBounds[1]) >> 1;
 
 		if (queryCandidate.depth == depth_ - 1) {
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 4; ++i) {
 				minSqrDist = std::min(minSqrDist, action(cells_[firstChildRef + i].object, minSqrDist));
 			}
 		} else {
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 4; ++i) {
 				QueryCandidateNode childQueryCandidate = {
 					firstChildRef + i,
 					queryCandidate.depth + 1,
@@ -226,7 +215,7 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 					std::min(std::max(childQueryCandidate.yBounds[0] * cellSize_, point[2]), childQueryCandidate.yBounds[1] * cellSize_),
 				};
 				const float diff[2] = { point[0] - pointClamped[0], point[2] - pointClamped[1] };
-				const float sqrDist = diff[0] * diff[0] + diff[1] * diff[1];
+				queryCandidate.sqrDist = diff[0] * diff[0] + diff[1] * diff[1];
 
 				if (queryCandidate.sqrDist < minSqrDist) {
 					// Only consider this child node if it is less than minSqrDist to point.
@@ -246,7 +235,7 @@ void Quadtree<T>::QueryNearestNeighbourCells(const float* point, std::function<f
 }
 
 template<typename T>
-Quadtree<T>::QuadtreeNodeRef Quadtree<T>::AllocateChildrenNodes(const QuadtreeNodeRef parentNodeRef) {
+QuadtreeNodeRef Quadtree<T>::AllocateChildrenNodes(const QuadtreeNodeRef parentNodeRef) {
 	QuadtreeNodeRef freeNodeSlot;
 	if (freeNodeSlots_.empty()) {
 		freeNodeSlot = nodes_.size();

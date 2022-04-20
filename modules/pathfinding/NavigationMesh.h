@@ -238,7 +238,7 @@ namespace pathfinding {
 		int32_t maxTiles_;
 		int32_t maxPolysPerTile_;
 
-		Quadtree<NavigationMeshTile> tileQuadtree_;
+		Quadtree<NavigationMeshTile> *tileQuadtree_;
 
 		struct RegenerationCandidateTileData {
 			bool isNewlyCreated;

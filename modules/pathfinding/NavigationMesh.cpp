@@ -189,39 +189,42 @@ namespace pathfinding {
 
         if (recastNavMesh_) {
             dtFreeNavMesh(recastNavMesh_);
-            recastNavMesh_ = 0;
+            recastNavMesh_ = nullptr;
         }
 
         if (recastNavQuery_) {
             dtFreeNavMeshQuery(recastNavQuery_);
-            recastNavQuery_ = 0;
+            recastNavQuery_ = nullptr;
         }
+
+        delete tileQuadtree_;
+        tileQuadtree_ = nullptr;
     }
 
     void NavigationMesh::cleanup() {
         if (tileHeightfield_) {
             rcFreeHeightField(tileHeightfield_);
-            tileHeightfield_ = 0;
+            tileHeightfield_ = nullptr;
         }
 
         if (tileCompactHeightfield_) {
             rcFreeCompactHeightfield(tileCompactHeightfield_);
-            tileCompactHeightfield_ = 0;
+            tileCompactHeightfield_ = nullptr;
         }
 
         if (tileContourSet_) {
             rcFreeContourSet(tileContourSet_);
-            tileContourSet_ = 0;
+            tileContourSet_ = nullptr;
         }
 
         if (tilePolyMesh_) {
             rcFreePolyMesh(tilePolyMesh_);
-            tilePolyMesh_ = 0;
+            tilePolyMesh_ = nullptr;
         }
 
         if (tilePolyMeshDetail_) {
             rcFreePolyMeshDetail(tilePolyMeshDetail_);
-            tilePolyMeshDetail_ = 0;
+            tilePolyMeshDetail_ = nullptr;
         }
     }
 
@@ -239,14 +242,14 @@ namespace pathfinding {
         // The author of recast recommends agent radius * 8 for the max edge length.
         maxEdgeLen_ = agentRadius * 8.0f;
 
-        tileQuadtree_ = Quadtree<NavigationMeshTile>(kTileSizeVoxels * voxelSize_, std::max());
-
         // There are only 22 bits available to be divided among identifying tiles
         // and identifying polys within those tiles.
         const uint32_t tileBits = 12;
         const uint32_t polyBits = 22 - tileBits;
         maxTiles_ = 1 << tileBits;
         maxPolysPerTile_ = 1 << polyBits;
+
+        tileQuadtree_ = new Quadtree<NavigationMeshTile>(kTileSizeVoxels * voxelSize_, tileBits / 2);
 
         dtFreeNavMesh(recastNavMesh_);
         recastNavMesh_ = dtAllocNavMesh();
@@ -489,7 +492,7 @@ namespace pathfinding {
                 // handle from its dictionary of intersections, and consider the tile "dirty".
                 for (QuadtreeCellRef tileCellRef : previouslyIntersectedTiles) {
                     NavigationMeshTile* tile;
-                    if (tileQuadtree_.ObjectForCellRef(tileCellRef, tile)) {
+                    if (tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
                         tile->intersectedGeometryEntityTris.erase(handle);
 
                         if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
@@ -535,8 +538,8 @@ namespace pathfinding {
             NavigationMeshTile* regenCandidateTile;
             int32_t tx;
             int32_t ty;
-            if (!tileQuadtree_.ObjectForCellRef(regenCandidateTileCellRef, regenCandidateTile)
-                || !tileQuadtree_.GetCoordinatesForCellRef(regenCandidateTileCellRef, tx, ty)) {
+            if (!tileQuadtree_->ObjectForCellRef(regenCandidateTileCellRef, regenCandidateTile)
+                || !tileQuadtree_->GetCoordinatesForCellRef(regenCandidateTileCellRef, tx, ty)) {
                 continue;
             }
 
@@ -583,7 +586,7 @@ namespace pathfinding {
                     // No navigation mesh was generated for this tile. It is a false positive.
                     if (isTileNewlyCreated) {
                         // If tile was newly created, delete it.
-                        tileQuadtree_.RemoveCell(regenCandidateTileCellRef);
+                        tileQuadtree_->RemoveCell(regenCandidateTileCellRef);
                     }
                 } break;
                 default:
@@ -599,7 +602,7 @@ namespace pathfinding {
                 navMeshTileData.tileCoordinates[1] = ty;
                 navigationMeshRegenerationChangeset.removedTiles.push_back(navMeshTileData);
                 clearTileNavigationMesh(regenCandidateTile);
-                tileQuadtree_.RemoveCell(regenCandidateTileCellRef);
+                tileQuadtree_->RemoveCell(regenCandidateTileCellRef);
             }
         }
 
@@ -615,7 +618,7 @@ namespace pathfinding {
         // affected by the spatial changes applied to this geometry entity.
         for (QuadtreeCellRef tileCellRef : geometryEntity.intersectionCandidateTiles) {
             NavigationMeshTile* tile;
-            if (tileQuadtree_.ObjectForCellRef(tileCellRef, tile)) {
+            if (tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
                 // Assume that this geometry entity no longer intersects this tile.
                 // If we are wrong, it will be corrected in the next step anyway, where
                 // we check for new geometry entity-tile intersections after the vertices
@@ -677,9 +680,9 @@ namespace pathfinding {
             // the false positives are later filtered out internally by Recast during the rasterization process.
             for (int32_t tx = minTx; tx <= maxTx; tx++) {
                 for (int32_t ty = minTy; ty <= maxTy; ty++) {
-                    const QuadtreeCellRef tileCellRef = tileQuadtree_.GetCellRefForCoordinates(tx, ty);
+                    const QuadtreeCellRef tileCellRef = tileQuadtree_->GetCellRefForCoordinates(tx, ty);
                     NavigationMeshTile* tile;
-                    if (!tileQuadtree_.ObjectForCellRef(tileCellRef, tile)) {
+                    if (!tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
                         // Create a new tile.
                         tile = createTileAtCoordinates(tx, ty);
                         regenCandidateTiles_[tileCellRef] = { true };
@@ -749,13 +752,13 @@ namespace pathfinding {
     }
 
     void NavigationMesh::tileCoordinatesForLocalPosition(const float* pos, int32_t& tx, int32_t& ty) {
-        tileQuadtree_.GetCellCoordinatesForPosition(pos, tx, ty);
+        tileQuadtree_->GetCellCoordinatesForPosition(pos, tx, ty);
     }
 
     NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(int32_t tx, int32_t ty) {
-        const QuadtreeCellRef tileCellRef = tileQuadtree_.AddCellAt(tx, ty, { 0, {} });
+        const QuadtreeCellRef tileCellRef = tileQuadtree_->AddCellAt(tx, ty, { 0, {} });
         NavigationMeshTile* tile;
-        tileQuadtree_.ObjectForCellRef(tileCellRef, tile);
+        tileQuadtree_->ObjectForCellRef(tileCellRef, tile);
         return tile;
     }
 
@@ -1012,69 +1015,66 @@ namespace pathfinding {
         return TileNavMeshGenStatus::Success;
     }
 
-    Result NavigationMesh::findPath(const float* fromPoint,
+    Result NavigationMesh::findPath(
+        const float* fromPoint,
         const float* toPoint,
         uint32_t maxPathPointsCount,
         float* pathPoints,
-        uint32_t& foundPathPointsCount) {
-        float* point;
+        uint32_t& foundPathPointsCount
+    ) {
+        float inputPoint[3];
         dtPolyRef closestPoly;
-        float* closestPolyPoint;
+        float closestPolyPoint[3];
         std::function<float(NavigationMeshTile&, float)> actionBlock =
-            [this, &closestPoly, &closestPolyPoint, point](NavigationMeshTile& tile, float closestPolySqrDist) {
-            float closestTilePolySqrDist = closestPolySqrDist;
+            [this, inputPoint, &closestPoly, &closestPolyPoint](NavigationMeshTile& tile, float closestPolyPointSqrDist) {
             const dtMeshTile* meshTile = recastNavMesh_->getTileByRef(tile.tileRef);
             const dtPolyRef polyRefBase = recastNavMesh_->getPolyRefBase(meshTile);
             const int polyCount = meshTile->header->polyCount;
             for (int polyIdx = 0; polyIdx < polyCount; ++polyIdx) {
-                const dtPoly poly = meshTile->polys[polyIdx];
+                const dtPolyRef candidatePolyRef = polyRefBase + polyIdx;
+                float closestPointOnPoly[3];
+                bool isInputPointOverPoly;
+                recastNavQuery_->closestPointOnPoly(candidatePolyRef, inputPoint, closestPointOnPoly, &isInputPointOverPoly);
+                const float sqrDist = rcVdistSqr(inputPoint, closestPointOnPoly);
 
-                const float* v0 = &meshTile->verts[poly.verts[0]];
-                const float* v1 = &meshTile->verts[poly.verts[1]];
-                const float* v2 = &meshTile->verts[poly.verts[2]];
-
-                // TODO: Calculate closest point on triangle to 
-
-                if () {
-                    closestPoly = polyRefBase + polyIdx;
-                    closestPolyPoint = ;
-                    closestTilePolySqrDist = ;
+                if (sqrDist < closestPolyPointSqrDist) {
+                    closestPolyPointSqrDist = sqrDist;
+                    closestPoly = candidatePolyRef;
+                    rcVcopy(closestPolyPoint, closestPointOnPoly);
                 }
             }
 
-            return closestTilePolySqrDist;
+            return closestPolyPointSqrDist;
         };
 
-        rcVcopy(point, fromPoint);
-        dtPolyRef closestPoly = 0;
-        float* closestPolyPoint = nullptr;
-        tileQuadtree_.QueryNearestNeighbourCells(fromPoint, actionBlock);
+        rcVcopy(inputPoint, fromPoint);
+        closestPoly = 0;
+        tileQuadtree_->QueryNearestNeighbourCells(fromPoint, actionBlock);
 
         if (!closestPolyPoint) {
             pathPoints = nullptr;
             foundPathPointsCount = 0;
-            return;
+            return Result::kOk;
         }
         const dtPolyRef closestStartPoly = closestPoly;
-        float* closestStartPoint;
+        float closestStartPoint[3];
         rcVcopy(closestStartPoint, closestPolyPoint);
 
-        rcVcopy(point, toPoint);
-        dtPolyRef closestPoly = 0;
-        float* closestPolyPoint = nullptr;
-        tileQuadtree_.QueryNearestNeighbourCells(toPoint, actionBlock);
+        rcVcopy(inputPoint, toPoint);
+        closestPoly = 0;
+        tileQuadtree_->QueryNearestNeighbourCells(toPoint, actionBlock);
 
         if (!closestPolyPoint) {
             pathPoints = nullptr;
             foundPathPointsCount = 0;
-            return;
+            return Result::kOk;
         }
         const dtPolyRef closestEndPoly = closestPoly;
-        float* closestEndPoint;
+        float closestEndPoint[3];
         rcVcopy(closestEndPoint, closestPolyPoint);
 
         // TODO: Change maxPathPointsCount to something else.
-        dtPolyRef* polyPath = new dtPolyRef[maxPathPointsCount];
+        dtPolyRef* polyPath = new dtPolyRef[100];
         int polyPathCount;
         dtQueryFilter queryFilter;
         recastNavQuery_->findPath(
@@ -1085,7 +1085,7 @@ namespace pathfinding {
             &queryFilter, 
             polyPath,
             &polyPathCount,
-            maxPathPointsCount);
+            100);
         
         unsigned char* straightPathFlags;
         dtPolyRef* straightPathPolyRefs;
