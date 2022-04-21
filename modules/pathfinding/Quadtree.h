@@ -8,7 +8,6 @@
 #include <functional>
 
 using QuadtreeCellRef = uint32_t;
-using QuadtreeNodeRef = int32_t;
 
 template<typename T>
 class Quadtree {
@@ -31,6 +30,12 @@ public:
 	}
 
 	QuadtreeCellRef AddCellAt(int32_t x, int32_t y, T object) {
+		auto iter = cellCoordinatesMap_.find(keyForCellCoordinates(x, y));
+		if (iter != cellCoordinatesMap_.end()) {
+			cells_[iter->second].object = object;
+			return iter->second;
+		}
+
 		const int32_t halfSize = size_ >> 1;
 		int32_t xRange[2] = { -halfSize, halfSize };
 		int32_t yRange[2] = { -halfSize, halfSize };
@@ -41,13 +46,13 @@ public:
 			const int32_t midX = (xRange[0] + xRange[1]) >> 1;
 			const int32_t midY = (yRange[0] + yRange[1]) >> 1;
 			if (nodes_[currentNodeRef].firstChild == -1) {
-				AllocateChildrenNodes(currentNodeRef);
+				nodes_[currentNodeRef].firstChild = AllocateChildrenNodes(currentNodeRef);
 			}
 			const bool isLeft = x < midX;
 			const bool isBelow = y < midY;
 			currentNodeRef = nodes_[currentNodeRef].firstChild + (isLeft ^ isBelow) + (isBelow << 1);
 			xRange[isLeft] = midX;
-			xRange[isBelow] = midY;
+			yRange[isBelow] = midY;
 			currentDepth++;
 		}
 
@@ -72,7 +77,7 @@ public:
 	}
 
 	void RemoveCell(QuadtreeCellRef cellRef) {
-		const QuadtreeCell& cell = cells_.at(cellRef);
+		QuadtreeCell& cell = cells_.at(cellRef);
 		QuadtreeNodeRef currentNodeRef = cell.parent;
 		cell.isEmpty = true;
 		cellCoordinatesMap_.erase(keyForCellCoordinates(cell.x, cell.y));
@@ -165,7 +170,7 @@ public:
 		childQueryCandidates.reserve(4);
 
 		while (!dfsStack.empty()) {
-			const QueryCandidateNode queryCandidate = dfsStack.back();
+			QueryCandidateNode queryCandidate = dfsStack.back();
 			dfsStack.pop_back();
 
 			if (!(queryCandidate.sqrDist < minSqrDist)) {
@@ -231,7 +236,7 @@ public:
 	}
 	
 private:
-	
+	using QuadtreeNodeRef = int32_t;
 	using CellCoordinatesKey = uint64_t;
 
 	// Non-leaf nodes.
@@ -301,7 +306,7 @@ private:
 		const QuadtreeCell lowerRightCell = { true, parentNodeRef, midX, midY - 1, {} };
 		QuadtreeCellRef freeCellSlot;
 		if (freeCellSlots_.empty()) {
-			freeCellSlot = nodes_.size();
+			freeCellSlot = cells_.size();
 			cells_.push_back(upperRightCell);
 			cells_.push_back(upperLeftCell);
 			cells_.push_back(lowerLeftCell);

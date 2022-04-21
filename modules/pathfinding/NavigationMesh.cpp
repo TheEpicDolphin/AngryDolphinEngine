@@ -5,44 +5,6 @@
 #include <iostream>
 
 namespace pathfinding {
-
-    /**
-     * @brief For a given value, v, finds the smallest power of 2 greater than or equal to it.
-     * @param v The input value.
-     */
-    inline uint32_t nextPow2(uint32_t v) {
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        v++;
-        return v;
-    }
-
-    /**
-     * @brief Finds the integer base 2 log of the given value.
-     * @param v input value.
-     */
-    inline uint32_t ilog2(uint32_t v) {
-        uint32_t r;
-        uint32_t shift;
-        r = (v > 0xffff) << 4;
-        v >>= r;
-        shift = (v > 0xff) << 3;
-        v >>= shift;
-        r |= shift;
-        shift = (v > 0xf) << 2;
-        v >>= shift;
-        r |= shift;
-        shift = (v > 0x3) << 1;
-        v >>= shift;
-        r |= shift;
-        r |= (v >> 1);
-        return r;
-    }
-
     /**
      * @brief Transforms the point using the given transformation matrix.
      * @param transformMatrix4x4 The input transformation matrix.
@@ -174,13 +136,13 @@ namespace pathfinding {
     }
 
     NavigationMesh::NavigationMesh() {
-        tileHeightfield_ = 0;
-        tileCompactHeightfield_ = 0;
-        tileContourSet_ = 0;
-        tilePolyMesh_ = 0;
-        tilePolyMeshDetail_ = 0;
-        recastNavMesh_ = 0;
-        recastNavQuery_ = 0;
+        tileHeightfield_ = nullptr;
+        tileCompactHeightfield_ = nullptr;
+        tileContourSet_ = nullptr;
+        tilePolyMesh_ = nullptr;
+        tilePolyMeshDetail_ = nullptr;
+        recastNavMesh_ = nullptr;
+        recastNavQuery_ = nullptr;
     }
 
     NavigationMesh::~NavigationMesh() {
@@ -527,7 +489,6 @@ namespace pathfinding {
         // TODO: Phase 4: Process geometry entity flag/area changes.
 
         // Phase 5: Iterate candidate tiles and perform navigation mesh generation if necessary.
-
         for (std::unordered_map<QuadtreeCellRef, RegenerationCandidateTileData>::iterator regenCandidateTileIter =
             regenCandidateTiles_.begin();
             regenCandidateTileIter != regenCandidateTiles_.end();
@@ -542,7 +503,7 @@ namespace pathfinding {
                 || !tileQuadtree_->GetCoordinatesForCellRef(regenCandidateTileCellRef, tx, ty)) {
                 continue;
             }
-
+            
             if (!regenCandidateTile->intersectedGeometryEntityTris.empty()) {
                 // This tile potentially intersects with geometry entities.
                 int navmeshDataSize = 0;
@@ -680,28 +641,32 @@ namespace pathfinding {
             // the false positives are later filtered out internally by Recast during the rasterization process.
             for (int32_t tx = minTx; tx <= maxTx; tx++) {
                 for (int32_t ty = minTy; ty <= maxTy; ty++) {
-                    const QuadtreeCellRef tileCellRef = tileQuadtree_->GetCellRefForCoordinates(tx, ty);
-                    NavigationMeshTile* tile;
-                    if (!tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
+                    QuadtreeCellRef tileCellRef = tileQuadtree_->GetCellRefForCoordinates(tx, ty);
+                    if (!tileCellRef) {
                         // Create a new tile.
-                        tile = createTileAtCoordinates(tx, ty);
+                        tileCellRef = tileQuadtree_->AddCellAt(tx, ty, { 0, {} });
                         regenCandidateTiles_[tileCellRef] = { true };
-                    }
-                    else if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
-                        regenCandidateTiles_[tileCellRef] = { false };
-                    }
-
-                    auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
-                    if (geometryEntityTrisIter != tile->intersectedGeometryEntityTris.end()) {
-                        geometryEntityTrisIter->second.push_back(v0i);
-                        geometryEntityTrisIter->second.push_back(v1i);
-                        geometryEntityTrisIter->second.push_back(v2i);
-                    }
-                    else {
-                        tile->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
+                    } else {
+                        if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
+                            regenCandidateTiles_[tileCellRef] = { false };
+                        }
                     }
 
-                    geometryEntity.intersectionCandidateTiles.push_back(tileCellRef);
+                    NavigationMeshTile* tile;
+                    if (tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
+                        auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
+                        if (geometryEntityTrisIter != tile->intersectedGeometryEntityTris.end()) {
+                            geometryEntityTrisIter->second.push_back(v0i);
+                            geometryEntityTrisIter->second.push_back(v1i);
+                            geometryEntityTrisIter->second.push_back(v2i);
+                        }
+                        else {
+                            tile->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
+                        }
+
+                        geometryEntity.intersectionCandidateTiles.push_back(tileCellRef);
+                    }
+
                 }
             }
         }
@@ -753,13 +718,6 @@ namespace pathfinding {
 
     void NavigationMesh::tileCoordinatesForLocalPosition(const float* pos, int32_t& tx, int32_t& ty) {
         tileQuadtree_->GetCellCoordinatesForPosition(pos, tx, ty);
-    }
-
-    NavigationMesh::NavigationMeshTile* NavigationMesh::createTileAtCoordinates(int32_t tx, int32_t ty) {
-        const QuadtreeCellRef tileCellRef = tileQuadtree_->AddCellAt(tx, ty, { 0, {} });
-        NavigationMeshTile* tile;
-        tileQuadtree_->ObjectForCellRef(tileCellRef, tile);
-        return tile;
     }
 
     void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
@@ -896,10 +854,10 @@ namespace pathfinding {
         }
 
         // Erode the walkable area by agent radius.
-        if (!rcErodeWalkableArea(&recastContext_, tileConfig_.walkableRadius, *tileCompactHeightfield_)) {
-          recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to erode.");
-          return TileNavMeshGenStatus::ErosionFailure;
-        }
+        //if (!rcErodeWalkableArea(&recastContext_, tileConfig_.walkableRadius, *tileCompactHeightfield_)) {
+        //  recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to erode.");
+        //  return TileNavMeshGenStatus::ErosionFailure;
+        //}
 
         // Prepare for Watershed region partitioning by calculating distance field along the walkable surface.
         if (!rcBuildDistanceField(&recastContext_, *tileCompactHeightfield_)) {

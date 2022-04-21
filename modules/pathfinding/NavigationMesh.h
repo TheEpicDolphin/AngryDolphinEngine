@@ -193,7 +193,6 @@ namespace pathfinding {
 		NavigationMeshGeometryEntity& getGeometryEntitySafe(NavigationMeshGeometryEntityHandle handle);
 		NavigationMeshGeometryEntity* findGeometryEntitySafe(NavigationMeshGeometryEntityHandle handle);
 		void NavigationMesh::tileCoordinatesForLocalPosition(const float* pos, int32_t& tx, int32_t& ty);
-		NavigationMeshTile* createTileAtCoordinates(int32_t tx, int32_t ty);
 		void clearTileNavigationMesh(NavigationMeshTile* tile);
 		TileNavMeshGenStatus buildTileNavigationMesh(NavigationMeshTile* tile,
 			int32_t tx,
