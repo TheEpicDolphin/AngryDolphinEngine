@@ -18,7 +18,7 @@ std::vector<T> _ConvertFrom(std::vector<T *>& input)
     return output;
 }
 
-void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& tiles)
+void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& tiles, const float* pathPoints, uint32_t numPathPoints)
 {
     std::ofstream objFile;
     objFile.open("navigation_mesh_generation.obj", std::ios::out);
@@ -37,6 +37,17 @@ void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& 
         }
     }
 
+    if (numPathPoints > 0) {
+        // Draw path points, if any.
+        objFile << "\n# Path points" << std::endl;
+        for (int i = 0; i < numPathPoints * 3; i+=3) {
+            objFile
+                << "v " << pathPoints[i] << " " << pathPoints[i + 1] << " " << pathPoints[i + 2] << std::endl
+                << "v " << pathPoints[i] << " " << pathPoints[i + 1] + 0.5f << " " << pathPoints[i + 2] << std::endl;
+        }
+    }
+
+    objFile << "\n# triangle face elements" << std::endl;
     int triangleIndicesOffset = 0;
     for (const pathfinding::NavigationMeshTileData& tileNavMeshData : tiles) {
         for (int i = 0; i < tileNavMeshData.trianglesCount * 3; i += 3) {
@@ -47,6 +58,20 @@ void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& 
                 << std::endl;
         }
         triangleIndicesOffset += tileNavMeshData.verticesCount;
+    }
+
+    if (numPathPoints > 0) {
+        objFile << "\n# path line elements" << std::endl;
+        for (int i = 0; i < numPathPoints; ++i) {
+            int n = triangleIndicesOffset + (2 * i) + 1;
+            if (i > 0) {
+                objFile << "f " << n << " " << n - 2 << " " << n + 1 << std::endl;
+            }
+            if (i < (numPathPoints - 1)) {
+                objFile << "f " << n << " " << n + 1 << " " << n + 3 << std::endl;
+            }
+        }
+        objFile << std::endl;
     }
 
     objFile.close();
@@ -110,11 +135,40 @@ TEST(pathfinding_test_suite, creation_test)
     std::cout << "Finished regenerating" << std::endl;
     std::cout << "Added:" << std::endl;
     _PrintNavigationMeshTriangulation(changeset.addedTiles);
-    _WriteToObjectFile(changeset.addedTiles);
     std::cout << "Modifed:" << std::endl;
     _PrintNavigationMeshTriangulation(changeset.modifiedTiles);
     std::cout << "Removed:" << std::endl;
     _PrintNavigationMeshTriangulation(changeset.removedTiles);
+
+
+    //float fromPoint[3] = { -30, 30, 30 };
+    float fromPoint[3] = { -8, 18, 15 };
+    //float toPoint[3] = { 30, -5, -30 };
+    float toPoint[3] = { 8, 23, 8 };
+    float pathPoints[300];
+    uint32_t foundPathPointsCount;
+    navigationMesh.findPath(fromPoint, toPoint, 100, pathPoints, foundPathPointsCount);
+    for (uint32_t i = 0; i < 3 * foundPathPointsCount; i+=3) {
+        float* pathPoint = &pathPoints[i];
+        std::cout << "(" << pathPoint[0] << ", " << pathPoint[1] << ", " << pathPoint[2] << ")" << std::endl;
+    }
+
+    //pathPoints[0] = -24.8333f;
+    //pathPoints[1] = 29.9167f;
+    //pathPoints[2] = 24.8333f;
+    //pathPoints[3] = 24.8333f;
+    //pathPoints[4] = 0.25f;
+    //pathPoints[5] = -24.8333f;
+     
+     
+    //pathPoints[0] = -8;
+    //pathPoints[1] = 24.1963;
+    //pathPoints[2] = 15;
+    //pathPoints[3] = 8;
+    //pathPoints[4] = 20.0592;
+    //pathPoints[5] = 8;
+    //foundPathPointsCount = 2;
+    _WriteToObjectFile(changeset.addedTiles, pathPoints, foundPathPointsCount);
 
     /*
     float newTransform[16] = {

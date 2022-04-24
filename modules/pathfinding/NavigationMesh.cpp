@@ -981,20 +981,27 @@ namespace pathfinding {
         uint32_t& foundPathPointsCount
     ) {
         float inputPoint[3];
+        QuadtreeCellRef cellContainingInputPoint;
         dtPolyRef closestPoly;
         float closestPolyPoint[3];
-        std::function<float(NavigationMeshTile&, float)> actionBlock =
-            [this, inputPoint, &closestPoly, &closestPolyPoint](NavigationMeshTile& tile, float closestPolyPointSqrDist) {
+        std::function<float(QuadtreeCellRef, NavigationMeshTile&, float)> actionBlock =
+            [this, &inputPoint, &cellContainingInputPoint, &closestPoly, &closestPolyPoint](QuadtreeCellRef cellRef, NavigationMeshTile& tile, float closestPolyPointSqrDist) {
             const dtMeshTile* meshTile = recastNavMesh_->getTileByRef(tile.tileRef);
             const dtPolyRef polyRefBase = recastNavMesh_->getPolyRefBase(meshTile);
             const int polyCount = meshTile->header->polyCount;
             for (int polyIdx = 0; polyIdx < polyCount; ++polyIdx) {
                 const dtPolyRef candidatePolyRef = polyRefBase + polyIdx;
                 float closestPointOnPoly[3];
-                bool isInputPointOverPoly;
-                recastNavQuery_->closestPointOnPoly(candidatePolyRef, inputPoint, closestPointOnPoly, &isInputPointOverPoly);
+                if (cellContainingInputPoint == cellRef) {
+                    bool isInputPointOverPoly;
+                    recastNavQuery_->closestPointOnPoly(candidatePolyRef, inputPoint, closestPointOnPoly, &isInputPointOverPoly);
+                } else {
+                    // If the examined cell does not contain the input point, we can perform
+                    // the less expensive 'closestPointOnPolyBoundary' function. 
+                    recastNavQuery_->closestPointOnPolyBoundary(candidatePolyRef, inputPoint, closestPointOnPoly);
+                }
+                
                 const float sqrDist = rcVdistSqr(inputPoint, closestPointOnPoly);
-
                 if (sqrDist < closestPolyPointSqrDist) {
                     closestPolyPointSqrDist = sqrDist;
                     closestPoly = candidatePolyRef;
@@ -1005,10 +1012,13 @@ namespace pathfinding {
             return closestPolyPointSqrDist;
         };
 
+        int32_t x, y;
         rcVcopy(inputPoint, fromPoint);
+        tileQuadtree_->GetCellCoordinatesForPosition(inputPoint, x, y);
+        cellContainingInputPoint = tileQuadtree_->GetCellRefForCoordinates(x, y);
         closestPoly = 0;
         tileQuadtree_->QueryNearestNeighbourCells(fromPoint, actionBlock);
-
+        std::cout << "closest start point: (" << closestPolyPoint[0] << ", " << closestPolyPoint[1] << ", " << closestPolyPoint[2] << ")" << std::endl;
         if (!closestPolyPoint) {
             pathPoints = nullptr;
             foundPathPointsCount = 0;
@@ -1019,9 +1029,11 @@ namespace pathfinding {
         rcVcopy(closestStartPoint, closestPolyPoint);
 
         rcVcopy(inputPoint, toPoint);
+        tileQuadtree_->GetCellCoordinatesForPosition(inputPoint, x, y);
+        cellContainingInputPoint = tileQuadtree_->GetCellRefForCoordinates(x, y);
         closestPoly = 0;
         tileQuadtree_->QueryNearestNeighbourCells(toPoint, actionBlock);
-
+        std::cout << "closest end point: (" << closestPolyPoint[0] << ", " << closestPolyPoint[1] << ", " << closestPolyPoint[2] << ")" << std::endl;
         if (!closestPolyPoint) {
             pathPoints = nullptr;
             foundPathPointsCount = 0;
@@ -1032,7 +1044,7 @@ namespace pathfinding {
         rcVcopy(closestEndPoint, closestPolyPoint);
 
         // TODO: Change maxPathPointsCount to something else.
-        dtPolyRef* polyPath = new dtPolyRef[100];
+        dtPolyRef polyPath[200];
         int polyPathCount;
         dtQueryFilter queryFilter;
         recastNavQuery_->findPath(
@@ -1043,10 +1055,10 @@ namespace pathfinding {
             &queryFilter, 
             polyPath,
             &polyPathCount,
-            100);
-        
-        unsigned char* straightPathFlags;
-        dtPolyRef* straightPathPolyRefs;
+            200);
+        std::cout << polyPathCount << std::endl;
+        unsigned char straightPathFlags[500];
+        dtPolyRef straightPathPolyRefs[500];
         int straightPathCount;
         recastNavQuery_->findStraightPath(
             closestStartPoint,

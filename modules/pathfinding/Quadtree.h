@@ -56,16 +56,16 @@ public:
 			currentDepth++;
 		}
 
-		QuadtreeCellRef cellRef = nodes_[currentNodeRef].firstChild;
+		QuadtreeCellRef cellRef;
 		{
 			const int32_t midX = (xRange[0] + xRange[1]) >> 1;
 			const int32_t midY = (yRange[0] + yRange[1]) >> 1;
-			if (cellRef == -1) {
-				cellRef = AllocateChildrenCells(currentNodeRef, midX, midY);
+			if (nodes_[currentNodeRef].firstChild == -1) {
+				nodes_[currentNodeRef].firstChild = AllocateChildrenCells(currentNodeRef, midX, midY);
 			}
 			const bool isLeft = x < midX;
 			const bool isBelow = y < midY;
-			cellRef += (isLeft ^ isBelow) + (isBelow << 1);
+			cellRef = nodes_[currentNodeRef].firstChild + (isLeft ^ isBelow) + (isBelow << 1);
 			QuadtreeCell& cell = cells_[cellRef];
 			cell.isEmpty = false;
 			cell.object = object;
@@ -141,7 +141,7 @@ public:
 		return false;
 	}
 
-	void QueryNearestNeighbourCells(const float* point, std::function<float(T&, float)> action) {
+	void QueryNearestNeighbourCells(const float* point, std::function<float(QuadtreeCellRef, T&, float)> action) {
 		float minSqrDist = FLT_MAX;
 
 		struct QueryCandidateNode {
@@ -168,12 +168,15 @@ public:
 
 		std::vector<QueryCandidateNode> childQueryCandidates;
 		childQueryCandidates.reserve(4);
-
 		while (!dfsStack.empty()) {
 			QueryCandidateNode queryCandidate = dfsStack.back();
+			//std::cout << minSqrDist << std::endl;
+			//std::cout << queryCandidate.nodeRef << ", depth: " << queryCandidate.depth << ", sqrDist: " << queryCandidate.sqrDist 
+			//	<< ", first child: " << nodes_[queryCandidate.nodeRef].firstChild << std::endl;
 			dfsStack.pop_back();
 
 			if (!(queryCandidate.sqrDist < minSqrDist)) {
+				//std::cout << "not possible" << std::endl;
 				// It is no longer possible for this node to have contents
 				// closer than minSqrDist to point.
 				continue;
@@ -188,9 +191,10 @@ public:
 			const int32_t midX = (queryCandidate.xBounds[0] + queryCandidate.xBounds[1]) >> 1;
 			const int32_t midY = (queryCandidate.yBounds[0] + queryCandidate.yBounds[1]) >> 1;
 
-			if (queryCandidate.depth == depth_ - 1) {
+			if (queryCandidate.depth == (depth_ - 1)) {
 				for (int i = 0; i < 4; ++i) {
-					minSqrDist = std::min(minSqrDist, action(cells_[firstChildRef + i].object, minSqrDist));
+					const QuadtreeCellRef cellRef = firstChildRef + i;
+					minSqrDist = std::min(minSqrDist, action(cellRef, cells_[cellRef].object, minSqrDist));
 				}
 			}
 			else {
@@ -216,9 +220,9 @@ public:
 						std::min(std::max(childQueryCandidate.yBounds[0] * cellSize_, point[2]), childQueryCandidate.yBounds[1] * cellSize_),
 					};
 					const float diff[2] = { point[0] - pointClamped[0], point[2] - pointClamped[1] };
-					queryCandidate.sqrDist = diff[0] * diff[0] + diff[1] * diff[1];
+					childQueryCandidate.sqrDist = diff[0] * diff[0] + diff[1] * diff[1];
 
-					if (queryCandidate.sqrDist < minSqrDist) {
+					if (childQueryCandidate.sqrDist < minSqrDist) {
 						// Only consider this child node if it is less than minSqrDist to point.
 						childQueryCandidates.push_back(childQueryCandidate);
 					}
