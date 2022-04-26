@@ -58,13 +58,6 @@ namespace pathfinding {
 		NavigationMesh();
 		~NavigationMesh();
 
-		Result initialize(float maxWalkableSlope,
-			float agentRadius,
-			float agentHeight,
-			float agentMaxClimb,
-			const float* navMeshBoundsMin,
-			const float* navMeshBoundsMax);
-
 		Result initialize(float maxWalkableSlope, float agentRadius, float agentHeight, float agentMaxClimb);
 
 		static const char* reflectedName;

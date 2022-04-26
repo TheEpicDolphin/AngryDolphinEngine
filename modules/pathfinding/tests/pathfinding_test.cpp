@@ -116,8 +116,8 @@ TEST(pathfinding_test_suite, creation_test)
     };
     */
     float vertices[] = {
-        25, 30, 25,
-        -25, 30, 25,
+        25, 0, 25,
+        -25, 0, 25,
         -25, 0, -25,
         25, 0, -25
     };
@@ -141,10 +141,9 @@ TEST(pathfinding_test_suite, creation_test)
     _PrintNavigationMeshTriangulation(changeset.removedTiles);
 
 
-    //float fromPoint[3] = { -30, 30, 30 };
-    float fromPoint[3] = { -8, 18, 15 };
-    //float toPoint[3] = { 30, -5, -30 };
-    float toPoint[3] = { 8, 23, 8 };
+    float fromPoint[3] = { 18, 0, 15 };
+    //float toPoint[3] = { 8, 0, 8 };
+    float toPoint[3] = { -8, 0, 15 };
     float pathPoints[300];
     uint32_t foundPathPointsCount;
     navigationMesh.findPath(fromPoint, toPoint, 100, pathPoints, foundPathPointsCount);
@@ -161,7 +160,7 @@ TEST(pathfinding_test_suite, creation_test)
     //pathPoints[5] = -24.8333f;
      
      
-    //pathPoints[0] = -8;
+    //pathPoints[0] = 18;
     //pathPoints[1] = 24.1963;
     //pathPoints[2] = 15;
     //pathPoints[3] = 8;
