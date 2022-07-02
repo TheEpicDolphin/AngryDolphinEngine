@@ -8,13 +8,6 @@
 #include <queue>
 #include <set>
 
-//#include <rapidxml/rapidxml.hpp>
-//#include <rapidxml/rapidxml_print.hpp>
-#include "rapidxml.hpp"
-#include "rapidxml_print.hpp"
-
-#include "serializable.h"
-#include "deserializable.h"
 #include "archive_ser_node.h"
 #include "archive_des_node.h"
 

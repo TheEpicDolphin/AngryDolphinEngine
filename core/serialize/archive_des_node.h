@@ -4,8 +4,8 @@
 #include <vector>
 #include <unordered_map>
 
-#include "rapidxml.hpp"
-#include "rapidxml_print.hpp"
+#include <rapidxml/rapidxml.hpp>
+#include <rapidxml/rapidxml_print.hpp>
 
 #include "serdes_utils.h"
 
@@ -245,21 +245,35 @@ private:
 	T* obj_ptr_;
 };
 
+template<class...> using void_t = void;
+
+template<class, class = void>
+struct deserializes_members : std::false_type {};
+template<class T>
+struct deserializes_members<T, void_t<decltype(std::declval<T>().RegisterDeserializableMembers(std::declval<Archive&>(), std::declval<rapidxml::xml_node<>&>()))>> : std::true_type {};
+
+template<class, class = void>
+struct implements_construct_from_deserialized_deps : std::false_type {};
+template<class T>
+struct implements_construct_from_deserialized_deps<T, void_t<decltype(std::declval<T>().ConstructFromDeserializedDependencies())>> : std::true_type {};
+
 template<typename T>
-class ArchiveDesObjectNode<T, typename std::enable_if<std::is_base_of<IDeserializable, T>::value>::type> : ArchiveDesNodeBase {
+class ArchiveDesObjectNode<T, typename std::enable_if<deserializes_members<T>::value>::type> : ArchiveDesNodeBase {
 public:
 	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
 		: ArchiveDesNodeBase(id, name)
 		, object_(object) {}
 
-	void ConstructFromDeserializedDependencies() override
+	template<typename U = T>
+	typename std::enable_if<implements_construct_from_deserialized_deps<U>::value, void>::type
+		ConstructFromDeserializedDependencies()
 	{
 		object_.ConstructFromDeserializedDependencies();
 	}
 
 	std::vector<ArchiveDesNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_node<>& xml_node) override
 	{
-		return object_.RegisterMemberVariablesForDeserialization(archive, xml_node);
+		return object_.RegisterDeserializableMembers(archive, xml_node);
 	}
 
 private:
@@ -282,8 +296,6 @@ public:
 protected:
 	std::size_t pointee_id_;
 };
-
-template<class...> using void_t = void;
 
 template<class, class = void>
 struct dynamically_allocates_derived : std::false_type {};

@@ -32,7 +32,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += SerializeToCompactBytes(v.x, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(glm::vec3& v, char* bytes) {
@@ -40,7 +40,7 @@ namespace shader {
 			data_ptr += SerializeToCompactBytes(v.x, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.z, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(glm::vec4& v, char* bytes) {
@@ -49,7 +49,7 @@ namespace shader {
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.z, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.w, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(int& i, char* bytes) {
@@ -61,7 +61,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += SerializeToCompactBytes(v.x, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(glm::ivec3& v, char* bytes) {
@@ -69,7 +69,7 @@ namespace shader {
 			data_ptr += SerializeToCompactBytes(v.x, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.z, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(glm::ivec4& v, char* bytes) {
@@ -78,7 +78,7 @@ namespace shader {
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.z, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.w, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(unsigned int& i, char* bytes) {
@@ -90,7 +90,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += SerializeToCompactBytes(v.x, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(glm::uvec3& v, char* bytes) {
@@ -98,7 +98,7 @@ namespace shader {
 			data_ptr += SerializeToCompactBytes(v.x, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.z, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int SerializeToCompactBytes(glm::uvec4& v, char* bytes) {
@@ -107,7 +107,7 @@ namespace shader {
 			data_ptr += SerializeToCompactBytes(v.y, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.z, data_ptr);
 			data_ptr += SerializeToCompactBytes(v.w, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		// I am assuming below that the values of the glm matrices are tightly packed
@@ -162,7 +162,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += SerializeToCompactBytes(cs.f, data_ptr);
 			data_ptr += SerializeToCompactBytes(cs.v, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		// Deserialization from compact bytes
@@ -176,7 +176,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += DeserializeFromCompactBytes(v.x, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(glm::vec3& v, char* bytes) {
@@ -184,7 +184,7 @@ namespace shader {
 			data_ptr += DeserializeFromCompactBytes(v.x, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.z, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(glm::vec4& v, char* bytes) {
@@ -193,7 +193,7 @@ namespace shader {
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.z, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.w, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(int& i, char* bytes) {
@@ -205,7 +205,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += DeserializeFromCompactBytes(v.x, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(glm::ivec3& v, char* bytes) {
@@ -213,7 +213,7 @@ namespace shader {
 			data_ptr += DeserializeFromCompactBytes(v.x, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.z, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(glm::ivec4& v, char* bytes) {
@@ -222,7 +222,7 @@ namespace shader {
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.z, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.w, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(unsigned int& i, char* bytes) {
@@ -234,7 +234,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += DeserializeFromCompactBytes(v.x, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(glm::uvec3& v, char* bytes) {
@@ -242,7 +242,7 @@ namespace shader {
 			data_ptr += DeserializeFromCompactBytes(v.x, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.z, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		int DeserializeFromCompactBytes(glm::uvec4& v, char* bytes) {
@@ -251,7 +251,7 @@ namespace shader {
 			data_ptr += DeserializeFromCompactBytes(v.y, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.z, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(v.w, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 
 		// I am assuming below that the values of the glm matrices are tightly packed
@@ -306,7 +306,7 @@ namespace shader {
 			char* data_ptr = bytes;
 			data_ptr += DeserializeFromCompactBytes(cs.f, data_ptr);
 			data_ptr += DeserializeFromCompactBytes(cs.v, data_ptr);
-			return (data_ptr - bytes);
+			return (int)(data_ptr - bytes);
 		}
 	}
 

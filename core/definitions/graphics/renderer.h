@@ -1,12 +1,15 @@
 #pragma once
 
-#include "mesh.h"
-#include "material.h"
-#include "rendering_pipeline.h"
-
 #include <glm/mat4x4.hpp>
 #include <core/geometry/rect.h>
 #include <core/geometry/bounds.h>
+
+#include <vector>
+#include <memory>
+
+class Mesh;
+class Material;
+class RenderingPipeline;
 
 struct RenderableObject
 {
@@ -37,11 +40,9 @@ struct CameraParams {
 
 class IRenderer {
 public:
-	virtual void Initialize(int width, int height) = 0;
-
 	virtual void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) = 0;
 	
-	virtual bool RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) = 0;
+	virtual void RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) = 0;
 
 	virtual void Cleanup() = 0;
 };

@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <map>
 
-#include "rapidxml.hpp"
-#include "rapidxml_print.hpp"
+#include <rapidxml/rapidxml.hpp>
+#include <rapidxml/rapidxml_print.hpp>
 
 class Archive;
 
@@ -97,6 +97,31 @@ public:
 
 private:
 	T& object_;
+};
+
+template<typename T>
+class ArchiveSerObjectNode<T, typename std::enable_if<std::is_enum<T>::value>::type> : ArchiveSerNodeBase {
+public:
+	ArchiveSerObjectNode(std::size_t id, const char* name, T& object_enum_value)
+		: ArchiveSerNodeBase(id, name)
+		, object_enum_value_(object_enum_value) {}
+
+	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
+	{
+		rapidxml::xml_node<>* base_node = ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
+		std::stringstream tmp_ss;
+		tmp_ss << (int)object_enum_value_;
+		base_node->value(xml_doc.allocate_string(tmp_ss.str().c_str()));
+		return base_node;
+	}
+
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	{
+		return {};
+	}
+
+private:
+	T& object_enum_value_;
 };
 
 template<class T, std::size_t N>
@@ -279,8 +304,16 @@ private:
 	T* obj_ptr_;
 };
 
+template<class...> using void_t = void;
+
+template<class, class = void>
+struct serializes_members : std::false_type {};
+
+template<class T>
+struct serializes_members <T, void_t<decltype(std::declval<T>().RegisterSerializableMembers(std::declval<Archive&>()))>> : std::true_type {};
+
 template<typename T>
-class ArchiveSerObjectNode<T, typename std::enable_if<std::is_base_of<ISerializable, T>::value>::type> : ArchiveSerNodeBase {
+class ArchiveSerObjectNode<T, typename std::enable_if<serializes_members<T>::value, void>::type> : ArchiveSerNodeBase {
 public:
 	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
 		: ArchiveSerNodeBase(id, name)
@@ -288,7 +321,7 @@ public:
 
 	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
 	{
-		return object_.RegisterMemberVariablesForSerialization(archive);
+		return object_.RegisterSerializableMembers(archive);
 	}
 
 private:

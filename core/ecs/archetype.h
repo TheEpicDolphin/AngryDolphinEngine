@@ -192,26 +192,28 @@ namespace ecs {
 		}
 
 		template<class T>
-		T* GetComponentForEntity(EntityID entity_id)
+		bool GetComponentForEntity(EntityID entity_id, T& component)
 		{
 			ComponentArray<T>* const component_array = FindComponentArray<T>();
 			if (!component_array) {
-				return nullptr;
+				return false;
 			}
 			const std::size_t index = entity_components_index_map_[entity_id.index];
-			return &component_array->ComponentAtIndex(index);
+			component = component_array->ComponentAtIndex(index);
+			return true;
 		}
 
-		template<class T>
-		void GetComponentForEntityWithSafeBlock(EntityID entity_id, std::function<void(const T&)> success_block, std::function<void()> failure_block)
+		template<class... Ts>
+		bool GetComponentSetForEntity(EntityID entity_id, Ts&... components)
 		{
-			ComponentArray<T>* const component_array = FindComponentArray<T>();
-			if (!component_array) {
-				failure_block();
-				return;
+			const int num_components = sizeof(Ts);
+			bool found[num_components] = { GetComponentForEntity(components...) };
+			for (int i = 0; i < num_components; ++i) {
+				if (!found[i]) {
+					return false;
+				}
 			}
-			const std::size_t index = entity_components_index_map_[entity_id.index];
-			success_block(component_array->ComponentAtIndex(index));
+			return true;
 		}
 
 		template<class... Ts>

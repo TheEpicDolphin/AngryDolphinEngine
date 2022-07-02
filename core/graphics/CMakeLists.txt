@@ -2,18 +2,16 @@ file(GLOB_RECURSE SOURCES *.h *.cpp *.hpp *.c *.cc)
 
 add_library (graphics ${SOURCES})
 
-target_link_libraries(graphics PUBLIC libglew_static)
-target_link_libraries(graphics PUBLIC glm::glm)
-target_link_libraries(graphics PUBLIC ecs)
-target_link_libraries(graphics PUBLIC glfw)
-#target_link_libraries(graphics PUBLIC rapidjson)
-target_link_libraries(graphics PUBLIC serialize)
-target_link_libraries(graphics PUBLIC utils)
-target_link_libraries(graphics PUBLIC geometry)
-target_link_libraries(graphics PUBLIC resource_manager)
+target_link_libraries(graphics PRIVATE libglew_static)
+target_link_libraries(graphics PRIVATE glm::glm)
+target_link_libraries(graphics PRIVATE glfw)
+target_link_libraries(graphics PRIVATE rapidxml)
 
-set_target_properties(graphics PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-)
+target_link_libraries(graphics PRIVATE definitions)
+target_link_libraries(graphics PRIVATE ecs)
+target_link_libraries(graphics PRIVATE serialize)
+target_link_libraries(graphics PRIVATE utils)
+target_link_libraries(graphics PRIVATE geometry)
+target_link_libraries(graphics PRIVATE resource_manager)
+target_link_libraries(graphics PRIVATE scene)
+target_link_libraries(graphics PRIVATE transform)

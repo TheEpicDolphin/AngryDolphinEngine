@@ -1,19 +1,14 @@
 #pragma once
 
 #include <core/serialize/archive.h>
-#include <core/graphics/renderer.h>
+#include <core/definitions/graphics/renderer.h>
 
 #include "scene.h"
-
-enum RendererType {
-	RendererTypeOpenGL = 0,
-	//RendererTypeVulkan
-};
 
 class SceneManager
 {
 public:
-	SceneManager(RendererType renderer_type);
+	SceneManager(IRenderer* renderer);
 
 	~SceneManager();
 

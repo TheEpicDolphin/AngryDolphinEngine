@@ -1,5 +1,6 @@
 #pragma once
 
+#include <assert.h>
 #include <iostream>
 #include <cstring>
 #include <unordered_map>
@@ -7,9 +8,6 @@
 
 #include <core/utils/set_trie.h>
 #include <core/utils/type_info.h>
-#include <core/serialize/serializable.h>
-#include <core/serialize/deserializable.h>
-#include <core/serialize/archive.h>
 
 #include <config/core_components.h>
 
@@ -22,7 +20,7 @@ enum SystemUpdateType {
 };
 
 namespace ecs {
-	class Registry {//: public ISerializable, public IDeserializable 
+	class Registry {
 	
 	public:
 		Registry() 
@@ -159,17 +157,17 @@ namespace ecs {
 		}
 
 		template<typename T>
-		T* GetComponent(EntityID entity_id)
+		bool GetComponent(EntityID entity_id, T& component)
 		{
 			Archetype *archetype = entity_archetype_map_[entity_id.index];
-			return archetype->GetComponentForEntity<T>(entity_id);
+			return archetype->GetComponentForEntity<T>(entity_id, component);
 		}
 
-		template<typename T>
-		void GetComponentWithSafeBlock(EntityID entity_id, std::function<void(const T&)> success_block, std::function<void()> failure_block)
+		template<class... Ts>
+		bool GetComponentSet(EntityID entity_id, Ts&... components)
 		{
 			Archetype* archetype = entity_archetype_map_[entity_id.index];
-			archetype->GetComponentForEntityWithSafeBlock<T>(entity_id, success_block, failure_block);
+			return archetype->GetComponentSetForEntity(entity_id, components...);
 		}
 
 		template<class... Ts>
@@ -201,35 +199,6 @@ namespace ecs {
 				entity_archetype_map_[entity_id.index] = nullptr;
 			}
 		}
-
-		// TODO: Fix below
-		/*
-		// ISerializable
-
-		std::vector<ArchiveSerNodeBase*> RegisterMemberVariablesForSerialization(Archive& archive) override
-		{
-			return archive.RegisterObjectsForSerialization(
-				{ "archetypes", }, 
-				{ "entity", });
-			return {};
-		}
-
-		// IDeserializable
-
-		void ConstructFromDeserializedDependencies() override 
-		{
-			archetype_set_trie_ = SetTrie<ComponentTypeID, Archetype>(restored_archetypes_);
-			restored_archetypes_.clear();
-		}
-
-		std::vector<ArchiveDesNodeBase*> RegisterMemberVariablesForDeserialization(Archive& archive, rapidxml::xml_node<>& xml_node) override
-		{
-			return archive.RegisterObjectsForDeserialization(
-				{ "archetypes", },
-				{});
-			return {};
-		}
-		*/
 
 	private:
 		SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;

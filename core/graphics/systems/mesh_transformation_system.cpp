@@ -58,7 +58,6 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha, IS
 			}
 
 			entity_mesh_trans_state_map_[entity_id.index] = { mesh_id, false };
-
 		}
 	};
 	scene.ComponentRegistry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);

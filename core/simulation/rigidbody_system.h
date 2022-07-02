@@ -1,17 +1,46 @@
 #pragma once
 
+#include <glm/vec3.hpp>
+
 #include <core/ecs/system.h>
 #include <core/scene/scene.h>
-#include <glm/vec3.hpp>
+#include <core/ecs/entity.h>
+#include <core/transform/transform.h>
+
+#include "rigidbody_component.h"
 
 static const glm::vec3 gravity(0.0f, -9.8f, 0.0f);
 
-class RigidbodySystem : public ISystem
+class RigidbodySystem : public SystemBase
 {
 public:
 	RigidbodySystem() = default;
 
-	void OnFixedUpdate(double fixed_delta_time, IScene& scene) override;
+	void OnFixedUpdate(double fixed_delta_time, IScene& scene)
+	{
+		std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
+			[fixed_delta_time](ecs::EntityID entity_id, RigidbodyComponent& rb) {
+			rb.velocity += gravity * (float)fixed_delta_time;
+			rb.previous_position = rb.position;
+			rb.position += rb.velocity * (float)fixed_delta_time;
+		};
+		scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
+	}
 
-	void OnFrameUpdate(double delta_time, double alpha, IScene& scene) override;
+	void OnFrameUpdate(double delta_time, double alpha, IScene& scene)
+	{
+		// Physics interpolation before rendering
+		std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
+			[alpha, &scene](ecs::EntityID entity_id, RigidbodyComponent& rb) {
+			glm::mat4 transform = scene.TransformGraph().GetWorldTransform(entity_id);
+			if (rb.interpolate) {
+				transform::SetPosition(transform, rb.position * (float)alpha + rb.previous_position * (float)(1.0f - alpha));
+			}
+			else {
+				transform::SetPosition(transform, rb.position);
+			}
+			scene.TransformGraph().SetWorldTransform(entity_id, transform);
+		};
+		scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
+	}
 };

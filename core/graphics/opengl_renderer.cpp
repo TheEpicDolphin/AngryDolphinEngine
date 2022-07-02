@@ -4,27 +4,13 @@
 #include <string>
 #include <map>
 
-#include <GL/glew.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "material_manager.h"
 #include "mesh_manager.h"
 #include "rendering_pipeline_manager.h"
 
-static void GLFWErrorCallback(int error, const char* description)
-{
-	fputs(description, stderr);
-}
-
-static void DestroyWindow(GLFWwindow *window) {
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    exit(EXIT_SUCCESS);
-}
-
-OpenGLRenderer::OpenGLRenderer() {
-
-}
+OpenGLRenderer::OpenGLRenderer() {}
 
 OpenGLRenderer::~OpenGLRenderer() {
 	for (std::unordered_map<PipelineID, PipelineState>::iterator it = pipeline_state_map_.begin(); it != pipeline_state_map_.end(); it++) {
@@ -40,27 +26,6 @@ OpenGLRenderer::~OpenGLRenderer() {
 	}
 }
 
-void OpenGLRenderer::Initialize(int width, int height) 
-{
-    
-	glfwSetErrorCallback(GLFWErrorCallback);
-
-    if (!glfwInit()) {
-        exit(EXIT_FAILURE);
-    }
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-
-	window_ = glfwCreateWindow(width, height, "Test GLFW Window", NULL, NULL);
-
-    if (!window_)
-    {
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
-}
-
 void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) {
 	// This will avoid having any lags during rendering.
 	if (pipeline_state_map_.find(pipeline->GetInstanceID()) != pipeline_state_map_.end()) {
@@ -71,126 +36,116 @@ void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPip
 	pipeline->AddLifecycleEventsListener(this);
 }
 
-bool OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) {
-    if (!glfwWindowShouldClose(window_)) {
-        glfwSwapBuffers(window_);
-        glfwPollEvents();
+void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) {
+	// TODO: using camera viewport rect value to set this.
+	glViewport(
+		(GLint)camera_params.viewport_rect.origin.x,
+		(GLint)camera_params.viewport_rect.origin.y,
+		(GLsizei)camera_params.viewport_rect.size.x, 
+		(GLsizei)camera_params.viewport_rect.size.y
+	);
+	glClear(GL_COLOR_BUFFER_BIT);
 
-		int* window_width;
-		int* window_height;
-		glfwGetFramebufferSize(window_, window_width, window_height);
-		// TODO: using camera viewport rect value to set this.
-		glViewport(0, 0, *window_width, *window_height);
-		glClear(GL_COLOR_BUFFER_BIT);
+	std::map<RenderableObjectBatchKey, RenderableObjectBatch> sorted_renderable_batches;
+	for (RenderableObject renderable_object : renderable_objects) {
+		const std::shared_ptr<RenderingPipeline>& pipeline = renderable_object.mesh->GetPipeline();
 
-		std::map<RenderableObjectBatchKey, RenderableObjectBatch> sorted_renderable_batches;
-		for (RenderableObject renderable_object : renderable_objects) {
-			const std::shared_ptr<RenderingPipeline>& pipeline = renderable_object.mesh->GetPipeline();
-
-			if (pipeline_state_map_.find(pipeline->GetInstanceID()) == pipeline_state_map_.end()) {
-				pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
-				pipeline->AddLifecycleEventsListener(this);
-			}
-
-			if (mesh_state_map_.find(renderable_object.mesh->GetInstanceID()) == mesh_state_map_.end()) {
-				mesh_state_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshState(renderable_object.mesh);
-				renderable_object.mesh->AddLifecycleEventsListener(this);
-			}
-
-			if (material_state_map_.find(renderable_object.material->GetInstanceID()) == material_state_map_.end()) {
-				material_state_map_[renderable_object.material->GetInstanceID()] = CreateMaterialState(renderable_object.material);
-				renderable_object.material->AddLifecycleEventsListener(this);
-			}
-			
-			const RenderableObjectBatchKey batch_key = {
-				pipeline->GetInstanceID(),
-				renderable_object.mesh->GetInstanceID(),
-				renderable_object.material->GetInstanceID()
-			};
-
-			std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.find(batch_key);
-			if (it == sorted_renderable_batches.end()) {
-				const RenderableObjectBatch batch = { renderable_object.mesh, renderable_object.material, { {renderable_object.model_matrix, renderable_object.bones} } };
-				sorted_renderable_batches.insert({ batch_key, batch });
-			}
-			else {
-				it->second.instances.push_back({ renderable_object.model_matrix, renderable_object.bones });
-			}	
+		if (pipeline_state_map_.find(pipeline->GetInstanceID()) == pipeline_state_map_.end()) {
+			pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
+			pipeline->AddLifecycleEventsListener(this);
 		}
 
-		const glm::mat4 vp = camera_params.view_projection_matrix;
-		GLint mvp_location = 0;
-		RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
-		for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
-			it != sorted_renderable_batches.end();
-			it++) {
-			RenderableObjectBatchKey current_batch_key = it->first;
-			RenderableObjectBatch batch = it->second;
-
-			//GLint bones_location;
-			if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
-				// Switch rendering pipeline configuration
-				const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_id];
-				glUseProgram(pipeline_state.program_id);
-
-				mvp_location = pipeline_state.pipeline->MVPUniform().location;
-				//bones_location = pipeline_state.pipeline->BonesUniform().location;
-			}
-			if (current_batch_key.mesh_id != previous_batch_key.mesh_id) {
-				// Switch mesh configuration
-				const MeshState mesh_state = mesh_state_map_[current_batch_key.mesh_id];
-				glBindVertexArray(mesh_state.vao);
-			}
-			if (current_batch_key.material_id != previous_batch_key.material_id) {
-				// Switch material configuration
-				// Iterate material uniforms and set corresponding uniforms in shaders
-				for (std::size_t i = 0; i < batch.material->UniformValues().size(); i++) {
-					const UniformInfo uniform_info = batch.mesh->GetPipeline()->MaterialUniforms()[i];
-					const UniformValue uniform_value = batch.material->UniformValues()[i];
-					shader::opengl::SetUniform(uniform_info.data_type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
-				}
-			}
-
-			// Iterate over instances of mesh and draw each after transforming (and optionally setting bones).
-			for (RenderableObjectInstance& renderable_object_instance : batch.instances) {
-				const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
-				// Set MVP matrix in shader.
-				glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
-				/*
-				if (bones_location) {
-					// Set bones array in shader.
-					glUniformMatrix4fv(
-						bones_location,
-						renderable_object_instance.bone_transforms.size(),
-						GL_FALSE,
-						reinterpret_cast<const GLfloat*>(renderable_object_instance.bone_transforms.data())
-					);
-				}
-				*/
-
-				// Draw
-				glDrawArrays(GL_TRIANGLES, 0, batch.mesh->VertexCount());
-			}
-
-			previous_batch_key = current_batch_key;
+		if (mesh_state_map_.find(renderable_object.mesh->GetInstanceID()) == mesh_state_map_.end()) {
+			mesh_state_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshState(renderable_object.mesh);
+			renderable_object.mesh->AddLifecycleEventsListener(this);
 		}
 
-		glBindVertexArray(0);
-		glUseProgram(0);
+		if (material_state_map_.find(renderable_object.material->GetInstanceID()) == material_state_map_.end()) {
+			material_state_map_[renderable_object.material->GetInstanceID()] = CreateMaterialState(renderable_object.material);
+			renderable_object.material->AddLifecycleEventsListener(this);
+		}
 
-		// TODO: Keep track of areas in viewport that haven't been rendered yet. 
-		// Once the entire viewport has been rendered, stop the enumeration.
-    }
-    else {
-        return false;
-    }
+		const RenderableObjectBatchKey batch_key = {
+			pipeline->GetInstanceID(),
+			renderable_object.mesh->GetInstanceID(),
+			renderable_object.material->GetInstanceID()
+		};
 
-    return true;
+		std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.find(batch_key);
+		if (it == sorted_renderable_batches.end()) {
+			const RenderableObjectBatch batch = { renderable_object.mesh, renderable_object.material, { {renderable_object.model_matrix, renderable_object.bones} } };
+			sorted_renderable_batches.insert({ batch_key, batch });
+		}
+		else {
+			it->second.instances.push_back({ renderable_object.model_matrix, renderable_object.bones });
+		}
+	}
+
+	const glm::mat4 vp = camera_params.view_projection_matrix;
+	GLint mvp_location = 0;
+	RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
+	for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
+		it != sorted_renderable_batches.end();
+		it++) {
+		RenderableObjectBatchKey current_batch_key = it->first;
+		RenderableObjectBatch batch = it->second;
+
+		//GLint bones_location;
+		if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
+			// Switch rendering pipeline configuration
+			const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_id];
+			glUseProgram(pipeline_state.program_id);
+
+			mvp_location = pipeline_state.pipeline->MVPUniform().location;
+			//bones_location = pipeline_state.pipeline->BonesUniform().location;
+		}
+		if (current_batch_key.mesh_id != previous_batch_key.mesh_id) {
+			// Switch mesh configuration
+			const MeshState mesh_state = mesh_state_map_[current_batch_key.mesh_id];
+			glBindVertexArray(mesh_state.vao);
+		}
+		if (current_batch_key.material_id != previous_batch_key.material_id) {
+			// Switch material configuration
+			// Iterate material uniforms and set corresponding uniforms in shaders
+			for (std::size_t i = 0; i < batch.material->UniformValues().size(); i++) {
+				const UniformInfo uniform_info = batch.mesh->GetPipeline()->MaterialUniforms()[i];
+				const UniformValue uniform_value = batch.material->UniformValues()[i];
+				shader::opengl::SetUniform(uniform_info.data_type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
+			}
+		}
+
+		// Iterate over instances of mesh and draw each after transforming (and optionally setting bones).
+		for (RenderableObjectInstance& renderable_object_instance : batch.instances) {
+			const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
+			// Set MVP matrix in shader.
+			glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
+			/*
+			if (bones_location) {
+				// Set bones array in shader.
+				glUniformMatrix4fv(
+					bones_location,
+					renderable_object_instance.bone_transforms.size(),
+					GL_FALSE,
+					reinterpret_cast<const GLfloat*>(renderable_object_instance.bone_transforms.data())
+				);
+			}
+			*/
+
+			// Draw
+			glDrawArrays(GL_TRIANGLES, 0, batch.mesh->VertexCount());
+		}
+
+		previous_batch_key = current_batch_key;
+	}
+
+	glBindVertexArray(0);
+	glUseProgram(0);
+
+	// TODO: Keep track of areas in viewport that haven't been rendered yet. 
+	// Once the entire viewport has been rendered, stop the enumeration.
 }
 
 void OpenGLRenderer::Cleanup() {
-    DestroyWindow(window_);
-
 	// TODO: Delete VAOs and VBOs
 }
 

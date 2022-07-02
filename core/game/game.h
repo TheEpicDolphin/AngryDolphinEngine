@@ -3,13 +3,24 @@
 #include <chrono>
 #include <core/scene/scene_manager.h>
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include <GL/glew.h>
+
+enum class WindowRendererType {
+	OpenGL = 0,
+	//Vulkan
+};
+
 class Game {
 public:
-	Game(RendererType renderer_type) : scene_manager_(renderer_type) {}
+	Game(int window_width, int window_height, WindowRendererType window_renderer_type);
 
-	SceneManager& GetSceneManager()
+	~Game();
+
+	const SceneManager& GetSceneManager()
 	{
-		return scene_manager_;
+		return *scene_manager_;
 	}
 
 	// Capture the state of the game. Useful for debugging.
@@ -18,5 +29,7 @@ public:
 	void StartMainLoop();
 
 private:
-	SceneManager scene_manager_;
+	SceneManager* scene_manager_;
+	GLFWwindow* window_;
+	WindowRendererType window_renderer_type_;
 };

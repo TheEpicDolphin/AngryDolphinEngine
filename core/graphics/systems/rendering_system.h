@@ -3,7 +3,7 @@
 #include <core/ecs/system.h>
 #include <core/scene/scene.h>
 
-class RenderingSystem : public ISystem
+class RenderingSystem : public SystemBase
 {
 public:
 	RenderingSystem() = default;

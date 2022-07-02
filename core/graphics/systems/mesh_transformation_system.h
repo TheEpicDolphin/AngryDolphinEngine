@@ -14,7 +14,7 @@
 #include "../mesh.h"
 
 class MeshTransformationSystem : 
-	public ISystem, 
+	public SystemBase,
 	private MeshLifecycleEventsListener,
 	private EntityLifecycleEventsListener
 {

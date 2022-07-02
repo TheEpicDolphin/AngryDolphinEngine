@@ -1,7 +1,7 @@
 
 #include "rendering_pipeline_manager.h"
 
-#include "rapidxml.hpp"
+#include <rapidxml/rapidxml.hpp>
 
 #include <core/resource_manager/resource_manager.h>
 #include <core/serialize/archive.h>

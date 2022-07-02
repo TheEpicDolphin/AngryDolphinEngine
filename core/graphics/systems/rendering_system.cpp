@@ -5,16 +5,16 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <core/definitions/graphics/renderer.h>
 #include <core/ecs/registry.h>
 #include <core/geometry/bounds.h>
 #include <core/scene/scene_graph.h>
-#include <core/scene/interfaces/transform_graph.h>
+#include <core/scene/definitions/transform_graph.h>
 #include <core/transform/transform.h>
 
 #include "../components/camera_component.h"
 #include "../components/mesh_renderable_component.h"
 #include "../components/skeletal_mesh_renderable_component.h"
-#include "../renderer.h"
 
 void RenderingSystem::OnFrameUpdate(double delta_time, double alpha, IScene& scene)
 {

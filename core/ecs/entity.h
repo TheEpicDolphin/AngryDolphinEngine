@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cinttypes>
+
 namespace ecs {
 	typedef std::uint32_t EntityVersion;
 	typedef std::uint32_t EntityIndex;
@@ -7,15 +9,10 @@ namespace ecs {
 	struct EntityID {
 		EntityVersion version;
 		EntityIndex index;
+
+		friend bool operator==(const EntityID& lhs, const EntityID& rhs);
+		friend bool operator!=(const EntityID& lhs, const EntityID& rhs);
 	};
 
-	extern const EntityID null_entity_id = { 0, 0 };
-
-	inline bool operator==(const EntityID& lhs, const EntityID& rhs) {
-		return (lhs.version == rhs.version) && (lhs.index == rhs.index);
-	}
-
-	inline bool operator!=(const EntityID& lhs, const EntityID& rhs) {
-		return !(lhs == rhs);
-	}
+	extern const EntityID null_entity_id;
 }

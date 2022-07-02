@@ -1,19 +1,19 @@
 #pragma once
 
 #include <core/ecs/registry.h>
-#include <core/graphics/renderer.h>
+#include <core/definitions/graphics/renderer.h>
 #include <core/serialize/serializable.h>
 
-#include "interfaces/transform_graph.h"
+#include "definitions/transform_graph.h"
 #include "scene_graph.h"
 
 class IScene {
 public:
 	virtual const char* Name() = 0;
 
-	virtual void DidLoad() = 0;
+	virtual void OnLoad() = 0;
 
-	virtual void DidUnload() = 0;
+	virtual void OnUnload() = 0;
 
 	virtual void OnFixedUpdate(double fixed_delta_time) = 0;
 
@@ -30,7 +30,7 @@ public:
 	virtual IRenderer& Renderer() = 0;
 };
 
-class SceneBase : public IScene//, public ISerializable, public IDeserializable
+class SceneBase : public IScene
 {
 public:
 	SceneBase() = delete;
@@ -41,13 +41,13 @@ public:
 
 	const char* Name() override { return name_; }
 
-	void DidLoad() override {};
+	void OnLoad() override {}
 
-	void DidUnload() override {};
+	void OnUnload() override {}
 
-	void OnFixedUpdate(double fixed_delta_time) override {};
+	void OnFixedUpdate(double fixed_delta_time) override {}
 
-	void OnFrameUpdate(double delta_time, double alpha) override {};
+	void OnFrameUpdate(double delta_time, double alpha) override {}
 
 	ecs::EntityID CreateEntity() override {
 		ecs::EntityID entity_id = scene_graph_.CreateEntity();

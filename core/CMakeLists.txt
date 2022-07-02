@@ -1,3 +1,4 @@
+add_subdirectory(definitions)
 add_subdirectory(ecs)
 add_subdirectory(graphics)
 add_subdirectory(game)
@@ -11,6 +12,7 @@ add_subdirectory(resource_manager)
 
 add_library(core INTERFACE)
 
+target_link_libraries(core INTERFACE definitions)
 target_link_libraries(core INTERFACE ecs)
 target_link_libraries(core INTERFACE graphics)
 target_link_libraries(core INTERFACE game)
@@ -23,6 +25,7 @@ target_link_libraries(core INTERFACE transform)
 target_link_libraries(core INTERFACE resource_manager)
 
 # This means that to access a header file in ecs, you would #include<core/ecs/example_header.h>
+target_include_directories(definitions INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(ecs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(graphics PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(game PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

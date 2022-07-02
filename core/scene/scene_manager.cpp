@@ -3,17 +3,10 @@
 
 #include <algorithm>
 
-#include <core/graphics/opengl_renderer.h>
-
 #include "simple_scene.h"
 
-SceneManager::SceneManager(RendererType renderer_type) {
-	switch (renderer_type)
-	{
-	case RendererTypeOpenGL:
-		renderer_ = new OpenGLRenderer();
-		break;
-	}
+SceneManager::SceneManager(IRenderer* renderer) {
+	renderer_ = renderer;
 }
 
 SceneManager::~SceneManager() {
@@ -31,10 +24,12 @@ void SceneManager::LoadScene(const char* scene_path) {
 
 void SceneManager::LoadScene(IScene* scene) {
 	loaded_scenes_.push_back(scene);
+	scene->OnLoad();
 }
 
 void SceneManager::UnloadScene(IScene* scene) {
 	loaded_scenes_.erase(std::remove(loaded_scenes_.begin(), loaded_scenes_.end(), scene), loaded_scenes_.end());
+	scene->OnUnload();
 }
 
 void SceneManager::SaveScene(IScene* scene) {

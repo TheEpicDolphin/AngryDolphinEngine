@@ -10,9 +10,30 @@ class SimpleScene : public SceneBase {
 public:
 	SimpleScene(const char* name, IRenderer* renderer) : SceneBase(name, renderer) {}
 
-	void DidLoad() override {}
+	void OnLoad() override {
+		// Instantiate entities.
 
-	void DidUnload() override {}
+	}
+
+	void OnUnload() override {}
+
+	ecs::EntityID CreateEntity() override {
+		ecs::EntityID entity_id = SceneBase::CreateEntity();
+
+		mesh_transformation_system_.OnInstantiateEntity(entity_id);
+		rigidbody_system_.OnInstantiateEntity(entity_id);
+		rendering_system_.OnInstantiateEntity(entity_id);
+
+		return entity_id;
+	}
+
+	void DestroyEntity(ecs::EntityID entity_id) override {
+		mesh_transformation_system_.OnCleanupEntity(entity_id);
+		rigidbody_system_.OnCleanupEntity(entity_id);
+		rendering_system_.OnCleanupEntity(entity_id);
+
+		SceneBase::DestroyEntity(entity_id);
+	}
 
 	void OnFixedUpdate(double fixed_delta_time) override 
 	{

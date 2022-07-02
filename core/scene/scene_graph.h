@@ -7,7 +7,7 @@
 #include <core/utils/event_announcer.h>
 #include <glm/mat4x4.hpp>
 
-#include "interfaces/transform_graph.h"
+#include "definitions/transform_graph.h"
 
 #define MAX_ENTITY_COUNT 16384
 

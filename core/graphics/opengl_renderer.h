@@ -3,33 +3,28 @@
 #include <unordered_map>
 #include <vector>
 
-#define GLFW_INCLUDE_NONE
-
-#include <GLFW/glfw3.h>
 #include <GL/glew.h>
+#include <core/definitions/graphics/renderer.h>
 
-#include "renderer.h"
+#include "material.h"
+#include "mesh.h"
 #include "rendering_pipeline.h"
 
 class OpenGLRenderer : 
-	public IRenderer, 
-	private MaterialLifecycleEventsListener, 
-	private MeshLifecycleEventsListener, 
+	public IRenderer,
+	private MaterialLifecycleEventsListener,
+	private MeshLifecycleEventsListener,
 	private PipelineLifecycleEventsListener
 {
 public:
-
+	// I am sitting here because it makes Jiaming suddenly hungry when i work on my game engine. I'm not actually coding.
 	OpenGLRenderer();
 
 	~OpenGLRenderer();
 
-	// IRenderer
-
-	void Initialize(int width, int height);
-
 	void PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) override;
 
-	bool RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) override;
+	void RenderFrame(const CameraParams& camera_params, const std::vector<RenderableObject>& renderable_objects) override;
 
 	void Cleanup() override;
 
@@ -91,8 +86,6 @@ private:
 	};
 
 	static MaterialState CreateMaterialState(Material* mat);
-
-	GLFWwindow* window_;
 
 	std::unordered_map<PipelineID, PipelineState> pipeline_state_map_;
 	std::unordered_map<MeshID, MeshState> mesh_state_map_;
