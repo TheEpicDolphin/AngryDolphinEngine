@@ -2,20 +2,17 @@
 
 #include <core/serialize/archive.h>
 #include <core/definitions/graphics/renderer.h>
+#include <core/definitions/scene/scene_service.h>
+#include <core/services/service_container.h>
 
 #include "scene.h"
 
-class SceneManager
+class SceneManager : public ISceneService
 {
 public:
 	SceneManager(IRenderer* renderer);
 
 	~SceneManager();
-
-	/*
-	 * scene_name: Name of the empty scene to create. The created scene is not loaded.
-	*/
-	IScene* CreateSimpleScene(const char* scene_name);
 
 	/*
 	 * scene_path: Path of the Scene to load.
@@ -44,4 +41,6 @@ private:
 	std::vector<IScene*> loaded_scenes_;
 
 	IRenderer* renderer_;
+
+	ServiceContainer service_container_;
 };

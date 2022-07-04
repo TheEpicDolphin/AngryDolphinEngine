@@ -3,11 +3,10 @@
 #include <vector>
 #include <queue>
 #include <map>
+#include <core/definitions/transform/transform_service.h>
 #include <core/ecs/entity.h>
 #include <core/utils/event_announcer.h>
 #include <glm/mat4x4.hpp>
-
-#include "definitions/transform_graph.h"
 
 #define MAX_ENTITY_COUNT 16384
 
@@ -16,7 +15,7 @@ struct EntityLifecycleEventsListener {
 	virtual void EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) = 0;
 };
 
-class SceneGraph : public ITransformGraph {
+class SceneGraph : public ITransformService {
 public:
 	SceneGraph();
 

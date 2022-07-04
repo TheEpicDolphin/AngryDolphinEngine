@@ -1,14 +1,16 @@
 #pragma once
 
 #include <core/ecs/registry.h>
-#include <core/definitions/graphics/renderer.h>
+#include <core/definitions/scene/scene_entity_instantiator.h>
 #include <core/serialize/serializable.h>
+#include <core/services/service_container.h>
 
-#include "definitions/transform_graph.h"
 #include "scene_graph.h"
 
-class IScene {
+class IScene : ISceneEntityInstantiator {
 public:
+	virtual void SetServicesContainer(ServiceContainer* service_container) = 0;
+
 	virtual const char* Name() = 0;
 
 	virtual void OnLoad() = 0;
@@ -18,25 +20,20 @@ public:
 	virtual void OnFixedUpdate(double fixed_delta_time) = 0;
 
 	virtual void OnFrameUpdate(double delta_time, double alpha) = 0;
-
-	virtual ecs::EntityID CreateEntity() = 0;
-
-	virtual void DestroyEntity(ecs::EntityID entity_id) = 0;
-
-	virtual ITransformGraph& TransformGraph() = 0;
-
-	virtual ecs::Registry& ComponentRegistry() = 0;
-
-	virtual IRenderer& Renderer() = 0;
 };
 
-class SceneBase : public IScene
+class SceneBase : public IScene, public ISceneEntityInstantiator
 {
 public:
 	SceneBase() = delete;
 
-	SceneBase(const char* name, IRenderer* renderer) : name_(name) {
-		renderer_ = renderer;
+	SceneBase(const char* name) : name_(name) {}
+
+	void SetServicesContainer(ServiceContainer* service_container) override {
+		service_container_ = service_container;
+		service_container_->BindTo<ISceneEntityInstantiator>(*this);
+		service_container_->BindTo<SceneGraph>(scene_graph_);
+		service_container_->BindTo<ecs::Registry>(registry_);
 	}
 
 	const char* Name() override { return name_; }
@@ -60,21 +57,11 @@ public:
 		scene_graph_.DestroyEntity(entity_id);
 	}
 
-	ITransformGraph& TransformGraph() override {
-		return scene_graph_;
-	}
-
-	ecs::Registry& ComponentRegistry() override {
-		return registry_;
-	}
-
-	IRenderer& Renderer() override {
-		return *renderer_;
-	}
-
 private:
 	const char* name_;
 	SceneGraph scene_graph_;
 	ecs::Registry registry_;
-	IRenderer* renderer_;
+
+protected:
+	ServiceContainer* service_container_;
 };

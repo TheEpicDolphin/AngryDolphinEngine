@@ -7,15 +7,12 @@
 
 SceneManager::SceneManager(IRenderer* renderer) {
 	renderer_ = renderer;
+	service_container_.BindTo<ISceneService>(*this);
+	service_container_.BindTo<IRenderer>(renderer_);
 }
 
 SceneManager::~SceneManager() {
 	delete renderer_;
-}
-
-IScene* SceneManager::CreateSimpleScene(const char* scene_name) {
-	// TODO: Use scene name somehow.
-	return new SimpleScene(scene_name, renderer_);
 }
 
 void SceneManager::LoadScene(const char* scene_path) {
@@ -23,6 +20,7 @@ void SceneManager::LoadScene(const char* scene_path) {
 }
 
 void SceneManager::LoadScene(IScene* scene) {
+	scene->SetServicesContainer(&service_container_);
 	loaded_scenes_.push_back(scene);
 	scene->OnLoad();
 }

@@ -8,7 +8,7 @@
 
 class SimpleScene : public SceneBase {
 public:
-	SimpleScene(const char* name, IRenderer* renderer) : SceneBase(name, renderer) {}
+	SimpleScene(const char* name) : SceneBase(name) {}
 
 	void OnLoad() override {
 		// Instantiate entities.

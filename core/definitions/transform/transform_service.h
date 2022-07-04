@@ -1,9 +1,12 @@
 #pragma once
 
 #include <glm/mat4x4.hpp>
-#include <core/ecs/entity.h>
 
-class ITransformGraph {
+namespace ecs {
+	struct EntityID;
+}
+
+class ITransformService {
 public:
 	virtual const glm::mat4& GetLocalTransform(ecs::EntityID entity_id) const = 0;
 
