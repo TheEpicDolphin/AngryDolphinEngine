@@ -20,14 +20,13 @@ void SceneManager::LoadScene(const char* scene_path) {
 }
 
 void SceneManager::LoadScene(IScene* scene) {
-	scene->SetServicesContainer(&service_container_);
 	loaded_scenes_.push_back(scene);
-	scene->OnLoad();
+	scene->OnLoad(service_container_);
 }
 
 void SceneManager::UnloadScene(IScene* scene) {
 	loaded_scenes_.erase(std::remove(loaded_scenes_.begin(), loaded_scenes_.end(), scene), loaded_scenes_.end());
-	scene->OnUnload();
+	scene->OnUnload(service_container_);
 }
 
 void SceneManager::SaveScene(IScene* scene) {

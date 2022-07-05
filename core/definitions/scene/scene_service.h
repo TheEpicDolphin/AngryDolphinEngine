@@ -1,5 +1,7 @@
 #pragma once
 
+class IScene;
+
 class ISceneService {
 public:
 	/*

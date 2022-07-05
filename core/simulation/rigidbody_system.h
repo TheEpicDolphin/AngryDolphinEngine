@@ -2,6 +2,7 @@
 
 #include <glm/vec3.hpp>
 
+#include <core/definitions/transform/transform_service.h>
 #include <core/ecs/system.h>
 #include <core/scene/scene.h>
 #include <core/ecs/entity.h>
@@ -11,12 +12,18 @@
 
 static const glm::vec3 gravity(0.0f, -9.8f, 0.0f);
 
-class RigidbodySystem : public SystemBase
+class RigidbodySystem : public ISystem
 {
 public:
 	RigidbodySystem() = default;
 
-	void OnFixedUpdate(double fixed_delta_time, IScene& scene)
+	void Initialize(ServiceContainer service_container) {}
+
+	void OnInstantiateEntity(ecs::EntityID entity_id) {};
+
+	void OnCleanupEntity(ecs::EntityID entity_id) {}
+
+	void OnFixedUpdate(double fixed_delta_time)
 	{
 		std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
 			[fixed_delta_time](ecs::EntityID entity_id, RigidbodyComponent& rb) {
@@ -24,23 +31,27 @@ public:
 			rb.previous_position = rb.position;
 			rb.position += rb.velocity * (float)fixed_delta_time;
 		};
-		scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
+		component_registry_.EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 	}
 
-	void OnFrameUpdate(double delta_time, double alpha, IScene& scene)
+	void OnFrameUpdate(double delta_time, double alpha)
 	{
 		// Physics interpolation before rendering
 		std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
-			[alpha, &scene](ecs::EntityID entity_id, RigidbodyComponent& rb) {
-			glm::mat4 transform = scene.TransformGraph().GetWorldTransform(entity_id);
+			[this, alpha](ecs::EntityID entity_id, RigidbodyComponent& rb) {
+			glm::mat4 transform = transform_service_.GetWorldTransform(entity_id);
 			if (rb.interpolate) {
 				transform::SetPosition(transform, rb.position * (float)alpha + rb.previous_position * (float)(1.0f - alpha));
 			}
 			else {
 				transform::SetPosition(transform, rb.position);
 			}
-			scene.TransformGraph().SetWorldTransform(entity_id, transform);
+			transform_service_.SetWorldTransform(entity_id, transform);
 		};
-		scene.ComponentRegistry().EnumerateComponentsWithBlock<RigidbodyComponent>(block);
+		component_registry_.EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 	}
+
+private:
+	ecs::Registry& component_registry_;
+	ITransformService& transform_service_;
 };

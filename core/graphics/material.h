@@ -10,8 +10,6 @@
 #include "shader/shader_vars/shader_var_helpers.h"
 #include "rendering_pipeline.h"
 
-typedef std::uint32_t MaterialID;
-
 struct UniformValue {
 	shader::ShaderDataType data_type;
 	std::vector<char> data;
@@ -30,17 +28,18 @@ struct MaterialLifecycleEventsListener {
 
 	virtual void MaterialUniformDidChange(Material* material, std::size_t uniform_index) = 0;
 	//virtual void MaterialTextureDidChange(Material* material, Texture texture) = 0;
-	virtual void MaterialDidDestroy(MaterialID material_id) = 0;
+	virtual void MaterialDidDestroy(Material* material) = 0;
 };
 
 class Material
 {
 public:
-	Material(MaterialID id, MaterialInfo info);
+
+	//static std::shared_ptr<Material> CreateMaterialForResourcePath(const char* resource_path);
+
+	static std::shared_ptr<Material> CreateMaterial(MaterialInfo info);
 
 	~Material();
-
-	const MaterialID& GetInstanceID();
 
 	void SetColor(glm::vec4 color);
 
@@ -98,8 +97,6 @@ public:
 	}
 
 private:
-	MaterialID id_;
-
 	// Indices to commonly used material uniforms.
 	int color_uniform_index_ = -1;
 
@@ -110,6 +107,8 @@ private:
 	EventAnnouncer<MaterialLifecycleEventsListener> lifecycle_events_announcer_;
 
 	//Texture texture_;
+
+	Material(MaterialInfo info);
 
 	template<typename T>
 	void SetUniformWithCachedIndex(int cached_uniform_index, T value) {

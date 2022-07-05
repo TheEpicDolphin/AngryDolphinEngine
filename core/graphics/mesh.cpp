@@ -1,9 +1,8 @@
 
 #include "mesh.h"
 
-Mesh::Mesh(MeshID id, MeshInfo info)
+Mesh::Mesh(MeshInfo info)
 {
-	id_ = id;
 	rendering_pipeline_ = info.rendering_pipeline;
 	is_static_ = info.is_static;
 
@@ -39,13 +38,52 @@ Mesh::Mesh(MeshID id, MeshInfo info)
 	}
 }
 
-Mesh::~Mesh()
-{
-	lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshDidDestroy, this->GetInstanceID());
+std::shared_ptr<Mesh> Mesh::CreateMesh(MeshInfo info) {
+	return std::make_shared<Mesh>(info);
 }
 
-const MeshID& Mesh::GetInstanceID() {
-	return id_;
+std::shared_ptr<Mesh> Mesh::CreateCubeMeshPrimitive(MeshInfo info, glm::vec3 origin, float side_length) {
+	std::shared_ptr<Mesh> mesh = CreateMesh(info);
+	std::vector<glm::vec3> cube_verts =
+	{
+		glm::vec3(0, 0, 0),
+		glm::vec3(1, 0, 0),
+		glm::vec3(1, 1, 0),
+		glm::vec3(0, 1, 0),
+		glm::vec3(0, 1, 1),
+		glm::vec3(1, 1, 1),
+		glm::vec3(1, 0, 1),
+		glm::vec3(0, 0, 1)
+	};
+
+	const std::vector<std::size_t> indices =
+	{
+		0, 2, 1, //face front
+		0, 3, 2,
+		2, 3, 4, //face top
+		2, 4, 5,
+		1, 2, 5, //face right
+		1, 5, 6,
+		0, 7, 4, //face left
+		0, 4, 3,
+		5, 4, 7, //face back
+		5, 7, 6,
+		0, 6, 7, //face bottom
+		0, 1, 6
+	};
+
+	for (std::vector<glm::vec3>::iterator it = cube_verts.begin(); it != cube_verts.end(); ++it) {
+		*it = (*it - glm::vec3(0.5f, 0.5f, 0.5f) + origin) * side_length;
+	}
+
+	mesh->SetVertexPositions(cube_verts);
+	mesh->SetTriangleIndices(indices);
+	return mesh;
+}
+
+Mesh::~Mesh()
+{
+	lifecycle_events_announcer_.Announce(&MeshLifecycleEventsListener::MeshDidDestroy, this);
 }
 
 bool Mesh::IsStatic() {

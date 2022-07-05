@@ -70,11 +70,13 @@ void Game::CaptureSnapshot() {
 
 }
 
-void Game::StartMainLoop() {
+void Game::PlayMainScene(IScene* main_scene) {
+	scene_manager_->LoadScene(main_scene);
+	std::vector<IScene*> loaded_scenes_from_last_frame;
+
 	const double fixed_dt = 1 / 60.0;
 	double accumulator = 0.0;
-	const std::chrono::time_point<std::chrono::system_clock> start_time = std::chrono::system_clock::now();
-	std::chrono::time_point<std::chrono::system_clock> last_tick = start_time;
+	std::chrono::time_point<std::chrono::system_clock> last_tick = std::chrono::system_clock::now();
 
 	while (glfwGetKey(window_, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window_) == 0) {
 		std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
@@ -84,16 +86,21 @@ void Game::StartMainLoop() {
 
 		while (accumulator >= fixed_dt)
 		{
-			for (IScene* scene : scene_manager_->LoadedScenes()) {
+			// Perform fixed update on all loaded scenes from the last frame update.
+			for (IScene* scene : loaded_scenes_from_last_frame) {
 				scene->OnFixedUpdate(fixed_dt);
 			}
 			accumulator -= fixed_dt;
 		}
 
 		const double alpha = accumulator / fixed_dt;
-
 		PrepareWindowForFrameRender(window_renderer_type_, window_);
-		for (IScene* scene : scene_manager_->LoadedScenes()) {
+
+		// Perform frame render update on all currently loaded scenes.
+		loaded_scenes_from_last_frame.clear();
+		const std::vector<IScene*>& current_loaded_scenes = scene_manager_->LoadedScenes();
+		loaded_scenes_from_last_frame.insert(loaded_scenes_from_last_frame.end(), current_loaded_scenes.begin(), current_loaded_scenes.end());
+		for (IScene* scene : loaded_scenes_from_last_frame) {
 			scene->OnFrameUpdate(frame_time, alpha);
 		}
 	}

@@ -6,33 +6,29 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include "material_manager.h"
-#include "mesh_manager.h"
-#include "rendering_pipeline_manager.h"
-
 OpenGLRenderer::OpenGLRenderer() {}
 
 OpenGLRenderer::~OpenGLRenderer() {
-	for (std::unordered_map<PipelineID, PipelineState>::iterator it = pipeline_state_map_.begin(); it != pipeline_state_map_.end(); it++) {
+	for (std::unordered_map<PipelineHandle, PipelineState>::iterator it = pipeline_state_map_.begin(); it != pipeline_state_map_.end(); it++) {
 		it->second.pipeline->RemoveLifecycleEventsListener(this);
 	}
 
-	for (std::unordered_map<MeshID, MeshState>::iterator it = mesh_state_map_.begin(); it != mesh_state_map_.end(); it++) {
+	for (std::unordered_map<MeshHandle, MeshState>::iterator it = mesh_state_map_.begin(); it != mesh_state_map_.end(); it++) {
 		it->second.mesh->RemoveLifecycleEventsListener(this);
 	}
 
-	for (std::unordered_map<MaterialID, MaterialState>::iterator it = material_state_map_.begin(); it != material_state_map_.end(); it++) {
+	for (std::unordered_map<MaterialHandle, MaterialState>::iterator it = material_state_map_.begin(); it != material_state_map_.end(); it++) {
 		it->second.material->RemoveLifecycleEventsListener(this);
 	}
 }
 
 void OpenGLRenderer::PreloadRenderingPipeline(const std::shared_ptr<RenderingPipeline>& pipeline) {
 	// This will avoid having any lags during rendering.
-	if (pipeline_state_map_.find(pipeline->GetInstanceID()) != pipeline_state_map_.end()) {
+	if (pipeline_state_map_.find(pipeline.get()) != pipeline_state_map_.end()) {
 		// This pipeline was already preloaded.
 		return;
 	}
-	pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
+	pipeline_state_map_[pipeline.get()] = CreatePipelineState(pipeline);
 	pipeline->AddLifecycleEventsListener(this);
 }
 
@@ -50,25 +46,25 @@ void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 	for (RenderableObject renderable_object : renderable_objects) {
 		const std::shared_ptr<RenderingPipeline>& pipeline = renderable_object.mesh->GetPipeline();
 
-		if (pipeline_state_map_.find(pipeline->GetInstanceID()) == pipeline_state_map_.end()) {
-			pipeline_state_map_[pipeline->GetInstanceID()] = CreatePipelineState(pipeline);
+		if (pipeline_state_map_.find(pipeline.get()) == pipeline_state_map_.end()) {
+			pipeline_state_map_[pipeline.get()] = CreatePipelineState(pipeline);
 			pipeline->AddLifecycleEventsListener(this);
 		}
 
-		if (mesh_state_map_.find(renderable_object.mesh->GetInstanceID()) == mesh_state_map_.end()) {
-			mesh_state_map_[renderable_object.mesh->GetInstanceID()] = CreateMeshState(renderable_object.mesh);
+		if (mesh_state_map_.find(renderable_object.mesh) == mesh_state_map_.end()) {
+			mesh_state_map_[renderable_object.mesh] = CreateMeshState(renderable_object.mesh);
 			renderable_object.mesh->AddLifecycleEventsListener(this);
 		}
 
-		if (material_state_map_.find(renderable_object.material->GetInstanceID()) == material_state_map_.end()) {
-			material_state_map_[renderable_object.material->GetInstanceID()] = CreateMaterialState(renderable_object.material);
+		if (material_state_map_.find(renderable_object.material) == material_state_map_.end()) {
+			material_state_map_[renderable_object.material] = CreateMaterialState(renderable_object.material);
 			renderable_object.material->AddLifecycleEventsListener(this);
 		}
 
 		const RenderableObjectBatchKey batch_key = {
-			pipeline->GetInstanceID(),
-			renderable_object.mesh->GetInstanceID(),
-			renderable_object.material->GetInstanceID()
+			pipeline.get(),
+			renderable_object.mesh,
+			renderable_object.material
 		};
 
 		std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.find(batch_key);
@@ -91,20 +87,20 @@ void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 		RenderableObjectBatch batch = it->second;
 
 		//GLint bones_location;
-		if (current_batch_key.pipeline_id != previous_batch_key.pipeline_id) {
+		if (current_batch_key.pipeline_handle != previous_batch_key.pipeline_handle) {
 			// Switch rendering pipeline configuration
-			const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_id];
+			const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_handle];
 			glUseProgram(pipeline_state.program_id);
 
 			mvp_location = pipeline_state.pipeline->MVPUniform().location;
 			//bones_location = pipeline_state.pipeline->BonesUniform().location;
 		}
-		if (current_batch_key.mesh_id != previous_batch_key.mesh_id) {
+		if (current_batch_key.mesh_handle != previous_batch_key.mesh_handle) {
 			// Switch mesh configuration
-			const MeshState mesh_state = mesh_state_map_[current_batch_key.mesh_id];
+			const MeshState mesh_state = mesh_state_map_[current_batch_key.mesh_handle];
 			glBindVertexArray(mesh_state.vao);
 		}
-		if (current_batch_key.material_id != previous_batch_key.material_id) {
+		if (current_batch_key.material_handle != previous_batch_key.material_handle) {
 			// Switch material configuration
 			// Iterate material uniforms and set corresponding uniforms in shaders
 			for (std::size_t i = 0; i < batch.material->UniformValues().size(); i++) {
@@ -292,14 +288,14 @@ OpenGLRenderer::MaterialState OpenGLRenderer::CreateMaterialState(Material* mat)
 
 // PipelineLifecycleEventsListener
 
-void OpenGLRenderer::PipelineDidDestroy(PipelineID pipeline_id) {
-	pipeline_state_map_.erase(pipeline_id);
+void OpenGLRenderer::PipelineDidDestroy(RenderingPipeline* pipeline) {
+	pipeline_state_map_.erase(pipeline);
 }
 
 // MeshLifecycleEventsListener
 
 void OpenGLRenderer::MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) {
-	std::unordered_map<MeshID, MeshState>::iterator iter = mesh_state_map_.find(mesh->GetInstanceID());
+	std::unordered_map<MeshHandle, MeshState>::iterator iter = mesh_state_map_.find(mesh);
 	if (iter != mesh_state_map_.end()) {
 		MeshState mesh_state = iter->second;
 
@@ -313,8 +309,8 @@ void OpenGLRenderer::MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attrib
 	}
 }
 
-void OpenGLRenderer::MeshDidDestroy(MeshID mesh_id) {
-	mesh_state_map_.erase(mesh_id);
+void OpenGLRenderer::MeshDidDestroy(Mesh* mesh) {
+	mesh_state_map_.erase(mesh);
 }
 
 // MaterialLifecycleEventsListener
@@ -337,6 +333,6 @@ void OpenGLRenderer::MaterialTextureDidChange(Material* material, Texture textur
 }
 */
 
-void OpenGLRenderer::MaterialDidDestroy(MaterialID material_id) {
-	material_state_map_.erase(material_id);
+void OpenGLRenderer::MaterialDidDestroy(Material* material) {
+	material_state_map_.erase(material);
 }

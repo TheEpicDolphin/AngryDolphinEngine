@@ -8,53 +8,49 @@
 #include <core/definitions/graphics/renderer.h>
 #include <core/ecs/registry.h>
 #include <core/geometry/bounds.h>
-#include <core/scene/scene_graph.h>
-#include <core/scene/definitions/transform_graph.h>
 #include <core/transform/transform.h>
 
 #include "../components/camera_component.h"
 #include "../components/mesh_renderable_component.h"
 #include "../components/skeletal_mesh_renderable_component.h"
 
-void RenderingSystem::OnFrameUpdate(double delta_time, double alpha, IScene& scene)
+void RenderingSystem::Initialize(ServiceContainer service_container) {
+	if (!service_container.TryGetService(component_registry_)) {
+		// TODO: Throw error.
+	}
+
+	if (!service_container.TryGetService(transform_service_)) {
+		// TODO: Throw error.
+	}
+
+	if (!service_container.TryGetService(renderer_)) {
+		// TODO: Throw error.
+	}
+}
+
+void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 {
-	std::vector<RenderableObject> renderable_objects;
+	renderable_objects_.clear();
 	// Iterate through mesh renderables.
 	std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
-		[&renderable_objects, &scene](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
+		[this](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
 		if (mesh_rend.enabled) {
-			assert(mesh_rend.mesh->GetPipeline()->GetInstanceID() == mesh_rend.material->GetPipeline()->GetInstanceID());
-			renderable_objects.push_back({
+			assert(mesh_rend.mesh->GetPipeline() == mesh_rend.material->GetPipeline());
+			renderable_objects_.push_back({
 				mesh_rend.mesh.get(),
 				mesh_rend.material.get(),
-				scene.TransformGraph().GetWorldTransform(entity_id),
+				transform_service_.GetWorldTransform(entity_id),
 				mesh_rend.WorldMeshBounds(),
 				{}
 				});
 		}
 	};
-	scene.ComponentRegistry().EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
-
-	// Iterate through skeletal mesh renderables.
-	/*
-	std::function<void(EntityID, SkeletalMeshRenderable&)> skel_mesh_renderables_block =
-	[&renderable_objects, &scene](EntityID entity_id, SkeletalMeshRenderable& skel_mesh_rend) {
-		if (skel_mesh_rend.enabled) {
-			std::vector<glm::mat4> bone_transforms(skel_mesh_rend.bones.size());
-			for (std::size_t i = 0; i < bone_transforms.size(); i++) {
-				bone_transforms[i] = scene.TransformGraph().GetWorldTransform(skel_mesh_rend.bones[i]);
-			}
-			const MeshID mesh_id = skel_mesh_rend.unique_mesh ? skel_mesh_rend.unique_mesh.get() : skel_mesh_rend.shared_mesh.get();
-			renderable_objects.push_back({ mesh_id, scene.TransformGraph().GetWorldTransform(entity_id), bone_transforms });
-		}
-	};
-	scene.Registry().EnumerateComponentsWithBlock<SkeletalMeshRenderable>(skel_mesh_renderables_block);
-	*/
+	component_registry_.EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 
 	std::function<void(ecs::EntityID, CameraComponent&)> cameras_block =
-		[&scene, &renderable_objects](ecs::EntityID entity_id, CameraComponent& camera_component) {
+		[this](ecs::EntityID entity_id, CameraComponent& camera_component) {
 		if (camera_component.enabled) {
-			const glm::mat4 camera_transform = scene.TransformGraph().GetWorldTransform(entity_id);
+			const glm::mat4 camera_transform = transform_service_.GetWorldTransform(entity_id);
 			const glm::mat4 camera_view_matrix = glm::inverse(camera_transform);
 
 			glm::mat4 projection_matrix;
@@ -150,7 +146,7 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha, IScene& sce
 
 			// For each renderable object, check if any of the AABB points are in the view frustum 
 			// after transformed into clip space.
-			for (RenderableObject renderable_object : renderable_objects) {
+			for (RenderableObject renderable_object : renderable_objects_) {
 				const geometry::Bounds& aabb = renderable_object.aabb;
 				const glm::vec3 aabb_points[8] = {
 					aabb.min,
@@ -175,7 +171,7 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha, IScene& sce
 			// For each renderable object, check if any of the view frustum corners (in world space) 
 			// are within its AABB bounds. This catches edge cases where the renderable object AABBs
 			// do not have any points within the view frustum, but still intersect.
-			for (RenderableObject renderable_object : renderable_objects) {
+			for (RenderableObject renderable_object : renderable_objects_) {
 				for (std::size_t i = 0; i < 8; i++) {
 					if (renderable_object.aabb.ContainsPoint(view_frustum_corners_world[i])) {
 						non_culled_renderable_objects.push_back(renderable_object);
@@ -184,8 +180,8 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha, IScene& sce
 			}
 
 			CameraParams cam_params = { camera_clip_space_matrix, camera_component.viewport_rect };
-			scene.Renderer().RenderFrame(cam_params, non_culled_renderable_objects);
+			renderer_.RenderFrame(cam_params, non_culled_renderable_objects);
 		}
 	};
-	scene.ComponentRegistry().EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
+	component_registry_.EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
 }

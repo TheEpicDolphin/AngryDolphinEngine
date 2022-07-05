@@ -10,6 +10,10 @@
 #include "mesh.h"
 #include "rendering_pipeline.h"
 
+typedef RenderingPipeline* PipelineHandle;
+typedef Mesh* MeshHandle;
+typedef Material* MaterialHandle;
+
 class OpenGLRenderer : 
 	public IRenderer,
 	private MaterialLifecycleEventsListener,
@@ -31,19 +35,19 @@ public:
 private:
 
 	struct RenderableObjectBatchKey {
-		PipelineID pipeline_id;
-		MeshID mesh_id;
-		MaterialID material_id;
+		PipelineHandle pipeline_handle;
+		MeshHandle mesh_handle;
+		MaterialHandle material_handle;
 
 		bool operator <(const RenderableObjectBatchKey& rhs) const
 		{
-			if (pipeline_id == rhs.pipeline_id) {
-				if (mesh_id == rhs.mesh_id) {
-					return material_id < rhs.material_id;
+			if (pipeline_handle == rhs.pipeline_handle) {
+				if (mesh_handle == rhs.mesh_handle) {
+					return material_handle < rhs.material_handle;
 				}
-				return mesh_id < rhs.mesh_id;
+				return mesh_handle < rhs.mesh_handle;
 			}
-			return pipeline_id < rhs.pipeline_id;
+			return pipeline_handle < rhs.pipeline_handle;
 		}
 	};
 
@@ -87,20 +91,20 @@ private:
 
 	static MaterialState CreateMaterialState(Material* mat);
 
-	std::unordered_map<PipelineID, PipelineState> pipeline_state_map_;
-	std::unordered_map<MeshID, MeshState> mesh_state_map_;
-	std::unordered_map<MaterialID, MaterialState> material_state_map_;	
+	std::unordered_map<PipelineHandle, PipelineState> pipeline_state_map_;
+	std::unordered_map<MeshHandle, MeshState> mesh_state_map_;
+	std::unordered_map<MaterialHandle, MaterialState> material_state_map_;	
 
 
 	// PipelineLifecycleEventsListener
 
-	void PipelineDidDestroy(PipelineID pipeline_id) override;
+	void PipelineDidDestroy(RenderingPipeline* pipeline) override;
 
 	// MeshLifecycleEventsListener
 
 	void MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) override;
 
-	void MeshDidDestroy(MeshID mesh_id) override;
+	void MeshDidDestroy(Mesh* mesh) override;
 
 	// MaterialLifecycleEventsListener
 
@@ -108,5 +112,5 @@ private:
 
 	//void MaterialTextureDidChange(Material* material, Texture texture) override;
 
-	void MaterialDidDestroy(MaterialID material_id) override;
+	void MaterialDidDestroy(Material* material) override;
 };

@@ -10,12 +10,15 @@ class SimpleScene : public SceneBase {
 public:
 	SimpleScene(const char* name) : SceneBase(name) {}
 
-	void OnLoad() override {
-		// Instantiate entities.
+	void OnLoad(ServiceContainer& service_container) override {
+		SceneBase::OnLoad(service_container);
 
+		// Instantiate entities.
 	}
 
-	void OnUnload() override {}
+	void OnUnload(ServiceContainer& service_container) override {
+		SceneBase::OnUnload(service_container);
+	}
 
 	ecs::EntityID CreateEntity() override {
 		ecs::EntityID entity_id = SceneBase::CreateEntity();
@@ -37,18 +40,18 @@ public:
 
 	void OnFixedUpdate(double fixed_delta_time) override 
 	{
-		rigidbody_system_.OnFixedUpdate(fixed_delta_time, *this);
+		rigidbody_system_.OnFixedUpdate(fixed_delta_time);
 	}
 
 	void OnFrameUpdate(double delta_time, double alpha) override 
 	{
-		mesh_transformation_system_.OnFrameUpdate(delta_time, alpha, *this);
+		mesh_transformation_system_.OnFrameUpdate(delta_time, alpha);
 
 		// interpolate physics states to avoid jitter in render
-		rigidbody_system_.OnFrameUpdate(delta_time, alpha, *this);
+		rigidbody_system_.OnFrameUpdate(delta_time, alpha);
 
 		// render
-		rendering_system_.OnFrameUpdate(delta_time, alpha, *this);
+		rendering_system_.OnFrameUpdate(delta_time, alpha);
 	}
 
 	// TODO: Fix below

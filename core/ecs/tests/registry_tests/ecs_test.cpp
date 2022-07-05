@@ -60,7 +60,9 @@ TEST(ecs_test_suite, adding_component_test)
     ecs::EntityID entity_id = { 0, 1 };
     registry.RegisterEntity(entity_id);
     registry.AddComponent<A>(entity_id, { a_name_0 });
-    A* a = registry.GetComponent<A>(entity_id);
+
+    A a;
+    registry.GetComponent(entity_id, a);
     //ASSERT_EQ(a->name, a_name_0);
 
     registry.AddComponent<B>(entity_id, { b_name_0 });

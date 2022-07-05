@@ -10,8 +10,7 @@
 
 #define MAX_ENTITY_COUNT 16384
 
-struct EntityLifecycleEventsListener {
-	virtual void EntityDidDestroy(ecs::EntityID entity_id) = 0;
+struct EntityTransformEventsListener {
 	virtual void EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) = 0;
 };
 
@@ -34,9 +33,9 @@ public:
 
 	bool IsValid(ecs::EntityID entity_id);
 
-	void AddLifecycleEventsListenerForEntity(EntityLifecycleEventsListener* listener, ecs::EntityID entity_id);
+	void AddLifecycleEventsListenerForEntity(EntityTransformEventsListener* listener, ecs::EntityID entity_id);
 
-	void RemoveLifecycleEventsListenerForEntity(EntityLifecycleEventsListener* listener, ecs::EntityID entity_id);
+	void RemoveLifecycleEventsListenerForEntity(EntityTransformEventsListener* listener, ecs::EntityID entity_id);
 	
 	const glm::mat4& GetLocalTransform(ecs::EntityID entity_id) const override;
 
@@ -79,7 +78,7 @@ private:
 		TransformNode* next_sibling;
 		TransformNode* first_child;
 		TransformNode* last_child;
-		EventAnnouncer<EntityLifecycleEventsListener>* lifecycle_events_announcer;
+		EventAnnouncer<EntityTransformEventsListener>* transform_events_announcer;
 	};
 
 	struct SceneGraphNode {

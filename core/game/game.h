@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <core/scene/scene.h>
 #include <core/scene/scene_manager.h>
 
 #define GLFW_INCLUDE_NONE
@@ -18,15 +19,10 @@ public:
 
 	~Game();
 
-	const SceneManager& GetSceneManager()
-	{
-		return *scene_manager_;
-	}
-
 	// Capture the state of the game. Useful for debugging.
 	void CaptureSnapshot();
 
-	void StartMainLoop();
+	void PlayMainScene(IScene* main_scene);
 
 private:
 	SceneManager* scene_manager_;

@@ -7,15 +7,15 @@
 
 #include "scene_graph.h"
 
-class IScene : ISceneEntityInstantiator {
+class IScene {
 public:
-	virtual void SetServicesContainer(ServiceContainer* service_container) = 0;
-
 	virtual const char* Name() = 0;
 
-	virtual void OnLoad() = 0;
+	// TODO: OnLoadAsync and OnUnloadAsync
 
-	virtual void OnUnload() = 0;
+	virtual void OnLoad(ServiceContainer& service_container) = 0;
+
+	virtual void OnUnload(ServiceContainer& service_container) = 0;
 
 	virtual void OnFixedUpdate(double fixed_delta_time) = 0;
 
@@ -29,18 +29,19 @@ public:
 
 	SceneBase(const char* name) : name_(name) {}
 
-	void SetServicesContainer(ServiceContainer* service_container) override {
-		service_container_ = service_container;
-		service_container_->BindTo<ISceneEntityInstantiator>(*this);
-		service_container_->BindTo<SceneGraph>(scene_graph_);
-		service_container_->BindTo<ecs::Registry>(registry_);
-	}
-
 	const char* Name() override { return name_; }
 
-	void OnLoad() override {}
+	void OnLoad(ServiceContainer& service_container) override {
+		service_container.BindTo<ISceneEntityInstantiator>(*this);
+		service_container.BindTo<SceneGraph>(scene_graph_);
+		service_container.BindTo<ecs::Registry>(registry_);
+	}
 
-	void OnUnload() override {}
+	void OnUnload(ServiceContainer& service_container) override {
+		service_container.Unbind<ISceneEntityInstantiator>();
+		service_container.Unbind<SceneGraph>();
+		service_container.Unbind<ecs::Registry>();
+	}
 
 	void OnFixedUpdate(double fixed_delta_time) override {}
 
@@ -61,7 +62,4 @@ private:
 	const char* name_;
 	SceneGraph scene_graph_;
 	ecs::Registry registry_;
-
-protected:
-	ServiceContainer* service_container_;
 };

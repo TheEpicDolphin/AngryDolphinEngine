@@ -12,8 +12,6 @@
 #include "shader/shader_vars/shader_var_helpers.h"
 #include "rendering_pipeline.h"
 
-typedef uint32_t MeshID;
-
 struct VertexAttributeBuffer {
 	shader::ShaderDataType data_type;
 	std::vector<char> data;
@@ -29,17 +27,19 @@ class Mesh;
 
 struct MeshLifecycleEventsListener {
 	virtual void MeshVertexAttributeDidChange(Mesh* mesh, std::size_t attribute_index) = 0;
-	virtual void MeshDidDestroy(MeshID mesh_id) = 0;
+	virtual void MeshDidDestroy(Mesh* mesh) = 0;
 };
 
 class Mesh
 {
 public:
-	Mesh(MeshID id, MeshInfo mesh_info);
+	// Meshes can only be created using factory methods.
+
+	static std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
+
+	static std::shared_ptr<Mesh> CreateCubeMeshPrimitive(MeshInfo info, glm::vec3 origin, float side_length);
 
 	~Mesh();
-
-	const MeshID& GetInstanceID();
 
 	bool IsStatic();
 
@@ -102,9 +102,6 @@ public:
 	}
 
 private:
-
-	MeshID id_;
-
 	bool is_static_;
 
 	// Indices to commonly used vertex attributes.
@@ -124,6 +121,8 @@ private:
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 
 	EventAnnouncer<MeshLifecycleEventsListener> lifecycle_events_announcer_;
+
+	Mesh(MeshInfo mesh_info);
 
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>

@@ -10,8 +10,6 @@
 #include "shader/shader.h"
 #include "shader/shader_vars/shader_data_type.h"
 
-typedef std::uint32_t PipelineID;
-
 enum UniformUsageCategory
 {
 	UniformUsageCategoryColor = 0,
@@ -60,8 +58,10 @@ struct VertexAttributeInfo {
 	SERIALIZE_MEMBERS(name, data_type, location, dimension, format, category)
 };
 
+class RenderingPipeline;
+
 struct PipelineLifecycleEventsListener {
-	virtual void PipelineDidDestroy(PipelineID pipeline_id) = 0;
+	virtual void PipelineDidDestroy(RenderingPipeline* pipeline) = 0;
 };
 
 struct RenderingPipelineInfo
@@ -79,11 +79,12 @@ class RenderingPipeline
 {
 public:
 	RenderingPipeline() {}
-	RenderingPipeline(PipelineID pipeline_id, RenderingPipelineInfo info);
+
+	static std::shared_ptr<RenderingPipeline> RenderingPipelineForResourcePath(const char* resource_path);
+
+	static std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
 
 	~RenderingPipeline();
-
-	const PipelineID& GetInstanceID();
 
 	const std::vector<shader::Shader>& ShaderStages();
 
@@ -100,9 +101,6 @@ public:
 	void RenderingPipeline::RemoveLifecycleEventsListener(PipelineLifecycleEventsListener* listener);
 
 private:
-	
-	PipelineID id_;
-
 	UniformInfo mvp_uniform_;
 
 	//const UniformInfo bones_uniform_;
@@ -116,4 +114,8 @@ private:
 	std::vector<shader::Shader> shader_stages_;
 
 	EventAnnouncer<PipelineLifecycleEventsListener> lifecycle_events_announcer_;
+
+	static std::unordered_map<std::string, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_assets_;
+
+	RenderingPipeline(RenderingPipelineInfo info);
 };

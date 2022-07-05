@@ -8,13 +8,13 @@
 class ServiceContainer {
 public:
 	template<typename B, typename S>
-	void BindTo(const S& service) {
-		static_assert(std::is_base_of<B, S>::value);
+	void BindTo(S& service) {
+		static_assert(std::is_base_of<B, S>::value, "Attempting to bind service to a non-base class.");
 		service_map_[service_type_info_.GetTypeId<B>()] = static_cast<void*>(&service);
 	}
 
 	template<typename B>
-	bool TryGetService(const B& service_base) {
+	bool TryGetService(B& service_base) {
 		auto service_iter = service_map_.find(service_type_info_.GetTypeId<B>());
 		if (service_iter == service_map_.end()) {
 			return false;
@@ -24,7 +24,7 @@ public:
 		return true;
 	}
 
-	template<typename T>
+	template<typename B>
 	void Unbind() {
 		service_map_.erase(service_type_info_.GetTypeId<B>());
 	}
