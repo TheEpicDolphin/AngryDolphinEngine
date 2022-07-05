@@ -33,7 +33,7 @@ struct MeshLifecycleEventsListener {
 class Mesh
 {
 public:
-	// Meshes can only be created using factory methods.
+	Mesh(MeshInfo mesh_info);
 
 	static std::shared_ptr<Mesh> CreateMesh(MeshInfo info);
 
@@ -121,8 +121,6 @@ private:
 	std::shared_ptr<RenderingPipeline> rendering_pipeline_;
 
 	EventAnnouncer<MeshLifecycleEventsListener> lifecycle_events_announcer_;
-
-	Mesh(MeshInfo mesh_info);
 
 	// The input buffer is expected to always have T = glm::(i)vec type, which allows trivial reinterpret_cast from T* to char*.
 	template<typename T>

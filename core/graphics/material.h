@@ -34,6 +34,7 @@ struct MaterialLifecycleEventsListener {
 class Material
 {
 public:
+	Material(MaterialInfo info);
 
 	//static std::shared_ptr<Material> CreateMaterialForResourcePath(const char* resource_path);
 
@@ -107,8 +108,6 @@ private:
 	EventAnnouncer<MaterialLifecycleEventsListener> lifecycle_events_announcer_;
 
 	//Texture texture_;
-
-	Material(MaterialInfo info);
 
 	template<typename T>
 	void SetUniformWithCachedIndex(int cached_uniform_index, T value) {

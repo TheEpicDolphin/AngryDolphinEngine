@@ -22,8 +22,8 @@ public:
 	void OnFrameUpdate(double delta_time, double alpha) override;
 
 private:
-	ecs::Registry& component_registry_;
-	ITransformService& transform_service_;
-	IRenderer& renderer_;
+	ecs::Registry* component_registry_;
+	ITransformService* transform_service_;
+	IRenderer* renderer_;
 	std::vector<RenderableObject> renderable_objects_;
 };

@@ -23,7 +23,7 @@ public:
 
 	void Initialize(ServiceContainer service_container) override;
 
-	void OnInstantiateEntity(ecs::EntityID entity_id) {};
+	void OnInstantiateEntity(ecs::EntityID entity_id) override;
 
 	void OnCleanupEntity(ecs::EntityID entity_id) override;
 
@@ -47,8 +47,11 @@ private:
 	// EntityLifecycleEventsListener
 	void EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) override;
 
-	void RemoveEntityFromMeshToEntitiesMapping(ecs::EntityID entity, Mesh* mesh_handle);
+	// Helpers
+	void AddEntityToMesh2EntitiesMapping(ecs::EntityID entity_id, Mesh* mesh_handle);
+	void RemoveEntityFromMesh2EntitiesMapping(ecs::EntityID entity_id, Mesh* mesh_handle);
+	void RecalculateMeshBounds(ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend);
 
-	ecs::Registry& component_registry_;
-	SceneGraph& scene_graph_;
+	ecs::Registry* component_registry_;
+	SceneGraph* scene_graph_;
 };

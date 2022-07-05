@@ -17,7 +17,15 @@ class RigidbodySystem : public ISystem
 public:
 	RigidbodySystem() = default;
 
-	void Initialize(ServiceContainer service_container) {}
+	void Initialize(ServiceContainer service_container) {
+		if (!service_container.TryGetService(*component_registry_)) {
+			// TODO: Throw error.
+		}
+
+		if (!service_container.TryGetService(*transform_service_)) {
+			// TODO: Throw error.
+		}
+	}
 
 	void OnInstantiateEntity(ecs::EntityID entity_id) {};
 
@@ -31,7 +39,7 @@ public:
 			rb.previous_position = rb.position;
 			rb.position += rb.velocity * (float)fixed_delta_time;
 		};
-		component_registry_.EnumerateComponentsWithBlock<RigidbodyComponent>(block);
+		component_registry_->EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 	}
 
 	void OnFrameUpdate(double delta_time, double alpha)
@@ -39,19 +47,19 @@ public:
 		// Physics interpolation before rendering
 		std::function<void(ecs::EntityID, RigidbodyComponent&)> block =
 			[this, alpha](ecs::EntityID entity_id, RigidbodyComponent& rb) {
-			glm::mat4 transform = transform_service_.GetWorldTransform(entity_id);
+			glm::mat4 transform = transform_service_->GetWorldTransform(entity_id);
 			if (rb.interpolate) {
 				transform::SetPosition(transform, rb.position * (float)alpha + rb.previous_position * (float)(1.0f - alpha));
 			}
 			else {
 				transform::SetPosition(transform, rb.position);
 			}
-			transform_service_.SetWorldTransform(entity_id, transform);
+			transform_service_->SetWorldTransform(entity_id, transform);
 		};
-		component_registry_.EnumerateComponentsWithBlock<RigidbodyComponent>(block);
+		component_registry_->EnumerateComponentsWithBlock<RigidbodyComponent>(block);
 	}
 
 private:
-	ecs::Registry& component_registry_;
-	ITransformService& transform_service_;
+	ecs::Registry* component_registry_;
+	ITransformService* transform_service_;
 };

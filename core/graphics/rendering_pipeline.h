@@ -80,6 +80,8 @@ class RenderingPipeline
 public:
 	RenderingPipeline() {}
 
+	RenderingPipeline(RenderingPipelineInfo info);
+
 	static std::shared_ptr<RenderingPipeline> RenderingPipelineForResourcePath(const char* resource_path);
 
 	static std::shared_ptr<RenderingPipeline> CreateRenderingPipeline(RenderingPipelineInfo info);
@@ -116,6 +118,4 @@ private:
 	EventAnnouncer<PipelineLifecycleEventsListener> lifecycle_events_announcer_;
 
 	static std::unordered_map<std::string, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_assets_;
-
-	RenderingPipeline(RenderingPipelineInfo info);
 };

@@ -15,15 +15,15 @@
 #include "../components/skeletal_mesh_renderable_component.h"
 
 void RenderingSystem::Initialize(ServiceContainer service_container) {
-	if (!service_container.TryGetService(component_registry_)) {
+	if (!service_container.TryGetService(*component_registry_)) {
 		// TODO: Throw error.
 	}
 
-	if (!service_container.TryGetService(transform_service_)) {
+	if (!service_container.TryGetService(*transform_service_)) {
 		// TODO: Throw error.
 	}
 
-	if (!service_container.TryGetService(renderer_)) {
+	if (!service_container.TryGetService(*renderer_)) {
 		// TODO: Throw error.
 	}
 }
@@ -39,18 +39,18 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 			renderable_objects_.push_back({
 				mesh_rend.mesh.get(),
 				mesh_rend.material.get(),
-				transform_service_.GetWorldTransform(entity_id),
+				transform_service_->GetWorldTransform(entity_id),
 				mesh_rend.WorldMeshBounds(),
 				{}
 				});
 		}
 	};
-	component_registry_.EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
+	component_registry_->EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 
 	std::function<void(ecs::EntityID, CameraComponent&)> cameras_block =
 		[this](ecs::EntityID entity_id, CameraComponent& camera_component) {
 		if (camera_component.enabled) {
-			const glm::mat4 camera_transform = transform_service_.GetWorldTransform(entity_id);
+			const glm::mat4 camera_transform = transform_service_->GetWorldTransform(entity_id);
 			const glm::mat4 camera_view_matrix = glm::inverse(camera_transform);
 
 			glm::mat4 projection_matrix;
@@ -180,8 +180,8 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 			}
 
 			CameraParams cam_params = { camera_clip_space_matrix, camera_component.viewport_rect };
-			renderer_.RenderFrame(cam_params, non_culled_renderable_objects);
+			renderer_->RenderFrame(cam_params, non_culled_renderable_objects);
 		}
 	};
-	component_registry_.EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
+	component_registry_->EnumerateComponentsWithBlock<CameraComponent>(cameras_block);
 }

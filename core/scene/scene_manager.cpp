@@ -8,7 +8,7 @@
 SceneManager::SceneManager(IRenderer* renderer) {
 	renderer_ = renderer;
 	service_container_.BindTo<ISceneService>(*this);
-	service_container_.BindTo<IRenderer>(renderer_);
+	service_container_.BindTo<IRenderer>(*renderer_);
 }
 
 SceneManager::~SceneManager() {
