@@ -44,14 +44,14 @@ public:
 		camera_component.near_clip_plane_z = 0.1f;
 		camera_component.far_clip_plane_z = 100.0f;
 		component_registry->AddComponent<CameraComponent>(camera_entity, camera_component);
-		transform_service->SetWorldTransform(camera_entity, );
+		//transform_service->SetWorldTransform(camera_entity, );
 
 		// Setup box
 		ecs::EntityID box_entity = CreateEntity();
 		MeshRenderableComponent mesh_rend_component;
 		mesh_rend_component.enabled = true;
-		mesh_rend_component.mesh = Mesh::CreateCubeMeshPrimitive(, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
-		mesh_rend_component.material = Material::CreateMaterial();
+		//mesh_rend_component.mesh = Mesh::CreateCubeMeshPrimitive(, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
+		//mesh_rend_component.material = Material::CreateMaterial();
 		component_registry->AddComponent<MeshRenderableComponent>(box_entity, mesh_rend_component);
 		transform_service->SetWorldTransform(box_entity, glm::mat4(1.0));
 	}

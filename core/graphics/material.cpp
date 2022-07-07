@@ -41,10 +41,13 @@ Material::Material(MaterialInfo info)
 		uniform_value_name_map_[uniform_info.name] = index;
 		switch (uniform_info.category)
 		{
-		case UniformUsageCategoryColor:
+		case UniformUsageCategory::Color:
 			color_uniform_index_ = (int)index;
 			break;
-		case UniformUsageCategoryCustom:
+		case UniformUsageCategory::MVP:
+			// TODO: Throw error. Only Rendering Pipelines should have this.
+			break;
+		case UniformUsageCategory::Custom:
 			// Do nothing
 			break;
 		}

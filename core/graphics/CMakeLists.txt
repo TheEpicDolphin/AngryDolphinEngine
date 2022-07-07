@@ -15,3 +15,5 @@ target_link_libraries(graphics PRIVATE geometry)
 target_link_libraries(graphics PRIVATE resource_manager)
 target_link_libraries(graphics PRIVATE scene)
 target_link_libraries(graphics PRIVATE transform)
+
+add_subdirectory(tests)
