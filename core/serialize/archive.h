@@ -20,7 +20,13 @@ public:
 
 	// TODO insert version numbers at beginning of xml
 
-    Archive() {}
+    Archive() {
+		xml_doc_ = new rapidxml::xml_document<>();
+	}
+
+	~Archive() {
+		delete xml_doc_;
+	}
 
 	template<typename T>
 	ArchiveSerNodeBase* RegisterObjectForSerialization(const char* name, T& object)
@@ -35,7 +41,7 @@ public:
 			const std::vector<ArchiveSerPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_to_ser_pointer_nodes_map_.erase((void*)&object);
 			for (ArchiveSerPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(xml_doc_, &object, object_id);
+				pointer_listener->DidRegisterPointee(*xml_doc_, &object, object_id);
 			}
 		}
 
@@ -65,7 +71,7 @@ public:
 			const std::vector<ArchiveSerPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_to_ser_pointer_nodes_map_.erase((void*)&object_ptr);
 			for (ArchiveSerPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(xml_doc_, &object_ptr, pointer_id);
+				pointer_listener->DidRegisterPointee(*xml_doc_, &object_ptr, pointer_id);
 			}
 		}
 
@@ -82,11 +88,11 @@ public:
 	template<typename T>
 	void SerializeHumanReadable(std::ostream& xml_ostream, const char* name, T& root_object)
 	{
-		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.allocate_node(rapidxml::node_element, "dynamic_memory");
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_->allocate_node(rapidxml::node_element, "dynamic_memory");
 
 		ser_nodes_ = { nullptr };
 		objects_ = { nullptr };
-		SerializeHumanReadableFromNodeBFS(xml_doc_, &xml_doc_, RegisterObjectForSerialization(name, root_object));
+		SerializeHumanReadableFromNodeBFS(*xml_doc_, xml_doc_, RegisterObjectForSerialization(name, root_object));
 
 		while (!pointee_to_ser_pointer_nodes_map_.empty()) {
 			std::unordered_map<void*, std::vector<ArchiveSerPointerNodeBase*>>::iterator first_node_pair_iter = pointee_to_ser_pointer_nodes_map_.begin();
@@ -95,18 +101,18 @@ public:
 			ArchiveSerNodeBase* pointee_node = dynamic_memory_pointer_node->PointeeNode(*this);
 			// Calling PointeeNode should have removed this dynamically-allocated node from pointee_to_pointer_node_map_.
 			assert(pointee_to_ser_pointer_nodes_map_.find(object_addr) == pointee_to_ser_pointer_nodes_map_.end());
-			SerializeHumanReadableFromNodeBFS(xml_doc_, dynamic_memory_xml_node, pointee_node);
+			SerializeHumanReadableFromNodeBFS(*xml_doc_, dynamic_memory_xml_node, pointee_node);
 		}
 
-		xml_doc_.append_node(dynamic_memory_xml_node);
-		xml_ostream << xml_doc_;
+		xml_doc_->append_node(dynamic_memory_xml_node);
+		xml_ostream << *xml_doc_;
 
 		for (auto it = std::next(ser_nodes_.begin()); it != ser_nodes_.end(); ++it) {
 			delete *it;
 		}
 
 		ser_nodes_.clear();
-		xml_doc_.clear();
+		xml_doc_->clear();
 	}
 
 	template<typename T>
@@ -190,12 +196,12 @@ public:
 	{
 		std::vector<char> buffer((std::istreambuf_iterator<char>(xml_istream)), std::istreambuf_iterator<char>());
 		buffer.push_back('\0');
-		xml_doc_.parse<0>(buffer.data());
+		xml_doc_->parse<0>(buffer.data());
 
 		des_nodes_ = { nullptr };
 		objects_ = { nullptr };
-		DeserializeHumanReadableFromNodeBFS(xml_doc_.first_node(), RegisterObjectForDeserialization(*xml_doc_.first_node(), root_object));
-		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_.last_node("dynamic_memory");
+		DeserializeHumanReadableFromNodeBFS(xml_doc_->first_node(), RegisterObjectForDeserialization(*xml_doc_->first_node(), root_object));
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_->last_node("dynamic_memory");
 		rapidxml::xml_node<>* dynamic_memory_child_xml_node = dynamic_memory_xml_node->first_node();
 		while (!pointee_id_to_des_pointer_nodes_map_.empty()) {
 			std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator first_node_pair_iter = pointee_id_to_des_pointer_nodes_map_.begin();
@@ -218,7 +224,7 @@ public:
 
 		des_nodes_.clear();
 		objects_.clear();
-		xml_doc_.clear();
+		xml_doc_->clear();
 	}
 
 	// Assumes no dynamically allocated objects within root_object.
@@ -251,7 +257,7 @@ private:
 	std::vector<ArchiveDesNodeBase*> des_nodes_;
 	std::unordered_map<void*, std::vector<ArchiveSerPointerNodeBase*>> pointee_to_ser_pointer_nodes_map_;
 	std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>> pointee_id_to_des_pointer_nodes_map_;
-	rapidxml::xml_document<> xml_doc_;
+	rapidxml::xml_document<>* xml_doc_;
 
 	std::size_t IdForObject(void* object_ptr)
 	{

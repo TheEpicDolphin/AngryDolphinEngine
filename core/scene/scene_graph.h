@@ -8,7 +8,7 @@
 #include <core/utils/event_announcer.h>
 #include <glm/mat4x4.hpp>
 
-#define MAX_ENTITY_COUNT 16384
+#define MAX_ENTITY_COUNT 4096
 
 struct EntityTransformEventsListener {
 	virtual void EntityWorldTransformDidChange(ecs::EntityID entity_id, glm::mat4 new_world_transform) = 0;

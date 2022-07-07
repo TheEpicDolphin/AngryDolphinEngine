@@ -10,7 +10,7 @@ SceneGraph::SceneGraph() {
 	next_pool_index_ = 0;
 
 	// We create the world entity
-	CreateEntity(glm::mat4(1.0f), { 0 });
+	CreateEntity(glm::mat4(1.0f), { 0, 0 });
 }
 
 EntityID SceneGraph::CreateEntity(glm::mat4 world_matrix, EntityID parent_id)
@@ -84,6 +84,7 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 		else {
 			parent_pool_index = entity_to_scene_graph_node_map_[parent_map[i]];
 		}
+		
 		TransformNode* parent = &scene_graph_node_pool_[parent_pool_index].value.transform_node;
 		TransformNode* prev_sibling = parent->last_child;
 		node.value.transform_node = 
@@ -97,7 +98,10 @@ std::vector<EntityID> SceneGraph::CreateEntityChunk(std::size_t n, std::vector<g
 			nullptr, 
 			nullptr 
 		};
-		prev_sibling->next_sibling = &node.value.transform_node;
+
+		if (prev_sibling) {
+			prev_sibling->next_sibling = &node.value.transform_node;
+		}
 		if (!parent->first_child) {
 			parent->first_child = &node.value.transform_node;
 		}

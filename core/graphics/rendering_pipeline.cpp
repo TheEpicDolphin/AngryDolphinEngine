@@ -20,9 +20,11 @@ RenderingPipeline::RenderingPipeline(RenderingPipelineInfo info)
 
 std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResourcePath(const char* resource_path)
 {
+	static std::unordered_map<std::string, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_assets;
+
 	std::unordered_map<std::string, std::shared_ptr<RenderingPipeline>>::iterator iter =
-		loaded_rendering_pipelines_assets_.find(resource_path);
-	if (iter != loaded_rendering_pipelines_assets_.end()) {
+		loaded_rendering_pipelines_assets.find(resource_path);
+	if (iter != loaded_rendering_pipelines_assets.end()) {
 		return iter->second;
 	}
 
@@ -75,7 +77,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 
 	RenderingPipelineInfo rpi = { mvp_uniform, material_uniforms, vertex_attributes, stages };
 	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(rpi);
-	loaded_rendering_pipelines_assets_[resource_path] = pipeline;
+	loaded_rendering_pipelines_assets[resource_path] = pipeline;
 	return pipeline;
 }
 

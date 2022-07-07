@@ -1,0 +1,2 @@
+add_subdirectory(my_scenes)
+add_subdirectory(src)

@@ -74,10 +74,10 @@ void Game::PlayMainScene(IScene* main_scene) {
 	scene_manager_->LoadScene(main_scene);
 	std::vector<IScene*> loaded_scenes_from_last_frame;
 
+	std::cout << "starting game loop..." << std::endl;
 	const double fixed_dt = 1 / 60.0;
 	double accumulator = 0.0;
 	std::chrono::time_point<std::chrono::system_clock> last_tick = std::chrono::system_clock::now();
-
 	while (glfwGetKey(window_, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window_) == 0) {
 		std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
 		double frame_time = fmin(std::chrono::duration<double>(now - last_tick).count(), 0.25);
@@ -95,7 +95,7 @@ void Game::PlayMainScene(IScene* main_scene) {
 
 		const double alpha = accumulator / fixed_dt;
 		PrepareWindowForFrameRender(window_renderer_type_, window_);
-
+		
 		// Perform frame render update on all currently loaded scenes.
 		loaded_scenes_from_last_frame.clear();
 		const std::vector<IScene*>& current_loaded_scenes = scene_manager_->LoadedScenes();
@@ -104,4 +104,6 @@ void Game::PlayMainScene(IScene* main_scene) {
 			scene->OnFrameUpdate(frame_time, alpha);
 		}
 	}
+
+	std::cout << "exited game loop" << std::endl;
 }

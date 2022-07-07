@@ -237,14 +237,14 @@ static inline void WriteVertexBufferData(GLuint& bo, std::vector<char> buffer_da
 }
 
 OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
-	MeshDataUsageType data_usage_type = mesh->IsStatic() ? MeshDataUsageTypeStatic : MeshDataUsageTypeDynamic;
+	MeshDataUsageType data_usage_type = mesh->IsStatic() ? MeshDataUsageType::Static : MeshDataUsageType::Dynamic;
 
 	MeshState mesh_state = { mesh, data_usage_type, 0, 0, 0 };
 	switch (data_usage_type) {
-	case MeshDataUsageTypeStatic:
+	case MeshDataUsageType::Static:
 		// Fall through to Dynamic for now.
 		// TODO: Implement this.
-	case MeshDataUsageTypeDynamic:
+	case MeshDataUsageType::Dynamic:
 		const std::shared_ptr<RenderingPipeline>& pipeline = mesh->GetPipeline();
 		glGenVertexArrays(1, &mesh_state.vao);
 		glBindVertexArray(mesh_state.vao);

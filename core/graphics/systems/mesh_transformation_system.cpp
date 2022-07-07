@@ -7,11 +7,11 @@
 #include "../rendering_pipeline.h"
 
 void MeshTransformationSystem::Initialize(ServiceContainer service_container) {
-	if (!service_container.TryGetService(*component_registry_)) {
+	if (!service_container.TryGetService(component_registry_)) {
 		// TODO: Throw error.
 	}
 
-	if (!service_container.TryGetService(*scene_graph_)) {
+	if (!service_container.TryGetService(scene_graph_)) {
 		// TODO: Throw error.
 	}
 }
@@ -81,6 +81,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha)
 			entity_mesh_trans_state_map_[entity_id.index] = { mesh_handle, false };
 		}
 	};
+
 	component_registry_->EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 }
 

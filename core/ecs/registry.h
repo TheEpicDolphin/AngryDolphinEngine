@@ -214,7 +214,7 @@ namespace ecs {
 		// std::vector<Archetype *> cached_archetypes_;
 
 		template<class... Ts>
-		std::vector<Archetype *> GetArchetypesWithComponents() 
+		std::vector<Archetype*> GetArchetypesWithComponents() 
 		{
 			std::vector<ComponentTypeID> component_types = { (component_type_info_.GetTypeId<Ts>())... };
 			return archetype_set_trie_.FindSuperKeySetValues(component_types);

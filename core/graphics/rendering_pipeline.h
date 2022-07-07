@@ -116,6 +116,4 @@ private:
 	std::vector<shader::Shader> shader_stages_;
 
 	EventAnnouncer<PipelineLifecycleEventsListener> lifecycle_events_announcer_;
-
-	static std::unordered_map<std::string, std::shared_ptr<RenderingPipeline>> loaded_rendering_pipelines_assets_;
 };

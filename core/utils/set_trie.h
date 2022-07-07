@@ -15,12 +15,14 @@ private:
 		std::map<TKey, SetTrieNode> children;
 	};
 
-	SetTrieNode root_node_;
-
+	SetTrieNode* root_node_;
 public:
 	SetTrie() {
-		root_node_.key = 0;
-		root_node_.has_value = false;
+		root_node_ = new SetTrieNode();
+	}
+
+	~SetTrie() {
+		delete root_node_;
 	}
 
 	std::vector<TValue*> GetValuesInOrder()
@@ -40,8 +42,8 @@ public:
 	std::vector<TValue*> FindSuperKeySetValues(const std::vector<TKey>& key_set) {
 		std::vector<TValue*> supersets;
 		std::size_t index = 0;
-		std::stack<std::pair<SetTrieNode *, std::map<TKey, SetTrieNode>::iterator>> stack;
-		stack.push(std::make_pair(&root_node_, root_node_.children.begin()));
+		std::stack<std::pair<SetTrieNode*, std::map<TKey, SetTrieNode>::iterator>> stack;
+		stack.push(std::make_pair(root_node_, root_node_->children.begin()));
 		while (!stack.empty()) {
 			SetTrieNode *current_node = stack.top().first;
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top().second;
@@ -65,11 +67,12 @@ public:
 				}	
 			}
 		}
+
 		return supersets;
 	}
 
 	void InsertValueForKeySet(const TValue& value, const std::vector<TKey>& key_set) {
-		SetTrieNode *current_node = &root_node_;
+		SetTrieNode *current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
@@ -100,7 +103,7 @@ public:
 	void RemoveValueForKeySet(const std::vector<TKey>& key_set) {
 		std::size_t index = 0;
 		std::stack<SetTrieNode*> stack;
-		stack.push(&root_node_);
+		stack.push(root_node_);
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = stack.top()->children.find(key_set[index]);
 			if (children_iter == stack.top()->children.end()) {
@@ -122,7 +125,7 @@ public:
 	}
 
 	TValue* ValueForKeySet(const std::vector<TKey>& key_set) {
-		SetTrieNode *current_node = &root_node_;
+		SetTrieNode *current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);

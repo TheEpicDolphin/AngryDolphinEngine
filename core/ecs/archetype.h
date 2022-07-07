@@ -18,7 +18,6 @@ namespace ecs {
 	class Archetype
 	{
 	public:
-
 		Archetype() = default;
 
 		Archetype(TypeInfo* component_type_info) {

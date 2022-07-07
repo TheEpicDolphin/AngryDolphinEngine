@@ -23,11 +23,14 @@ std::vector<char> ReadAssetFile(const char* path) {
 }
 
 std::vector<char> ResourceManager::LoadAsset(const char* asset_path_name) {
+	static std::unordered_map<std::string, AssetID> asset_id_map;
+	static std::vector<std::vector<char>> loaded_assets;
+
 	std::string asset_path_name_string = asset_path_name;
-	std::unordered_map<std::string, AssetID>::iterator iter = asset_id_map_.find(asset_path_name_string);
-	if (iter != asset_id_map_.end()) {
+	std::unordered_map<std::string, AssetID>::iterator iter = asset_id_map.find(asset_path_name_string);
+	if (iter != asset_id_map.end()) {
 		// The resource at this path has already been loaded. Return the asset id.
-		return loaded_assets_[iter->second];
+		return loaded_assets[iter->second];
 	}
 	else {
 		for (std::size_t i = 0; i < sizeof(config::project_resources_directories); i++) {
@@ -36,8 +39,8 @@ std::vector<char> ResourceManager::LoadAsset(const char* asset_path_name) {
 			std::vector<char> asset_file_contents = ReadAssetFile(resources_asset_path.c_str());
 			if (!asset_file_contents.empty()) {
 				// We found the asset file.
-				asset_id_map_[asset_path_name_string] = loaded_assets_.size();
-				loaded_assets_.push_back(asset_file_contents);
+				asset_id_map[asset_path_name_string] = loaded_assets.size();
+				loaded_assets.push_back(asset_file_contents);
 				return asset_file_contents;
 			}
 		}

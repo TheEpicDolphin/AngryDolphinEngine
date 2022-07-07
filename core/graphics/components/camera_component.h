@@ -11,6 +11,5 @@ struct CameraComponent {
 	float aspect_ratio;
 	float near_clip_plane_z;
 	float far_clip_plane_z;
-	glm::mat4 world_transform;
 	geometry::Rect viewport_rect;
 };

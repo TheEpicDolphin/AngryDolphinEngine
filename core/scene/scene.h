@@ -32,14 +32,12 @@ public:
 	const char* Name() override { return name_; }
 
 	void OnLoad(ServiceContainer& service_container) override {
-		service_container.BindTo<ISceneEntityInstantiator>(*this);
-		service_container.BindTo<SceneGraph>(scene_graph_);
+		service_container.BindTo<ITransformService>(scene_graph_);
 		service_container.BindTo<ecs::Registry>(registry_);
 	}
 
 	void OnUnload(ServiceContainer& service_container) override {
-		service_container.Unbind<ISceneEntityInstantiator>();
-		service_container.Unbind<SceneGraph>();
+		service_container.Unbind<ITransformService>();
 		service_container.Unbind<ecs::Registry>();
 	}
 

@@ -15,15 +15,15 @@
 #include "../components/skeletal_mesh_renderable_component.h"
 
 void RenderingSystem::Initialize(ServiceContainer service_container) {
-	if (!service_container.TryGetService(*component_registry_)) {
+	if (!service_container.TryGetService(component_registry_)) {
 		// TODO: Throw error.
 	}
 
-	if (!service_container.TryGetService(*transform_service_)) {
+	if (!service_container.TryGetService(transform_service_)) {
 		// TODO: Throw error.
 	}
 
-	if (!service_container.TryGetService(*renderer_)) {
+	if (!service_container.TryGetService(renderer_)) {
 		// TODO: Throw error.
 	}
 }

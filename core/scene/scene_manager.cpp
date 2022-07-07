@@ -3,8 +3,6 @@
 
 #include <algorithm>
 
-#include "simple_scene.h"
-
 SceneManager::SceneManager(IRenderer* renderer) {
 	renderer_ = renderer;
 	service_container_.BindTo<ISceneService>(*this);

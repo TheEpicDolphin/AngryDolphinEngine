@@ -17,9 +17,5 @@ namespace resource_manager {
 		/// <param name="asset_path_name">Path of asset relative to the resources folder.</param>
 		/// <returns>Asset file contents</returns>
 		static std::vector<char> LoadAsset(const char* asset_path_name);
-
-	private:
-		static std::unordered_map<std::string, AssetID> asset_id_map_;
-		static std::vector<std::vector<char>> loaded_assets_;
 	};
 }

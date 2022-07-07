@@ -69,9 +69,9 @@ private:
 
 	static PipelineState CreatePipelineState(const std::shared_ptr<RenderingPipeline>& pipeline);
 
-	enum MeshDataUsageType {
-		MeshDataUsageTypeStatic = 0,
-		MeshDataUsageTypeDynamic,
+	enum class MeshDataUsageType {
+		Static = 0,
+		Dynamic,
 	};
 
 	struct MeshState {
