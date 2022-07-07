@@ -10,10 +10,11 @@
 #include "shader/shader.h"
 #include "shader/shader_vars/shader_data_type.h"
 
-enum UniformUsageCategory
+enum class UniformUsageCategory
 {
-	UniformUsageCategoryColor = 0,
-	UniformUsageCategoryCustom,
+	Color = 0,
+	MVP,
+	Custom,
 };
 
 struct UniformInfo {

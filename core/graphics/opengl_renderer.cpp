@@ -149,13 +149,13 @@ GLenum GLShaderTypeForStageType(shader::ShaderStageType type)
 {
 	switch (type)
 	{
-	case shader::ShaderStageTypeVertex:
+	case shader::ShaderStageType::Vertex:
 		return GL_VERTEX_SHADER;
-	case shader::ShaderStageTypeGeometry:
+	case shader::ShaderStageType::Geometry:
 		return GL_GEOMETRY_SHADER;
-	case shader::ShaderStageTypeFragment:
+	case shader::ShaderStageType::Fragment:
 		return GL_FRAGMENT_SHADER;
-	case shader::ShaderStageTypeCompute:
+	case shader::ShaderStageType::Compute:
 		return GL_COMPUTE_SHADER;
 	}
 	return 0;
@@ -165,13 +165,13 @@ std::string NameForStageType(shader::ShaderStageType type)
 {
 	switch (type)
 	{
-	case shader::ShaderStageTypeVertex:
+	case shader::ShaderStageType::Vertex:
 		return "Vertex Shader Stage";
-	case shader::ShaderStageTypeGeometry:
+	case shader::ShaderStageType::Geometry:
 		return "Geometry Shader Stage";
-	case shader::ShaderStageTypeFragment:
+	case shader::ShaderStageType::Fragment:
 		return "Fragment Shader Stage";
-	case shader::ShaderStageTypeCompute:
+	case shader::ShaderStageType::Compute:
 		return "Compute Shader Stage";
 	}
 	return "";

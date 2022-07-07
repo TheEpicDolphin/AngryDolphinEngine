@@ -7,6 +7,7 @@ namespace config {
 	const char* project_resources_directories[] =
 	{
 		"C:/Users/giand/Development/project/angery_dolphin_engine/core/resources", // core resources
+		"C:/Users/giand/Development/project/angery_dolphin_engine/example_game/resources",
 	};
 }
 

@@ -30,8 +30,8 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 
 	std::vector<char> pipeline_asset = resource_manager::ResourceManager::LoadAsset(resource_path);
 
-	rapidxml::xml_document<> xml_doc;
-	xml_doc.parse<0>(pipeline_asset.data());
+	rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
+	xml_doc->parse<0>(pipeline_asset.data());
 	Archive archive;
 
 	UniformInfo mvp_uniform;
@@ -39,7 +39,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 	std::vector<VertexAttributeInfo> vertex_attributes;
 	std::vector<shader::Shader> stages;
 
-	rapidxml::xml_node<>* shader_stages_node = xml_doc.first_node("shader_stages");
+	rapidxml::xml_node<>* shader_stages_node = xml_doc->first_node("shader_stages");
 	rapidxml::xml_node<>* shader_stage_node = shader_stages_node->first_node();
 	while (shader_stage_node != nullptr) {
 		shader::ShaderStageType stage_type;
@@ -47,7 +47,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 		serialize::DeserializeArithmeticFromString(stage_type_int, shader_stage_node->first_node("type")->value());
 		stage_type = (shader::ShaderStageType)stage_type_int;
 
-		if (stage_type == shader::ShaderStageTypeVertex) {
+		if (stage_type == shader::ShaderStageType::Vertex) {
 			rapidxml::xml_node<>* mvp_uniform_node = shader_stage_node->first_node("mvp_uniform");
 			archive.DeserializeHumanReadable(*mvp_uniform_node, mvp_uniform);
 
@@ -61,7 +61,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 			rapidxml::xml_node<>* vertex_attributes_node = shader_stage_node->first_node("vertex_attributes");
 			archive.DeserializeHumanReadable(*vertex_attributes_node, vertex_attributes);
 		}
-		else if (stage_type == shader::ShaderStageTypeFragment) {
+		else if (stage_type == shader::ShaderStageType::Fragment) {
 			// Deserialize material uniforms
 			rapidxml::xml_node<>* material_uniforms_node = shader_stage_node->first_node("material_uniforms");
 			std::vector<UniformInfo> fragment_shader_material_uniforms;
@@ -74,6 +74,8 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 		stages.push_back(shader::Shader(stage_type, code));
 		shader_stage_node = shader_stage_node->next_sibling();
 	}
+
+	delete xml_doc;
 
 	RenderingPipelineInfo rpi = { mvp_uniform, material_uniforms, vertex_attributes, stages };
 	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(rpi);

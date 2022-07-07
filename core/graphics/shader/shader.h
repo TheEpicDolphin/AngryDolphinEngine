@@ -3,11 +3,11 @@
 #include <vector>
 
 namespace shader {
-	enum ShaderStageType {
-		ShaderStageTypeVertex = 0,
-		ShaderStageTypeGeometry,
-		ShaderStageTypeFragment,
-		ShaderStageTypeCompute
+	enum class ShaderStageType {
+		Vertex = 0,
+		Geometry,
+		Fragment,
+		Compute
 	};
 
 	struct Shader
