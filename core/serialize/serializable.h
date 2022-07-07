@@ -6,20 +6,19 @@ namespace serializable {
     template <typename... Args>
     std::vector<ArchiveSerNodeBase*> RegisterSerializableMembers(Archive& archive, const char* comma_separated_names, Args&... args) {
         const std::size_t member_count = sizeof...(Args);
-        const char* names[member_count];
+        std::string names[member_count];
         const char* arg_name_location = comma_separated_names;
-        for (int i = 0; i < member_count; i++) {
-            names[i] = arg_name_location;
+        for (int i = 0; i < member_count; ++i) {
             const char* comma_location = strchr(arg_name_location, ',');
-            if (comma_location == nullptr && i < member_count - 1) {
-                // Throw error.
-                return {};
-            }
-
-            arg_name_location = comma_location + 1;
-            // TODO: Skip whitespace
-            while ((*arg_name_location != '\0') && std::isspace(*arg_name_location) > 0) {
-                arg_name_location++;
+            if (comma_location == nullptr) {
+                names[i] = std::string(arg_name_location);
+            } else {
+                names[i] = std::string(arg_name_location, comma_location - arg_name_location);
+                arg_name_location = comma_location + 1;
+                // Skip whitespace
+                while ((*arg_name_location != '\0') && std::isspace(*arg_name_location) > 0) {
+                    arg_name_location++;
+                }
             }
         }
 

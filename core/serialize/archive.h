@@ -29,7 +29,7 @@ public:
 	}
 
 	template<typename T>
-	ArchiveSerNodeBase* RegisterObjectForSerialization(const char* name, T& object)
+	ArchiveSerNodeBase* RegisterObjectForSerialization(std::string name, T& object)
 	{
 		std::size_t object_id = StoreObject(&object);
 		ArchiveSerNodeBase* object_node = (ArchiveSerNodeBase*) new ArchiveSerObjectNode<T>(object_id, name, object);
@@ -49,7 +49,7 @@ public:
 	}
 
 	template<typename T>
-	ArchiveSerNodeBase* RegisterObjectForSerialization(const char* name, T*& object_ptr)
+	ArchiveSerNodeBase* RegisterObjectForSerialization(std::string name, T*& object_ptr)
 	{
 		const std::size_t pointer_id = StoreObject(&object_ptr);
 		const std::size_t pointee_id = IdForObject((void*)object_ptr);
@@ -76,13 +76,6 @@ public:
 		}
 
 		return (ArchiveSerNodeBase*)pointer_node;
-	}
-
-	template<typename... Ts>
-	std::vector<ArchiveSerNodeBase*> RegisterObjectsForSerialization(std::pair<const char*, Ts&>... objects)
-	{
-		const std::vector<ArchiveSerNodeBase*> child_nodes = { (RegisterObjectForSerialization(objects.first, objects.second))... };
-		return child_nodes;
 	}
 
 	template<typename T>
@@ -174,21 +167,6 @@ public:
 		}
 
 		return (ArchiveDesNodeBase*)pointer_node;
-	}
-
-	template<typename... Ts>
-	std::vector<ArchiveDesNodeBase*> RegisterObjectsForDeserialization(rapidxml::xml_node<>& parent_xml_node, Ts&... objects)
-	{
-		std::vector<rapidxml::xml_node<>*> children_xml_nodes;
-		rapidxml::xml_node<>* child_node = parent_xml_node.first_node();
-		while (child_node) {
-			children_xml_nodes.push_back(child_node);
-			child_node = child_node->next_sibling();
-		}
-		
-		int index = 0;
-		const std::vector<ArchiveDesNodeBase*> child_nodes = { (RegisterObjectForDeserialization(*children_xml_nodes[index++], objects))... };
-		return child_nodes;
 	}
 
 	template<typename T>

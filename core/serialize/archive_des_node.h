@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <unordered_map>
+#include <stdexcept>
 
 #include <rapidxml/rapidxml.hpp>
 #include <rapidxml/rapidxml_print.hpp>
@@ -15,7 +16,7 @@ class Archive;
 
 class ArchiveDesNodeBase {
 public:
-	ArchiveDesNodeBase(std::size_t id, const char* name) {
+	ArchiveDesNodeBase(std::size_t id, std::string name) {
 		id_ = id;
 		name_ = name;
 	}
@@ -25,7 +26,7 @@ public:
 		return id_;
 	}
 
-	const char* Name()
+	std::string Name()
 	{
 		return name_;
 	}
@@ -38,17 +39,18 @@ public:
 
 protected:
 	std::size_t id_;
-	const char* name_;
+	std::string name_;
 };
 
 template<typename T, typename Enable = void>
 class ArchiveDesObjectNode : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveDesObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveDesNodeBase(id, name)
 		, object_(object) 
 	{
-		static_assert(false, "Archive deserialization object node is not implemented for this type.");
+		std::string type_name = typeid(T).name();
+		throw std::runtime_error(std::string("Deserialization not implemented for object: '") + name + std::string("' with type: ") + type_name);
 	}
 
 private:
@@ -58,7 +60,7 @@ private:
 template<typename T>
 class ArchiveDesObjectNode<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveDesObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveDesNodeBase(id, name)
 		, object_(object) {}
 
@@ -75,7 +77,7 @@ private:
 template<typename T>
 class ArchiveDesObjectNode<T, typename std::enable_if<std::is_enum<T>::value>::type> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveDesObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveDesNodeBase(id, name)
 		, object_(object) {}
 
@@ -94,7 +96,7 @@ private:
 template<class T, std::size_t N>
 class ArchiveDesObjectNode<T[N]> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, T (&obj_array)[N])
+	ArchiveDesObjectNode(std::size_t id, std::string name, T (&obj_array)[N])
 		: ArchiveDesNodeBase(id, name)
 		, obj_array_(obj_array) {}
 
@@ -116,7 +118,7 @@ private:
 template<>
 class ArchiveDesObjectNode<std::string> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, std::string& obj_string)
+	ArchiveDesObjectNode(std::size_t id, std::string name, std::string& obj_string)
 		: ArchiveDesNodeBase(id, name)
 		, obj_string_(obj_string) {}
 
@@ -133,7 +135,7 @@ private:
 template<typename T>
 class ArchiveDesObjectNode<std::vector<T>> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, std::vector<T>& obj_vector)
+	ArchiveDesObjectNode(std::size_t id, std::string name, std::vector<T>& obj_vector)
 		: ArchiveDesNodeBase(id, name)
 		, obj_vector_(obj_vector) {}
 
@@ -162,7 +164,7 @@ private:
 template<typename T, typename U>
 class ArchiveDesObjectNode<std::unordered_map<T, U>> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, std::unordered_map<T, U>& obj_unordered_map)
+	ArchiveDesObjectNode(std::size_t id, std::string name, std::unordered_map<T, U>& obj_unordered_map)
 		: ArchiveDesNodeBase(id, name)
 		, obj_unordered_map_(obj_unordered_map) {}
 
@@ -186,7 +188,7 @@ private:
 template<typename T, typename U>
 class ArchiveDesObjectNode<std::map<T, U>> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, std::map<T, U>& obj_map)
+	ArchiveDesObjectNode(std::size_t id, std::string name, std::map<T, U>& obj_map)
 		: ArchiveDesNodeBase(id, name)
 		, obj_map_(obj_map) {}
 
@@ -210,7 +212,7 @@ private:
 template<typename T, typename U>
 class ArchiveDesObjectNode<std::pair<T, U>> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, std::pair<T, U>& obj_pair)
+	ArchiveDesObjectNode(std::size_t id, std::string name, std::pair<T, U>& obj_pair)
 		: ArchiveDesNodeBase(id, name)
 		, obj_pair_(obj_pair) {}
 
@@ -226,7 +228,7 @@ private:
 template<typename T>
 class ArchiveDesObjectNode<std::shared_ptr<T>> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, std::shared_ptr<T>& obj_shared_ptr)
+	ArchiveDesObjectNode(std::size_t id, std::string name, std::shared_ptr<T>& obj_shared_ptr)
 		: ArchiveDesNodeBase(id, name)
 		, obj_shared_ptr_(obj_shared_ptr) {}
 
@@ -260,7 +262,7 @@ struct implements_construct_from_deserialized_deps<T, void_t<decltype(std::declv
 template<typename T>
 class ArchiveDesObjectNode<T, typename std::enable_if<deserializes_members<T>::value>::type> : ArchiveDesNodeBase {
 public:
-	ArchiveDesObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveDesObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveDesNodeBase(id, name)
 		, object_(object) {}
 
@@ -282,7 +284,7 @@ private:
 
 class ArchiveDesPointerNodeBase : public ArchiveDesNodeBase {
 public:
-	ArchiveDesPointerNodeBase(std::size_t id, const char* name, std::size_t pointee_id)
+	ArchiveDesPointerNodeBase(std::size_t id, std::string name, std::size_t pointee_id)
 		: ArchiveDesNodeBase(id, name) {
 		pointee_id_ = pointee_id;
 	}
@@ -320,7 +322,7 @@ DynamicallyAllocate(T* object_ptr, rapidxml::xml_node<>& xml_node)
 template<typename T>
 class ArchiveDesPointerNode : public ArchiveDesPointerNodeBase {
 public:
-	ArchiveDesPointerNode(std::size_t id, const char* name, std::size_t pointee_id, T*& object_ptr)
+	ArchiveDesPointerNode(std::size_t id, std::string name, std::size_t pointee_id, T*& object_ptr)
 		: ArchiveDesPointerNodeBase(id, name, pointee_id)
 		, object_ptr_(object_ptr) {}
 

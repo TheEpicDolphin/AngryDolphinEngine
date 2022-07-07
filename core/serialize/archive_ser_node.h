@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include <stdexcept>
 
 #include <rapidxml/rapidxml.hpp>
 #include <rapidxml/rapidxml_print.hpp>
@@ -12,7 +13,7 @@ class Archive;
 
 class ArchiveSerNodeBase {
 public:
-	ArchiveSerNodeBase(std::size_t id, const char* name) {
+	ArchiveSerNodeBase(std::size_t id, std::string name) {
 		id_ = id;
 		name_ = name;
 	}
@@ -22,7 +23,7 @@ public:
 		return id_;
 	}
 
-	const char* Name()
+	std::string Name()
 	{
 		return name_;
 	}
@@ -33,7 +34,7 @@ public:
 			// Throw warning. This shouldn't be serialized twice.
 		}
 
-		rapidxml::xml_node<>* object_node = xml_doc.allocate_node(rapidxml::node_element, name_);
+		rapidxml::xml_node<>* object_node = xml_doc.allocate_node(rapidxml::node_element, name_.c_str());
 		char* object_id_string = xml_doc.allocate_string(std::to_string(id_).c_str());
 		rapidxml::xml_attribute<>* object_id_atttribute = xml_doc.allocate_attribute("id", object_id_string);
 		object_node->append_attribute(object_id_atttribute);
@@ -46,18 +47,19 @@ public:
 
 protected:
 	std::size_t id_;
-	const char* name_;
+	std::string name_;
 	rapidxml::xml_node<>* serialized_node_;
 };
 
 template<typename T, typename Enable = void>
 class ArchiveSerObjectNode : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveSerObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveSerNodeBase(id, name)
 		, object_(object) 
 	{
-		throw std::runtime_error("Archive serialization object node is not implemented for type: ", typeid(T).name());
+		std::string type_name = typeid(T).name();
+		throw std::runtime_error(std::string("Serialization not implemented for object: '") + name + std::string("' with type: ") + type_name);
 	}
 
 	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
@@ -77,7 +79,7 @@ private:
 template<typename T>
 class ArchiveSerObjectNode<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveSerObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveSerNodeBase(id, name)
 		, object_(object) {}
 
@@ -102,7 +104,7 @@ private:
 template<typename T>
 class ArchiveSerObjectNode<T, typename std::enable_if<std::is_enum<T>::value>::type> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, T& object_enum_value)
+	ArchiveSerObjectNode(std::size_t id, std::string name, T& object_enum_value)
 		: ArchiveSerNodeBase(id, name)
 		, object_enum_value_(object_enum_value) {}
 
@@ -127,7 +129,7 @@ private:
 template<class T, std::size_t N>
 class ArchiveSerObjectNode<T[N]> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, T (&obj_array)[N])
+	ArchiveSerObjectNode(std::size_t id, std::string name, T (&obj_array)[N])
 		: ArchiveSerNodeBase(id, name)
 		, obj_array_(obj_array) 
 	{
@@ -166,7 +168,7 @@ private:
 template<>
 class ArchiveSerObjectNode<std::string> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, std::string& obj_string)
+	ArchiveSerObjectNode(std::size_t id, std::string name, std::string& obj_string)
 		: ArchiveSerNodeBase(id, name)
 		, obj_string_(obj_string) {}
 
@@ -189,7 +191,7 @@ private:
 template<typename T>
 class ArchiveSerObjectNode<std::vector<T>> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, std::vector<T>& obj_vector)
+	ArchiveSerObjectNode(std::size_t id, std::string name, std::vector<T>& obj_vector)
 		: ArchiveSerNodeBase(id, name)
 		, obj_vector_(obj_vector) 
 	{
@@ -230,7 +232,7 @@ private:
 template<typename T, typename U>
 class ArchiveSerObjectNode<std::unordered_map<T, U>> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, std::unordered_map<T, U>& obj_unordered_map)
+	ArchiveSerObjectNode(std::size_t id, std::string name, std::unordered_map<T, U>& obj_unordered_map)
 		: ArchiveSerNodeBase(id, name)
 		, obj_unordered_map_(obj_unordered_map) {
 		for (std::pair<T, U> unordered_map_pair : obj_unordered_map_) {
@@ -251,7 +253,7 @@ private:
 template<typename T, typename U>
 class ArchiveSerObjectNode<std::map<T, U>> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, std::map<T, U>& obj_map)
+	ArchiveSerObjectNode(std::size_t id, std::string name, std::map<T, U>& obj_map)
 		: ArchiveSerNodeBase(id, name)
 		, obj_map_(obj_map) {
 		for (std::pair<T, U> map_pair : obj_map) {
@@ -272,7 +274,7 @@ private:
 template<typename T, typename U>
 class ArchiveSerObjectNode<std::pair<T, U>> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, std::pair<T, U>& obj_pair)
+	ArchiveSerObjectNode(std::size_t id, std::string name, std::pair<T, U>& obj_pair)
 		: ArchiveSerNodeBase(id, name)
 		, obj_pair_(obj_pair) {}
 
@@ -288,7 +290,7 @@ private:
 template<typename T>
 class ArchiveSerObjectNode<std::shared_ptr<T>> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, std::shared_ptr<T>& obj_shared_ptr)
+	ArchiveSerObjectNode(std::size_t id, std::string name, std::shared_ptr<T>& obj_shared_ptr)
 		: ArchiveSerNodeBase(id, name)
 		, obj_shared_ptr_(obj_shared_ptr) {
 		obj_ptr_ = obj_shared_ptr_.get();
@@ -315,7 +317,7 @@ struct serializes_members <T, void_t<decltype(std::declval<T>().RegisterSerializ
 template<typename T>
 class ArchiveSerObjectNode<T, typename std::enable_if<serializes_members<T>::value, void>::type> : ArchiveSerNodeBase {
 public:
-	ArchiveSerObjectNode(std::size_t id, const char* name, T& object)
+	ArchiveSerObjectNode(std::size_t id, std::string name, T& object)
 		: ArchiveSerNodeBase(id, name)
 		, object_(object) {}
 
@@ -330,7 +332,7 @@ private:
 
 class ArchiveSerPointerNodeBase : public ArchiveSerNodeBase {
 public:
-	ArchiveSerPointerNodeBase(std::size_t id, const char* name, std::size_t pointee_id)
+	ArchiveSerPointerNodeBase(std::size_t id, std::string name, std::size_t pointee_id)
 		: ArchiveSerNodeBase(id, name) {
 		pointee_id_ = pointee_id;
 	}
@@ -362,7 +364,7 @@ protected:
 template<typename T>
 class ArchiveSerPointerNode : public ArchiveSerPointerNodeBase {
 public:
-	ArchiveSerPointerNode(std::size_t id, const char* name, std::size_t pointee_id, T*& object_ptr)
+	ArchiveSerPointerNode(std::size_t id, std::string name, std::size_t pointee_id, T*& object_ptr)
 		: ArchiveSerPointerNodeBase(id, name, pointee_id)
 		, object_ptr_(object_ptr) {}
 
