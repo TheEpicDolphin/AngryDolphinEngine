@@ -86,7 +86,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha)
 }
 
 inline bool DidMeshVertexPositionsChange(Mesh* mesh, std::size_t attribute_index) {
-	return mesh->GetPipeline()->VertexAttributeInfoAtIndex(attribute_index).category == VertexAttributeUsageCategoryPosition;
+	return mesh->GetPipeline()->VertexAttributeInfoAtIndex(attribute_index).category == VertexAttributeUsageCategory::Position;
 }
 
 #pragma region MeshLifecycleEventsListener

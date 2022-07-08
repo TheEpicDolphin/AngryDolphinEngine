@@ -30,10 +30,14 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 
 	std::vector<char> pipeline_asset = resource_manager::ResourceManager::LoadAsset(resource_path);
 
-	rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
-	xml_doc->parse<0>(pipeline_asset.data());
 	Archive archive;
+	//rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
+	//xml_doc->parse<0>(pipeline_asset.data());
 
+	RenderingPipelineInfo deserialized_rp_info;
+	//archive.DeserializeHumanReadable(xml_doc, deserialized_rp_info);
+
+	/*
 	UniformInfo mvp_uniform;
 	std::vector<UniformInfo> material_uniforms;
 	std::vector<VertexAttributeInfo> vertex_attributes;
@@ -70,7 +74,7 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 		}
 
 		char* shader_code_path = shader_stage_node->first_node("code_path")->value();
-		std::vector<char> code = resource_manager::ResourceManager::LoadAsset(shader_code_path);
+		std::string code = resource_manager::ResourceManager::LoadAsset(shader_code_path).data();
 		stages.push_back(shader::Shader(stage_type, code));
 		shader_stage_node = shader_stage_node->next_sibling();
 	}
@@ -78,7 +82,9 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 	delete xml_doc;
 
 	RenderingPipelineInfo rpi = { mvp_uniform, material_uniforms, vertex_attributes, stages };
-	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(rpi);
+	*/
+
+	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(deserialized_rp_info);
 	loaded_rendering_pipelines_assets[resource_path] = pipeline;
 	return pipeline;
 }

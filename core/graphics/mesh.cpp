@@ -16,22 +16,22 @@ Mesh::Mesh(MeshInfo info)
 		vertex_attribute_buffer_name_map_[vertex_attribute_info.name] = index;
 		switch (vertex_attribute_info.category)
 		{
-		case VertexAttributeUsageCategoryPosition:
+		case VertexAttributeUsageCategory::Position:
 			position_attribute_index_ = (int)index;
 			break;
-		case VertexAttributeUsageCategoryNormal:
+		case VertexAttributeUsageCategory::Normal:
 			normal_attribute_index_ = (int)index;
 			break;
-		case VertexAttributeUsageCategoryTexCoord0:
+		case VertexAttributeUsageCategory::TexCoord0:
 			tex_coord0_attribute_index_ = (int)index;
 			break;
-		case VertexAttributeUsageCategoryBoneWeight:
+		case VertexAttributeUsageCategory::BoneWeight:
 			bone_weight_attribute_index_ = (int)index;
 			break;
-		case VertexAttributeUsageCategoryBoneIndices:
+		case VertexAttributeUsageCategory::BoneIndices:
 			bone_indices_attribute_index_ = (int)index;
 			break;
-		case VertexAttributeUsageCategoryCustom:
+		case VertexAttributeUsageCategory::Custom:
 			// Do nothing
 			break;
 		}

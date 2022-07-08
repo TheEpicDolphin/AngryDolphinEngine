@@ -1,6 +1,8 @@
 #pragma once
 
-#include <vector>
+#include <string>
+
+#include <core/serialize/serializable.h>
 
 namespace shader {
 	enum class ShaderStageType {
@@ -13,11 +15,8 @@ namespace shader {
 	struct Shader
 	{
 		ShaderStageType type;
-		std::vector<char> code;
+		std::string code;
 
-		Shader(ShaderStageType type, std::vector<char> code) {
-			this->type = type;
-			this->code = code;
-		}
+		SERIALIZE_MEMBERS(type, code)
 	};
 }

@@ -191,7 +191,7 @@ OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::sha
 
 		// Compile shader
 		printf("Compiling %s...\n", NameForStageType(shader.type));
-		char const* shader_source_ptr = shader.code.data();
+		char const* shader_source_ptr = shader.code.c_str();
 		glShaderSource(shader_id, 1, &shader_source_ptr, NULL);
 		glCompileShader(shader_id);
 

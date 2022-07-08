@@ -32,14 +32,14 @@ struct UniformInfo {
 	SERIALIZE_MEMBERS(name, data_type, location, array_length, category)
 };
 
-enum VertexAttributeUsageCategory
+enum class VertexAttributeUsageCategory
 {
-	VertexAttributeUsageCategoryPosition = 0,
-	VertexAttributeUsageCategoryNormal,
-	VertexAttributeUsageCategoryTexCoord0,
-	VertexAttributeUsageCategoryBoneWeight,
-	VertexAttributeUsageCategoryBoneIndices,
-	VertexAttributeUsageCategoryCustom,
+	Position = 0,
+	Normal,
+	TexCoord0,
+	BoneWeight,
+	BoneIndices,
+	Custom,
 };
 
 struct VertexAttributeInfo {
@@ -72,6 +72,7 @@ struct RenderingPipelineInfo
 	std::vector<VertexAttributeInfo> vertex_attributes;
 	std::vector<shader::Shader> shader_stages;
 
+	SERIALIZE_MEMBERS(mvp_uniform, material_uniforms, vertex_attributes, shader_stages)
 };
 
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
