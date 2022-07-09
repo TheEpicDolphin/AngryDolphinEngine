@@ -20,16 +20,12 @@ public:
 
 	// TODO insert version numbers at beginning of xml
 
-    Archive() {
-		xml_doc_ = new rapidxml::xml_document<>();
-	}
+    Archive() {}
 
-	~Archive() {
-		delete xml_doc_;
-	}
+	~Archive() {}
 
 	template<typename T>
-	ArchiveSerNodeBase* RegisterObjectForSerialization(std::string name, T& object)
+	ArchiveSerNodeBase* RegisterObjectForSerialization(rapidxml::xml_document<>& xml_doc, std::string name, T& object)
 	{
 		std::size_t object_id = StoreObject(&object);
 		ArchiveSerNodeBase* object_node = (ArchiveSerNodeBase*) new ArchiveSerObjectNode<T>(object_id, name, object);
@@ -41,7 +37,7 @@ public:
 			const std::vector<ArchiveSerPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_to_ser_pointer_nodes_map_.erase((void*)&object);
 			for (ArchiveSerPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(*xml_doc_, &object, object_id);
+				pointer_listener->DidRegisterPointee(xml_doc, &object, object_id);
 			}
 		}
 
@@ -49,7 +45,7 @@ public:
 	}
 
 	template<typename T>
-	ArchiveSerNodeBase* RegisterObjectForSerialization(std::string name, T*& object_ptr)
+	ArchiveSerNodeBase* RegisterObjectForSerialization(rapidxml::xml_document<>& xml_doc, std::string name, T*& object_ptr)
 	{
 		const std::size_t pointer_id = StoreObject(&object_ptr);
 		const std::size_t pointee_id = IdForObject((void*)object_ptr);
@@ -71,7 +67,7 @@ public:
 			const std::vector<ArchiveSerPointerNodeBase*> pointer_listeners = iter->second;
 			pointee_to_ser_pointer_nodes_map_.erase((void*)&object_ptr);
 			for (ArchiveSerPointerNodeBase* pointer_listener : pointer_listeners) {
-				pointer_listener->DidRegisterPointee(*xml_doc_, &object_ptr, pointer_id);
+				pointer_listener->DidRegisterPointee(xml_doc, &object_ptr, pointer_id);
 			}
 		}
 
@@ -79,33 +75,31 @@ public:
 	}
 
 	template<typename T>
-	void SerializeHumanReadable(std::ostream& xml_ostream, const char* name, T& root_object)
+	void SerializeHumanReadable(rapidxml::xml_document<>& xml_doc, const char* name, T& root_object)
 	{
-		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_->allocate_node(rapidxml::node_element, "dynamic_memory");
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc.allocate_node(rapidxml::node_element, "dynamic_memory");
 
 		ser_nodes_ = { nullptr };
 		objects_ = { nullptr };
-		SerializeHumanReadableFromNodeBFS(*xml_doc_, xml_doc_, RegisterObjectForSerialization(name, root_object));
+		SerializeHumanReadableFromNodeBFS(xml_doc, &xml_doc, RegisterObjectForSerialization(xml_doc, name, root_object));
 
 		while (!pointee_to_ser_pointer_nodes_map_.empty()) {
 			std::unordered_map<void*, std::vector<ArchiveSerPointerNodeBase*>>::iterator first_node_pair_iter = pointee_to_ser_pointer_nodes_map_.begin();
 			void* object_addr = first_node_pair_iter->first;
 			ArchiveSerPointerNodeBase* dynamic_memory_pointer_node = first_node_pair_iter->second.front();
-			ArchiveSerNodeBase* pointee_node = dynamic_memory_pointer_node->PointeeNode(*this);
+			ArchiveSerNodeBase* pointee_node = dynamic_memory_pointer_node->PointeeNode(*this, xml_doc);
 			// Calling PointeeNode should have removed this dynamically-allocated node from pointee_to_pointer_node_map_.
 			assert(pointee_to_ser_pointer_nodes_map_.find(object_addr) == pointee_to_ser_pointer_nodes_map_.end());
-			SerializeHumanReadableFromNodeBFS(*xml_doc_, dynamic_memory_xml_node, pointee_node);
+			SerializeHumanReadableFromNodeBFS(xml_doc, dynamic_memory_xml_node, pointee_node);
 		}
 
-		xml_doc_->append_node(dynamic_memory_xml_node);
-		xml_ostream << *xml_doc_;
+		xml_doc.append_node(dynamic_memory_xml_node);
 
 		for (auto it = std::next(ser_nodes_.begin()); it != ser_nodes_.end(); ++it) {
 			delete *it;
 		}
 
 		ser_nodes_.clear();
-		xml_doc_->clear();
 	}
 
 	template<typename T>
@@ -170,16 +164,12 @@ public:
 	}
 
 	template<typename T>
-	void DeserializeHumanReadable(std::istream& xml_istream, T& root_object)
+	void DeserializeHumanReadable(rapidxml::xml_document<>& xml_doc, T& root_object)
 	{
-		std::vector<char> buffer((std::istreambuf_iterator<char>(xml_istream)), std::istreambuf_iterator<char>());
-		buffer.push_back('\0');
-		xml_doc_->parse<0>(buffer.data());
-
 		des_nodes_ = { nullptr };
 		objects_ = { nullptr };
-		DeserializeHumanReadableFromNodeBFS(xml_doc_->first_node(), RegisterObjectForDeserialization(*xml_doc_->first_node(), root_object));
-		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc_->last_node("dynamic_memory");
+		DeserializeHumanReadableFromNodeBFS(xml_doc.first_node(), RegisterObjectForDeserialization(*xml_doc.first_node(), root_object));
+		rapidxml::xml_node<>* dynamic_memory_xml_node = xml_doc.last_node("dynamic_memory");
 		rapidxml::xml_node<>* dynamic_memory_child_xml_node = dynamic_memory_xml_node->first_node();
 		while (!pointee_id_to_des_pointer_nodes_map_.empty()) {
 			std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>>::iterator first_node_pair_iter = pointee_id_to_des_pointer_nodes_map_.begin();
@@ -202,7 +192,6 @@ public:
 
 		des_nodes_.clear();
 		objects_.clear();
-		xml_doc_->clear();
 	}
 
 	// Assumes no dynamically allocated objects within root_object.
@@ -235,7 +224,6 @@ private:
 	std::vector<ArchiveDesNodeBase*> des_nodes_;
 	std::unordered_map<void*, std::vector<ArchiveSerPointerNodeBase*>> pointee_to_ser_pointer_nodes_map_;
 	std::unordered_map<std::size_t, std::vector<ArchiveDesPointerNodeBase*>> pointee_id_to_des_pointer_nodes_map_;
-	rapidxml::xml_document<>* xml_doc_;
 
 	std::size_t IdForObject(void* object_ptr)
 	{
@@ -296,7 +284,7 @@ private:
 			child_id_to_parent_xml_node[node->Id()]->append_node(xml_node);
 
 			// Iterate children in reverse.
-			std::vector<ArchiveSerNodeBase*> children = node->GetChildArchiveNodes(*this);
+			std::vector<ArchiveSerNodeBase*> children = node->GetChildArchiveNodes(*this, xml_doc);
 			for (std::vector<ArchiveSerNodeBase*>::iterator it = children.begin(); it != children.end(); ++it)
 			{
 				ArchiveSerNodeBase* child_node = *it;

@@ -34,7 +34,10 @@ public:
 			// Throw warning. This shouldn't be serialized twice.
 		}
 
-		rapidxml::xml_node<>* object_node = xml_doc.allocate_node(rapidxml::node_element, name_.c_str());
+		// We must allocate a copy of the name_ c-string using xml_doc.allocate_string. When this class
+		// instance is destroyed, name_ is destroyed, and so is the const char* pointer to its c-string.
+		char* name_string = xml_doc.allocate_string(name_.c_str());
+		rapidxml::xml_node<>* object_node = xml_doc.allocate_node(rapidxml::node_element, name_string);
 		char* object_id_string = xml_doc.allocate_string(std::to_string(id_).c_str());
 		rapidxml::xml_attribute<>* object_id_atttribute = xml_doc.allocate_attribute("id", object_id_string);
 		object_node->append_attribute(object_id_atttribute);
@@ -43,7 +46,7 @@ public:
 		return serialized_node_;
 	}
 
-	virtual std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) = 0;
+	virtual std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) = 0;
 
 protected:
 	std::size_t id_;
@@ -67,7 +70,7 @@ public:
 		return ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		return {};
 	}
@@ -92,7 +95,7 @@ public:
 		return base_node;
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		return {};
 	}
@@ -117,7 +120,7 @@ public:
 		return base_node;
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		return {};
 	}
@@ -151,11 +154,11 @@ public:
 		return base_node;
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		std::vector<ArchiveSerNodeBase*> children(N);
 		for (std::size_t i = 0; i < N; ++i) {
-			children[i] = archive.RegisterObjectForSerialization(element_names_[i].c_str(), obj_array_[i]);
+			children[i] = archive.RegisterObjectForSerialization(xml_doc, element_names_[i].c_str(), obj_array_[i]);
 		}
 		return children;
 	}
@@ -175,11 +178,11 @@ public:
 	rapidxml::xml_node<>* SerializeHumanReadable(rapidxml::xml_document<>& xml_doc) override
 	{
 		rapidxml::xml_node<>* base_node = ArchiveSerNodeBase::SerializeHumanReadable(xml_doc);
-		base_node->value(obj_string_.c_str());
+		base_node->value(xml_doc.allocate_string(obj_string_.c_str()));
 		return base_node;
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		return {};
 	}
@@ -215,11 +218,11 @@ public:
 		return base_node;
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		std::vector<ArchiveSerNodeBase*> children;
 		for (std::size_t i = 0; i < obj_vector_.size(); ++i) {
-			children.push_back(archive.RegisterObjectForSerialization(element_names_[i].c_str(), obj_vector_[i]));
+			children.push_back(archive.RegisterObjectForSerialization(xml_doc, element_names_[i].c_str(), obj_vector_[i]));
 		}
 		return children;
 	}
@@ -240,9 +243,9 @@ public:
 		}
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
-		return  { archive.RegisterObjectForSerialization("unordered_map_contents", contents_) };
+		return  { archive.RegisterObjectForSerialization(xml_doc, "unordered_map_contents", contents_) };
 	}
 
 private:
@@ -261,9 +264,9 @@ public:
 		}
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
-		return  { archive.RegisterObjectForSerialization("map_contents", contents_) };
+		return  { archive.RegisterObjectForSerialization(xml_doc, "map_contents", contents_) };
 	}
 
 private:
@@ -278,9 +281,9 @@ public:
 		: ArchiveSerNodeBase(id, name)
 		, obj_pair_(obj_pair) {}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
-		return archive.RegisterObjectsForSerialization({ "first" , obj_pair_.first }, { "second", obj_pair_.second });
+		return archive.RegisterObjectsForSerialization(xml_doc, { "first" , obj_pair_.first }, { "second", obj_pair_.second });
 	}
 
 private:
@@ -296,9 +299,9 @@ public:
 		obj_ptr_ = obj_shared_ptr_.get();
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
-		return { archive.RegisterObjectForSerialization("ptr", obj_ptr_) };
+		return { archive.RegisterObjectForSerialization(xml_doc, "ptr", obj_ptr_) };
 	}
 
 private:
@@ -312,7 +315,7 @@ template<class, class = void>
 struct serializes_members : std::false_type {};
 
 template<class T>
-struct serializes_members <T, void_t<decltype(std::declval<T>().RegisterSerializableMembers(std::declval<Archive&>()))>> : std::true_type {};
+struct serializes_members <T, void_t<decltype(std::declval<T>().RegisterSerializableMembers(std::declval<Archive&>(), std::declval<rapidxml::xml_document<>&>()))>> : std::true_type {};
 
 template<typename T>
 class ArchiveSerObjectNode<T, typename std::enable_if<serializes_members<T>::value, void>::type> : ArchiveSerNodeBase {
@@ -321,9 +324,9 @@ public:
 		: ArchiveSerNodeBase(id, name)
 		, object_(object) {}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
-		return object_.RegisterSerializableMembers(archive);
+		return object_.RegisterSerializableMembers(archive, xml_doc);
 	}
 
 private:
@@ -348,14 +351,14 @@ public:
 		return base_node;
 	}
 
-	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive) override
+	std::vector<ArchiveSerNodeBase*> GetChildArchiveNodes(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
 		return {};
 	}
 
 	virtual void DidRegisterPointee(rapidxml::xml_document<>& xml_doc, void* ptr, std::size_t pointee_id) = 0;
 
-	virtual ArchiveSerNodeBase* PointeeNode(Archive& archive) = 0;
+	virtual ArchiveSerNodeBase* PointeeNode(Archive& archive, rapidxml::xml_document<>& xml_doc) = 0;
 
 protected:
 	std::size_t pointee_id_;
@@ -378,9 +381,9 @@ public:
 		}
 	}
 
-	ArchiveSerNodeBase* PointeeNode(Archive& archive) override
+	ArchiveSerNodeBase* PointeeNode(Archive& archive, rapidxml::xml_document<>& xml_doc) override
 	{
-		return archive.RegisterObjectForSerialization("object", *object_ptr_);
+		return archive.RegisterObjectForSerialization(xml_doc, "object", *object_ptr_);
 	}
 
 private:

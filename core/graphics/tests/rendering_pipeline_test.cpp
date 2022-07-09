@@ -36,12 +36,11 @@ TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
 
     shader::Shader vert_shader;
     vert_shader.type = shader::ShaderStageType::Vertex;
-    vert_shader.code = "I AM VERT SHADER CODE";
+    vert_shader.code = "vertex shader code...";
 
     shader::Shader frag_shader;
     frag_shader.type = shader::ShaderStageType::Fragment;
-    frag_shader.code = "I AM FRAG SHADER CODE";
-
+    frag_shader.code = "fragment shader code...";
 
     RenderingPipelineInfo rp_info;
     rp_info.mvp_uniform = mvp_uniform_info;
@@ -50,9 +49,32 @@ TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
     rp_info.shader_stages = { vert_shader, frag_shader };
 
     Archive archive;
+    rapidxml::xml_document<> xml_doc;
+    archive.SerializeHumanReadable(xml_doc, "uniform_info", rp_info);
 
     std::ofstream xmlofile;
     xmlofile.open("serialized_rendering_pipeline_info.xml", std::ios::out);
-    archive.SerializeHumanReadable(xmlofile, "uniform_info", rp_info);
+    xmlofile << xml_doc;
+    
+    xml_doc.clear();
     xmlofile.close();
+}
+
+TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
+{
+    RenderingPipelineInfo rp_info;
+    Archive archive;
+    rapidxml::xml_document<> xml_doc;
+
+    std::ifstream xmlifile;
+    xmlifile.open("standard.xml", std::ios::in);
+    std::vector<char> buffer((std::istreambuf_iterator<char>(xmlifile)), std::istreambuf_iterator<char>());
+    xmlifile.close();
+
+    buffer.push_back('\0');
+    xml_doc.parse<0>(buffer.data());
+    archive.DeserializeHumanReadable(xml_doc, rp_info);
+    xml_doc.clear();
+
+
 }

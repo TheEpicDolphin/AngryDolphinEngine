@@ -4,7 +4,7 @@
 
 namespace serializable {
     template <typename... Args>
-    std::vector<ArchiveSerNodeBase*> RegisterSerializableMembers(Archive& archive, const char* comma_separated_names, Args&... args) {
+    std::vector<ArchiveSerNodeBase*> RegisterSerializableMembers(Archive& archive, rapidxml::xml_document<>& xml_doc, const char* comma_separated_names, Args&... args) {
         const std::size_t member_count = sizeof...(Args);
         std::string names[member_count];
         const char* arg_name_location = comma_separated_names;
@@ -23,7 +23,7 @@ namespace serializable {
         }
 
         int child_index = 0;
-        return { (archive.RegisterObjectForSerialization(names[child_index++], args))... };
+        return { (archive.RegisterObjectForSerialization(xml_doc, names[child_index++], args))... };
     }
 
     template <typename... Args>
@@ -40,8 +40,8 @@ namespace serializable {
     }
 }
 
-#define SERIALIZE_MEMBERS(...) std::vector<ArchiveSerNodeBase*> RegisterSerializableMembers(Archive& archive){ \
-    return serializable::RegisterSerializableMembers(archive, #__VA_ARGS__, __VA_ARGS__); \
+#define SERIALIZE_MEMBERS(...) std::vector<ArchiveSerNodeBase*> RegisterSerializableMembers(Archive& archive, rapidxml::xml_document<>& xml_doc){ \
+    return serializable::RegisterSerializableMembers(archive, xml_doc, #__VA_ARGS__, __VA_ARGS__); \
 } \
 \
 std::vector<ArchiveDesNodeBase*> RegisterDeserializableMembers(Archive& archive, rapidxml::xml_node<>& parent_xml_node){ \
