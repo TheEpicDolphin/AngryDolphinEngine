@@ -160,6 +160,9 @@ namespace ecs {
 		bool GetComponent(EntityID entity_id, T& component)
 		{
 			Archetype *archetype = entity_archetype_map_[entity_id.index];
+			if (!archetype) {
+				return false;
+			}
 			return archetype->GetComponentForEntity<T>(entity_id, component);
 		}
 
@@ -167,6 +170,9 @@ namespace ecs {
 		bool GetComponentSet(EntityID entity_id, Ts&... components)
 		{
 			Archetype* archetype = entity_archetype_map_[entity_id.index];
+			if (!archetype) {
+				return false;
+			}
 			return archetype->GetComponentSetForEntity(entity_id, components...);
 		}
 

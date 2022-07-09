@@ -34,7 +34,7 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 	// Iterate through mesh renderables.
 	std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
 		[this](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
-		if (mesh_rend.enabled) {
+		if (!mesh_rend.disabled) {
 			assert(mesh_rend.mesh->GetPipeline() == mesh_rend.material->GetPipeline());
 			renderable_objects_.push_back({
 				mesh_rend.mesh.get(),
@@ -49,7 +49,7 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 
 	std::function<void(ecs::EntityID, CameraComponent&)> cameras_block =
 		[this](ecs::EntityID entity_id, CameraComponent& camera_component) {
-		if (camera_component.enabled) {
+		if (!camera_component.disabled) {
 			const glm::mat4 camera_transform = transform_service_->GetWorldTransform(entity_id);
 			const glm::mat4 camera_view_matrix = glm::inverse(camera_transform);
 

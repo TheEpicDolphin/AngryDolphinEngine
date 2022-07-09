@@ -2,7 +2,7 @@
 #include "resource_manager.h"
 
 #include <fstream>
-
+#include <iostream>
 #include <config/generated/config.h>
 
 using namespace resource_manager;
@@ -33,8 +33,10 @@ std::vector<char> ResourceManager::LoadAsset(const char* asset_path_name) {
 		return loaded_assets[iter->second];
 	}
 	else {
-		for (std::size_t i = 0; i < sizeof(config::project_resources_directories); i++) {
+		const int num_project_resources_directories = sizeof(config::project_resources_directories) / sizeof(config::project_resources_directories[0]);
+		for (std::size_t i = 0; i < num_project_resources_directories; i++) {
 			std::string resources_asset_path(config::project_resources_directories[i]);
+			resources_asset_path.append("/");
 			resources_asset_path.append(asset_path_name);
 			std::vector<char> asset_file_contents = ReadAssetFile(resources_asset_path.c_str());
 			if (!asset_file_contents.empty()) {

@@ -49,6 +49,7 @@ struct VertexAttributeInfo {
 	shader::ShaderDataType data_type;
 	// Location in the shader.
 	int location;
+	// TODO: Get rid of dimension and format. They can be calculated from data_type.
 	// Number of components in the data type. For example, vec3 has a dimension of 3.
 	int dimension;
 	// The number of bytes of each component. For example, vec3 has three GL_FLOAT components of size 4 each.

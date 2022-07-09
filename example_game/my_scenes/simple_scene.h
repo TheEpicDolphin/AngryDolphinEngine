@@ -34,24 +34,31 @@ public:
 			return;
 		}
 
+		std::cout << "setting up camera..." << std::endl;
 		// Setup camera
 		ecs::EntityID camera_entity = CreateEntity();
 		CameraComponent camera_component;
-		camera_component.enabled = true;
+		camera_component.disabled = false;
 		camera_component.is_orthographic = true;
 		camera_component.orthographic_half_height = 10.0f;
 		camera_component.aspect_ratio = 4.0f / 3.0f;
 		camera_component.near_clip_plane_z = 0.1f;
 		camera_component.far_clip_plane_z = 100.0f;
+		std::cout << "adding component..." << std::endl;
 		component_registry->AddComponent<CameraComponent>(camera_entity, camera_component);
-		//transform_service->SetWorldTransform(camera_entity, );
+		std::cout << "added component" << std::endl;
+		glm::mat4 camera_transform = glm::mat4(1.0f);
+		transform::SetPosition(camera_transform, glm::vec3(0, 0, -5));
+		transform_service->SetWorldTransform(camera_entity, camera_transform);
 
+		std::cout << "setting up box..." << std::endl;
 		// Setup box
 		ecs::EntityID box_entity = CreateEntity();
 		MeshRenderableComponent mesh_rend_component;
-		mesh_rend_component.enabled = true;
-		//mesh_rend_component.mesh = Mesh::CreateCubeMeshPrimitive(, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
-		//mesh_rend_component.material = Material::CreateMaterial();
+		mesh_rend_component.disabled = false;
+		std::shared_ptr<RenderingPipeline> rp = RenderingPipeline::RenderingPipelineForResourcePath("standard_rendering_pipeline/standard.xml");
+		mesh_rend_component.mesh = Mesh::CreateCubeMeshPrimitive({ rp, false }, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
+		mesh_rend_component.material = Material::CreateMaterial({ rp });
 		component_registry->AddComponent<MeshRenderableComponent>(box_entity, mesh_rend_component);
 		transform_service->SetWorldTransform(box_entity, glm::mat4(1.0));
 	}
@@ -71,7 +78,6 @@ public:
 		mesh_transformation_system_.OnInstantiateEntity(entity_id);
 		rigidbody_system_.OnInstantiateEntity(entity_id);
 		rendering_system_.OnInstantiateEntity(entity_id);
-
 		return entity_id;
 	}
 

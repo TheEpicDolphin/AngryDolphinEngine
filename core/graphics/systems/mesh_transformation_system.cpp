@@ -18,10 +18,11 @@ void MeshTransformationSystem::Initialize(ServiceContainer service_container) {
 
 void MeshTransformationSystem::OnInstantiateEntity(ecs::EntityID entity_id) {
 	MeshRenderableComponent mesh_rend;
+	std::cout << "Getting component" << std::endl;
 	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, mesh_rend)) {
 		return;
 	}
-
+	std::cout << "Got component" << std::endl;
 	Mesh* mesh_handle = mesh_rend.mesh.get();
 	if (mesh_handle) {
 		AddEntityToMesh2EntitiesMapping(entity_id, mesh_handle);
@@ -50,7 +51,7 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha)
 	// Iterate through mesh renderables and calculate world mesh bounds
 	std::function<void(ecs::EntityID, MeshRenderableComponent&)> mesh_renderables_block =
 		[this](ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
-		if (mesh_rend.enabled) {
+		if (!mesh_rend.disabled) {
 			std::shared_ptr<Mesh> mesh = mesh_rend.mesh;
 			Mesh* mesh_handle = mesh.get();
 

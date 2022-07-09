@@ -7,7 +7,7 @@
 
 struct MeshRenderableComponent
 {
-	bool enabled;
+	bool disabled;
 
 	// Mesh that is potentially shared by several MeshRenderables
 	std::shared_ptr<Mesh> mesh;

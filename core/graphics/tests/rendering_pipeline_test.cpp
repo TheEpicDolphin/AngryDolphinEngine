@@ -7,10 +7,25 @@
 #include <algorithm>
 
 #include <core/serialize/archive.h>
+#include <core/graphics/rendering_pipeline.h>
 
-#include "../rendering_pipeline.h"
+std::string NameForStageType(shader::ShaderStageType type)
+{
+    switch (type)
+    {
+    case shader::ShaderStageType::Vertex:
+        return "Vertex Shader Stage";
+    case shader::ShaderStageType::Geometry:
+        return "Geometry Shader Stage";
+    case shader::ShaderStageType::Fragment:
+        return "Fragment Shader Stage";
+    case shader::ShaderStageType::Compute:
+        return "Compute Shader Stage";
+    }
+    return "";
+}
 
-TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
+TEST(rendering_pipeline_test_suite, rendering_pipeline_serialization_test)
 {
     UniformInfo mvp_uniform_info;
     mvp_uniform_info.name = "mvp_uniform";
@@ -18,7 +33,7 @@ TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
     mvp_uniform_info.location = 0;
     mvp_uniform_info.array_length = 1;
     mvp_uniform_info.category = UniformUsageCategory::MVP;
-
+    
     UniformInfo main_color_uniform_info;
     main_color_uniform_info.name = "main_color";
     main_color_uniform_info.data_type = shader::ShaderDataType::Vector4f;
@@ -49,32 +64,27 @@ TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
     rp_info.shader_stages = { vert_shader, frag_shader };
 
     Archive archive;
-    rapidxml::xml_document<> xml_doc;
-    archive.SerializeHumanReadable(xml_doc, "uniform_info", rp_info);
+    rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
+    archive.SerializeHumanReadable(*xml_doc, "uniform_info", rp_info);
 
     std::ofstream xmlofile;
     xmlofile.open("serialized_rendering_pipeline_info.xml", std::ios::out);
-    xmlofile << xml_doc;
+    xmlofile << *xml_doc;
     
-    xml_doc.clear();
+    xml_doc->clear();
     xmlofile.close();
+    delete xml_doc;
 }
 
 TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)
 {
-    RenderingPipelineInfo rp_info;
-    Archive archive;
-    rapidxml::xml_document<> xml_doc;
+    std::shared_ptr<RenderingPipeline> rp = RenderingPipeline::RenderingPipelineForResourcePath("standard_rendering_pipeline/standard.xml");
+    const std::vector<shader::Shader>& shader_stages = rp->ShaderStages();
+    for (auto it = shader_stages.begin(); it != shader_stages.end(); ++it) {
+        std::cout << NameForStageType(it->type) << std::endl;
+        std::cout << it->code << std::endl;
+    }
 
-    std::ifstream xmlifile;
-    xmlifile.open("standard.xml", std::ios::in);
-    std::vector<char> buffer((std::istreambuf_iterator<char>(xmlifile)), std::istreambuf_iterator<char>());
-    xmlifile.close();
-
-    buffer.push_back('\0');
-    xml_doc.parse<0>(buffer.data());
-    archive.DeserializeHumanReadable(xml_doc, rp_info);
-    xml_doc.clear();
-
-
+    std::shared_ptr<RenderingPipeline> rp_reloaded = RenderingPipeline::RenderingPipelineForResourcePath("standard_rendering_pipeline/standard.xml");
+    ASSERT_EQ(rp, rp_reloaded);
 }

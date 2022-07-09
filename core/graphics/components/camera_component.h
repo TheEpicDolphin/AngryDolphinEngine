@@ -3,7 +3,7 @@
 #include <core/geometry/rect.h>
 
 struct CameraComponent {
-	bool enabled;
+	bool disabled;
 	bool is_orthographic;
 	float orthographic_half_height;
 	// In degrees.

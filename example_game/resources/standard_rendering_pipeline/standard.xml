@@ -1,16 +1,16 @@
 <uniform_info id="1">
 	<mvp_uniform id="2">
-		<name id="6">mvp_uniform</name>
+		<name id="6">mvp</name>
 		<data_type id="7">15</data_type>
-		<location id="8">0</location>
+		<location id="8">1</location>
 		<array_length id="9">1</array_length>
 		<category id="10">1</category>
 	</mvp_uniform>
 	<material_uniforms id="3" container_type="vector" count="1">
 		<element_0 id="11">
-			<name id="15">main_color</name>
+			<name id="15">mainColor</name>
 			<data_type id="16">4</data_type>
-			<location id="17">1</location>
+			<location id="17">5</location>
 			<array_length id="18">1</array_length>
 			<category id="19">1</category>
 		</element_0>
@@ -19,7 +19,7 @@
 		<element_0 id="12">
 			<name id="20">position</name>
 			<data_type id="21">3</data_type>
-			<location id="22">2</location>
+			<location id="22">0</location>
 			<dimension id="23">3</dimension>
 			<format id="24">4</format>
 			<category id="25">0</category>
@@ -29,13 +29,32 @@
 		<element_0 id="13">
 			<type id="26">0</type>
 			<code id="27">
-				
+			#version 330 core
+			layout (location = 0) in vec3 position; // the position variable has attribute position 0
+			layout (location = 1) uniform mat4 mvp;	// mat4 takes up 4 locations
+			layout (location = 5) uniform vec4 mainColor;
+			
+			out vec4 vertexColor; // specify a color output to the fragment shader
+
+			void main()
+			{
+				gl_Position = mvp * vec4(position, 1.0); // see how we directly give a vec3 to vec4's constructor
+				vertexColor = vec4(0.5, 0.0, 0.0, 1.0); // set the output variable to a dark-red color
+			}
 			</code>
 		</element_0>
 		<element_1 id="14">
 			<type id="28">2</type>
 			<code id="29">
-				
+			#version 330 core
+			out vec4 fragColor;
+			  
+			in vec4 vertexColor; // the input variable from the vertex shader (same name and same type)  
+
+			void main()
+			{
+			    fragColor = vertexColor;
+			} 
 			</code>
 		</element_1>
 	</shader_stages>
