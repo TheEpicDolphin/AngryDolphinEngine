@@ -20,8 +20,6 @@ namespace ecs {
 	public:
 		void OnEntityAcquiredComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids);
 		void OnEntityDidLoseComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids);
-
-
 	};
 
 
@@ -50,7 +48,6 @@ namespace ecs {
 					added_component_type) != previous_archetype->ComponentTypes().end())
 				{
 					throw std::runtime_error("Cannot have multiple components of same type on entity");
-					return;
 				}
 
 				// Determine the entity's new archetype id.
@@ -66,39 +63,36 @@ namespace ecs {
 					new_component_types.push_back(added_component_type);
 				}
 
-				Archetype existing_archetype;
-				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, existing_archetype)) {
+				Archetype* next_archetype;
+				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, *next_archetype)) {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
-					existing_archetype = archetype_set_trie_.InsertValueForKeySet(new_component_types, Archetype());
-					existing_archetype.InitializeWithArchetypeAndAddedComponentType<T>(&component_type_info_, *previous_archetype);
+					next_archetype = archetype_set_trie_.InsertValueForKeySet(new_component_types, Archetype());
+					next_archetype->InitializeWithArchetypeAndAddedComponentType<T>(&component_type_info_, *previous_archetype);
 				}
 
 				// Move over the entity's component data from the previous archetype to
 				// the existing one and insert new component data.
-				previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, existing_archetype, component);
+				previous_archetype->MoveEntityToSuperArchetype<T>(entity_id, *next_archetype, component);
 				if (previous_archetype->Entities().size() == 0) {
 					// previous archetype no longer has any entities. Delete it.
 					DestroyArchetype(previous_archetype);
 				}
-				entity_archetype_map_[entity_id.index] = &existing_archetype;
+				entity_archetype_map_[entity_id.index] = next_archetype;
+				UpdateComponentSetForEntity(entity_id, previous_archetype, next_archetype);
 			}
 			else {
 				// This entity will be added to an archetype for the first time. This also
 				// means that the component to be added will be this entity's first component.
-				Archetype existing_archetype;
-				if (archetype_set_trie_.TryGetValueForKeySet({ added_component_type }, existing_archetype)) {
-					// Add entity to existing archetype
-					existing_archetype.AddEntity<T>(entity_id, component);
-					entity_archetype_map_[entity_id.index] = &existing_archetype;
-				}
-				else {
+				Archetype* archetype;
+				if (!archetype_set_trie_.TryGetValueForKeySet({ added_component_type }, *archetype)) {
 					// Create new archetype for entity.
-					Archetype& new_archetype = archetype_set_trie_.InsertValueForKeySet({ added_component_type }, Archetype());
-					new_archetype.InitializeWithComponentSet<T>(&component_type_info_);
-					new_archetype.AddEntity<T>(entity_id, component);
-					entity_archetype_map_[entity_id.index] = &new_archetype;
+					archetype = archetype_set_trie_.InsertValueForKeySet({ added_component_type }, Archetype());
+					archetype->InitializeWithComponentSet<T>(&component_type_info_);
 				}
+				archetype->AddEntity<T>(entity_id, component);
+				entity_archetype_map_[entity_id.index] = archetype;
+				UpdateComponentSetForEntity(entity_id, nullptr, archetype);
 			}
 		}
 
@@ -107,56 +101,55 @@ namespace ecs {
 		{
 			ComponentTypeID removed_component_type = component_type_info_.GetTypeId<T>();
 			assert(entity_id.index < entity_archetype_map_.size());
-			if (entity_archetype_map_[entity_id.index] != nullptr) {
-				// The entity currently belongs to an archetype. This archetype will be
-				// referred to as the "previous_archetype"
-				Archetype* previous_archetype = entity_archetype_map_[entity_id.index];
-				if (std::find(previous_archetype->ComponentTypes().begin(),
-					previous_archetype->ComponentTypes().end(),
-					removed_component_type) == previous_archetype->ComponentTypes().end())
-				{
-					throw std::runtime_error("Attempting to remove component that cannot be found on entity.");
-					return;
+			if (entity_archetype_map_[entity_id.index] == nullptr) {
+				throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
+			}
+
+			// The entity currently belongs to an archetype. This archetype will be
+			// referred to as the "previous_archetype"
+			Archetype* previous_archetype = entity_archetype_map_[entity_id.index];
+			if (std::find(previous_archetype->ComponentTypes().begin(),
+				previous_archetype->ComponentTypes().end(),
+				removed_component_type) == previous_archetype->ComponentTypes().end())
+			{
+				throw std::runtime_error("Attempting to remove component that cannot be found on entity.");
+			}
+
+			// Determine the entity's new archetype id.
+			const std::vector<ComponentTypeID> previous_component_types = previous_archetype->ComponentTypes();
+			std::vector<ComponentTypeID> new_component_types;
+			for (std::size_t c_idx = 0; c_idx < previous_component_types.size(); ++c_idx) {
+				if (removed_component_type != previous_component_types[c_idx]) {
+					new_component_types.push_back(previous_component_types[c_idx]);
+				}
+			}
+
+			if (new_component_types.size() > 0) {
+				Archetype* next_archetype;
+				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, *next_archetype)) {
+					// No archetype exists for the entity's new set of component types. Create
+					// new archetype.
+					next_archetype = archetype_set_trie_.InsertValueForKeySet(new_component_types, Archetype());
+					next_archetype->InitializeWithArchetypeAndRemovedComponentType<T>(&component_type_info_, *previous_archetype);
 				}
 
-				// Determine the entity's new archetype id.
-				const std::vector<ComponentTypeID> previous_component_types = previous_archetype->ComponentTypes();
-				std::vector<ComponentTypeID> new_component_types;
-				for (std::size_t c_idx = 0; c_idx < previous_component_types.size(); ++c_idx) {
-					if (removed_component_type != previous_component_types[c_idx]) {
-						new_component_types.push_back(previous_component_types[c_idx]);
-					}
+				// Move over the entity's component data from the previous archetype to
+				// the existing one, except that of the component to be removed.
+				previous_archetype->MoveEntityToSubArchetype<T>(entity_id, *next_archetype);
+				if (previous_archetype->Entities().size() == 0) {
+					DestroyArchetype(previous_archetype);
 				}
-
-				if (new_component_types.size() == 0) {
-					// The entity will now have no components. It is no longer assigned to an archetype.
-					previous_archetype->RemoveEntity(entity_id);
-					if (previous_archetype->Entities().size() == 0) {
-						DestroyArchetype(previous_archetype);
-						entity_archetype_map_[entity_id.index] = nullptr;
-						return;
-					}
-
-					Archetype existing_archetype;
-					if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, existing_archetype)) {
-						// No archetype exists for the entity's new set of component types. Create
-						// new archetype.
-						existing_archetype = archetype_set_trie_.InsertValueForKeySet(new_component_types, Archetype());
-						existing_archetype.InitializeWithArchetypeAndRemovedComponentType<T>(&component_type_info_, *previous_archetype);
-					}
-
-					// Move over the entity's component data from the previous archetype to
-					// the existing one, except that of the component to be removed.
-					previous_archetype->MoveEntityToSubArchetype<T>(entity_id, existing_archetype);
-					if (previous_archetype->Entities().size() == 0) {
-						DestroyArchetype(previous_archetype);
-					}
-					entity_archetype_map_[entity_id.index] = &existing_archetype;
+				entity_archetype_map_[entity_id.index] = &existing_archetype;
+				UpdateComponentSetForEntity(entity_id, previous_archetype, next_archetype);
+			}
+			else {
+				// The entity will now have no components. It is no longer assigned to an archetype.
+				previous_archetype->RemoveEntity(entity_id);
+				if (previous_archetype->Entities().size() == 0) {
+					DestroyArchetype(previous_archetype);
+					entity_archetype_map_[entity_id.index] = nullptr;
 				}
-				else {
-					throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
-					return;
-				}
+				UpdateComponentSetForEntity(entity_id, previous_archetype, nullptr);
 			}
 		}
 
@@ -217,7 +210,6 @@ namespace ecs {
 			if (entity_archetype_map_[entity_id.index] != nullptr) {
 				Archetype* archetype = entity_archetype_map_[entity_id.index];
 				archetype->RemoveEntity(entity_id);
-				
 				
 				UpdateComponentSetForEntity(entity_id, archetype, nullptr);
 
@@ -309,9 +301,9 @@ namespace ecs {
 					group->component_set_ids.end()
 				);
 				if (!prev && next) {
-					group->component_set_events_announcer.Announce(entity_id);
+					group->component_set_events_announcer.Announce(&IComponentSetEventsListener::OnEntityAcquiredComponentSet, entity_id, next_archetype_component_set_ids);
 				} else if (prev && !next) {
-					group->component_set_events_announcer.Announce(entity_id);
+					group->component_set_events_announcer.Announce(&IComponentSetEventsListener::OnEntityDidLoseComponentSet, entity_id, next_archetype_component_set_ids);
 				}
 			}
 		}

@@ -71,12 +71,12 @@ public:
 		return supersets;
 	}
 
-	TValue& InsertValueForKeySet(const std::vector<TKey>& key_set, TValue&& value) {
+	TValue* InsertValueForKeySet(const std::vector<TKey>& key_set, TValue&& value) {
 		TValue temp = value;
 		return InsertValueForKeySet(key_set, temp);
 	}
 
-	TValue& InsertValueForKeySet(const std::vector<TKey>& key_set, const TValue& value) {
+	TValue* InsertValueForKeySet(const std::vector<TKey>& key_set, const TValue& value) {
 		SetTrieNode *current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
@@ -103,7 +103,7 @@ public:
 
 		current_node->value = value;
 		current_node->has_value = true;
-		return current_node->value;
+		return &current_node->value;
 	}
 
 	void RemoveValueForKeySet(const std::vector<TKey>& key_set) {
