@@ -284,8 +284,20 @@ namespace ecs {
 		void UpdateComponentSetForEntity(ecs::EntityID entity_id, Archetype& from_archetype, Archetype& to_archetype) {
 			std::vector<ComponentSetListenerGroup*> groups = component_set_listener_group_trie_.GetValuesInOrder();
 			for (ComponentSetListenerGroup* group : groups) {
-				bool prev = std::includes(from_archetype.ComponentSetIDs(), group->component_set_ids);
-				bool next = std::includes(from_archetype.ComponentSetIDs(), group->component_set_ids);
+				ComponentSetIDs from_archetype_component_set_ids = from_archetype.ComponentSetIDs();
+				bool prev = std::includes(
+					from_archetype_component_set_ids.begin(),
+					from_archetype_component_set_ids.end(),
+					group->component_set_ids.begin(),
+					group->component_set_ids.end()
+				);
+				ComponentSetIDs next_archetype_component_set_ids = to_archetype.ComponentSetIDs();
+				bool next = std::includes(
+					next_archetype_component_set_ids.begin(),
+					next_archetype_component_set_ids.end(),
+					group->component_set_ids.begin(),
+					group->component_set_ids.end()
+				);
 				if (!prev && next) {
 					group->component_set_events_announcer.Announce();
 				} else if (prev && !next) {
