@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <functional>
 
+#include <core/utils/event_announcer.h>
 #include <core/utils/set_trie.h>
 #include <core/utils/type_info.h>
 
@@ -14,12 +15,16 @@
 #include "entity.h"
 #include "archetype.h"
 
-enum SystemUpdateType {
-	SystemUpdateTypeFixedTimestep = (1u << 0),
-	SystemUpdateTypeOnFrame = (1u << 1),
-};
-
 namespace ecs {
+	class IComponentSetEventsListener {
+	public:
+		void OnEntityAcquiredComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids);
+		void OnEntityDidLoseComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids);
+
+
+	};
+
+
 	class Registry {
 	
 	public:
@@ -66,7 +71,7 @@ namespace ecs {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
 					existing_archetype = previous_archetype->EmptyWithAddedComponentType<T>(&component_type_info_);
-					archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
+					archetype_set_trie_.InsertValueForKeySet(existing_archetype->ComponentTypes(), *existing_archetype);
 				}
 
 				// Move over the entity's component data from the previous archetype to
@@ -81,18 +86,18 @@ namespace ecs {
 			else {
 				// This entity will be added to an archetype for the first time. This also
 				// means that the component to be added will be this entity's first component.
-				Archetype *existing_archetype = archetype_set_trie_.ValueForKeySet({ added_component_type });
-				if (existing_archetype) {
+				Archetype existing_archetype;
+				if (archetype_set_trie_.TryGetValueForKeySet({ added_component_type }, existing_archetype)) {
 					// Add entity to existing archetype
-					existing_archetype->AddEntity<T>(entity_id, component);
-					entity_archetype_map_[entity_id.index] = existing_archetype;
+					existing_archetype.AddEntity<T>(entity_id, component);
+					entity_archetype_map_[entity_id.index] = &existing_archetype;
 				}
 				else {
 					// Create new archetype for entity.
-					Archetype* new_archetype = Archetype::ArchetypeWithComponentTypes<T>(&component_type_info_);
-					new_archetype->AddEntity<T>(entity_id, component);
-					archetype_set_trie_.InsertValueForKeySet(*new_archetype, new_archetype->ComponentTypes());
-					entity_archetype_map_[entity_id.index] = new_archetype;
+					Archetype& new_archetype = archetype_set_trie_.InsertValueForKeySet({ added_component_type }, Archetype());
+					Archetype::ConfigureWithComponentSet<T>(new_archetype, &component_type_info_);
+					new_archetype.AddEntity<T>(entity_id, component);
+					entity_archetype_map_[entity_id.index] = &new_archetype;
 				}
 			}
 		}
@@ -128,7 +133,6 @@ namespace ecs {
 					previous_archetype->RemoveEntity(entity_id);
 					if (previous_archetype->Entities().size() == 0) {
 						DestroyArchetype(previous_archetype);
-
 						entity_archetype_map_[entity_id.index] = nullptr;
 						return;
 					}
@@ -138,7 +142,7 @@ namespace ecs {
 						// No archetype exists for the entity's new set of component types. Create
 						// new archetype.
 						existing_archetype = previous_archetype->EmptyWithRemovedComponentType<T>(&component_type_info_);
-						archetype_set_trie_.InsertValueForKeySet(*existing_archetype, existing_archetype->ComponentTypes());
+						archetype_set_trie_.InsertValueForKeySet(existing_archetype->ComponentTypes(), *existing_archetype);
 					}
 
 					// Move over the entity's component data from the previous archetype to
@@ -179,8 +183,22 @@ namespace ecs {
 		template<class... Ts>
 		void EnumerateComponentsWithBlock(std::function<void(EntityID entity_id, Ts&...)> block)
 		{
-			std::vector<Archetype*> archetypes = GetArchetypesWithComponents<Ts...>();
-			for (Archetype *archetype : archetypes) {
+			const ComponentSetIDs component_set_ids = GetComponentSetIDs<Ts>();
+			
+			// Search for an existing component set in component_set_listener_group_trie_.
+			// If found, we can simply enumerate the cached archetypes, which is faster
+			// than doing a superset search in archetype_set_trie_.
+			ComponentSetListenerGroup group;
+			std::vector<Archetype*> archetypes;
+			if (component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, group)) {
+				// Faster
+				archetypes = group.archetypes;
+			} else {
+				// Slower
+				archetypes = archetype_set_trie_.FindSuperKeySetValues(component_set_ids);
+			}
+
+			for (Archetype* archetype : archetypes) {
 				archetype->EnumerateComponentsWithBlock<Ts...>(block);
 			}
 		}
@@ -206,30 +224,74 @@ namespace ecs {
 			}
 		}
 
+		template<class... Ts>
+		ecs::ComponentSetIDs AddComponentSetEventsListener(IComponentSetEventsListener* listener) {
+			ComponentSetIDs component_set_ids = GetComponentSetIDs<Ts>();
+
+			ComponentSetListenerGroup group;
+			if (component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, group)) {
+				group.component_set_events_announcer.AddListener(listener);
+			} else {
+				ComponentSetListenerGroup new_group = component_set_listener_group_trie_.InsertValueForKeySet(component_set_ids, ComponentSetObserverGroup());
+				new_group.component_set_ids = component_set_ids;
+				new_group.archetypes = archetype_set_trie_.FindSuperKeySetValues(component_set_ids);
+				new_group.component_set_events_announcer.AddListener(listener);
+			}
+		}
+
+		void RemoveComponentSetEventsListener(ecs::ComponentSetIDs component_set_ids, IComponentSetEventsListener* listener) {
+			ComponentSetListenerGroup group;
+			if (component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, group)) {
+				group.component_set_events_announcer.RemoveListener(listener);
+				if (group.component_set_events_announcer.ListenerCount() == 0) {
+					// There are no more remaining listeners for this component set.
+					// Delete this component set listener group.
+					component_set_listener_group_trie_.RemoveValueForKeySet(component_set_ids);
+				}
+			}
+		}
+
 	private:
 		SetTrie<ComponentTypeID, Archetype> archetype_set_trie_;
 
 		std::vector<Archetype*> entity_archetype_map_;
 
-		//std::vector<Archetype> restored_archetypes_;
+		struct ComponentSetListenerGroup {
+			// USE std::includes to compare ComponentSetIDs
+			ComponentSetIDs component_set_ids;
+			EventAnnouncer<IComponentSetEventsListener> component_set_events_announcer;
+			std::vector<Archetype*> archetypes;
+		};
+		SetTrie<ComponentTypeID, ComponentSetListenerGroup> component_set_listener_group_trie_;
+
 		TypeInfo component_type_info_;
 
-		// TODO: Consider caching archetypes in systems. When a change to the ECS'
-		// Archetype Set Trie is detected (perhaps through some subscriber pattern),
-		// Then the system can fetch the desired archetypes again. 
-		// std::vector<Archetype *> cached_archetypes_;
-
 		template<class... Ts>
-		std::vector<Archetype*> GetArchetypesWithComponents() 
+		const ComponentSetIDs GetComponentSetIDs()
 		{
-			std::vector<ComponentTypeID> component_types = { (component_type_info_.GetTypeId<Ts>())... };
-			return archetype_set_trie_.FindSuperKeySetValues(component_types);
+			ComponentSetIDs component_set_ids = { (component_type_info_.GetTypeId<Ts>())... };
+			// Sort component set ids from least -> greatest.
+			std::sort(component_set_ids.begin(), component_set_ids.end());
+			return component_set_ids;
 		}
 
 		void DestroyArchetype(Archetype* archetype) 
 		{
-			archetype_set_trie_.RemoveValueForKeySet(archetype->ComponentTypes());
+			archetype_set_trie_.RemoveValueForKeySet(archetype->ComponentSetIDs());
 			delete archetype;
+		}
+
+		void UpdateComponentSetForEntity(ecs::EntityID entity_id, Archetype& from_archetype, Archetype& to_archetype) {
+			std::vector<ComponentSetListenerGroup*> groups = component_set_listener_group_trie_.GetValuesInOrder();
+			for (ComponentSetListenerGroup* group : groups) {
+				bool prev = std::includes(from_archetype.ComponentSetIDs(), group->component_set_ids);
+				bool next = std::includes(from_archetype.ComponentSetIDs(), group->component_set_ids);
+				if (!prev && next) {
+					group->component_set_events_announcer.Announce();
+				} else if (prev && !next) {
+					group->component_set_events_announcer.Announce();
+				}
+			}
 		}
 	};
 }

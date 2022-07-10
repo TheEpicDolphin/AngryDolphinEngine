@@ -19,6 +19,7 @@ public:
 		// Bind services.
 		service_container.BindTo<ISceneEntityInstantiator>(*this);
 
+		// Initialize systems
 		mesh_transformation_system_.Initialize(service_container);
 		rigidbody_system_.Initialize(service_container);
 		rendering_system_.Initialize(service_container);
@@ -67,8 +68,12 @@ public:
 		// Unbind services
 		service_container.Unbind<ISceneEntityInstantiator>();
 
-		// Delete entities.
+		// Cleanup systems
+		mesh_transformation_system_.Cleanup(service_container);
+		rigidbody_system_.Cleanup(service_container);
+		rendering_system_.Cleanup(service_container);
 
+		// Delete entities.
 		SceneBase::OnUnload(service_container);
 	}
 

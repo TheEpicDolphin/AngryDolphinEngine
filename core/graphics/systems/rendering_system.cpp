@@ -28,6 +28,8 @@ void RenderingSystem::Initialize(ServiceContainer service_container) {
 	}
 }
 
+void RenderingSystem::Cleanup(ServiceContainer service_container) {}
+
 void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 {
 	renderable_objects_.clear();

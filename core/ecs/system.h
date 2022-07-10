@@ -13,9 +13,7 @@ class ISystem {
 public:
 	virtual void Initialize(ServiceContainer service_container) = 0;
 
-	virtual void OnInstantiateEntity(ecs::EntityID entity_id) = 0;
-
-	virtual void OnCleanupEntity(ecs::EntityID entity_id) = 0;
+	virtual void Cleanup(ServiceContainer service_container) = 0;
 
 	virtual void OnFixedUpdate(double fixed_delta_time) = 0;
 

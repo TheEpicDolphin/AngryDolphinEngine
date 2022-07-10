@@ -71,7 +71,12 @@ public:
 		return supersets;
 	}
 
-	void InsertValueForKeySet(const TValue& value, const std::vector<TKey>& key_set) {
+	TValue& InsertValueForKeySet(const std::vector<TKey>& key_set, TValue&& value) {
+		TValue temp = value;
+		return InsertValueForKeySet(key_set, temp);
+	}
+
+	TValue& InsertValueForKeySet(const std::vector<TKey>& key_set, const TValue& value) {
 		SetTrieNode *current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
@@ -94,10 +99,11 @@ public:
 			std::pair<std::map<TKey, SetTrieNode>::iterator, bool> result = current_node->children.insert(std::make_pair(new_node.key, new_node));
 			current_node = &result.first->second;
 			index++;
-			
 		}
+
 		current_node->value = value;
 		current_node->has_value = true;
+		return current_node->value;
 	}
 
 	void RemoveValueForKeySet(const std::vector<TKey>& key_set) {
@@ -124,22 +130,23 @@ public:
 		}
 	}
 
-	TValue* ValueForKeySet(const std::vector<TKey>& key_set) {
+	bool TryGetValueForKeySet(const std::vector<TKey>& key_set, TValue& value) {
 		SetTrieNode *current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
 			std::map<TKey, SetTrieNode>::iterator children_iter = current_node->children.find(key_set[index]);
 			if (children_iter == current_node->children.end()) {
 				// keyset was not found in set trie.
-				return nullptr;
+				return false;
 			}
 			index++;
 			current_node = &children_iter->second;
 		}
 		if (!current_node->has_value) {
 			// keyset exists in set trie but the corresponding value is not set.
-			return nullptr;
+			return false;
 		}
-		return &current_node->value;
+		value = current_node->value;
+		return true;
 	}
 };

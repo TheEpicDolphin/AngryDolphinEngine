@@ -14,6 +14,12 @@ void MeshTransformationSystem::Initialize(ServiceContainer service_container) {
 	if (!service_container.TryGetService(scene_graph_)) {
 		// TODO: Throw error.
 	}
+
+	component_registry_->AddComponentSetEventsListener(this);
+}
+
+void MeshTransformationSystem::Cleanup(ServiceContainer service_container) {
+	component_registry_->RemoveComponentSetEventsListener(this);
 }
 
 void MeshTransformationSystem::OnInstantiateEntity(ecs::EntityID entity_id) {

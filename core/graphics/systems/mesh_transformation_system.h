@@ -23,9 +23,7 @@ public:
 
 	void Initialize(ServiceContainer service_container) override;
 
-	void OnInstantiateEntity(ecs::EntityID entity_id) override;
-
-	void OnCleanupEntity(ecs::EntityID entity_id) override;
+	void Cleanup(ServiceContainer service_container) override;
 
 	void OnFixedUpdate(double fixed_delta_time) {}
 

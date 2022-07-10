@@ -21,6 +21,10 @@ public:
 		}
 	}
 
+	std::size_t ListenerCount() {
+		return listeners_.size();
+	}
+
 private:
 	std::vector<T*> listeners_;
 };

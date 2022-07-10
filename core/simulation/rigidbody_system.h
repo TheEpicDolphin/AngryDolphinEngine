@@ -27,9 +27,7 @@ public:
 		}
 	}
 
-	void OnInstantiateEntity(ecs::EntityID entity_id) {};
-
-	void OnCleanupEntity(ecs::EntityID entity_id) {}
+	void Cleanup(ServiceContainer service_container) {};
 
 	void OnFixedUpdate(double fixed_delta_time)
 	{
