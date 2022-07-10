@@ -29,7 +29,7 @@ namespace ecs {
 		}
 
 		template<class... Ts>
-		static void ConfigureWithComponentSet(Archetype& archetype, TypeInfo* component_type_info)
+		void InitializeWithComponentSet(TypeInfo* component_type_info)
 		{
 			// Sort component set ids and arrays from least -> greatest.
 			std::vector<ComponentTypeID> unsorted_component_set_ids = { (component_type_info->GetTypeId<Ts>())... };
@@ -42,130 +42,60 @@ namespace ecs {
 			std::sort(sorted_component_type_array_pairs.begin(), sorted_component_type_array_pairs.end());
 
 			// Set archetype component data.
-			archetype.component_type_info_ = component_type_info;
-			archetype.component_set_ids.reserve(sorted_component_type_array_pairs.size());
-			archetype.component_arrays_.reserve(sorted_component_type_array_pairs.size());
+			this.component_type_info_ = component_type_info;
+			this.component_set_ids.reserve(sorted_component_type_array_pairs.size());
+			this.component_arrays_.reserve(sorted_component_type_array_pairs.size());
 			for (std::size_t index = 0; index < sorted_component_type_array_pairs.size(); ++index) {
-				archetype.component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
-				archetype.component_set_ids.push_back(sorted_component_type_array_pairs[index].first);
-				archetype.component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
+				this.component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
+				this.component_set_ids.push_back(sorted_component_type_array_pairs[index].first);
+				this.component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
 			}
 		}
 
 		template<class T>
-		Archetype* EmptyWithAddedComponentType(TypeInfo* component_type_info)
+		void InitializeWithArchetypeAndAddedComponentType(TypeInfo* component_type_info, Archetype& source_archetype)
 		{
 			const ComponentTypeID added_component_type = component_type_info->GetTypeId<T>();
-			Archetype* new_archetype = new Archetype(component_type_info);
-			new_archetype->component_set_ids.reserve(component_set_ids.size() + 1);
-			new_archetype->component_arrays_.reserve(component_arrays_.size() + 1);
-			auto insert_component_array = [new_archetype](ComponentArrayBase* comp_array, ComponentTypeID component_type) {
-				std::size_t index = new_archetype->component_set_ids.size();
-				new_archetype->component_type_index_map_.insert(std::make_pair(component_type, index));
-				new_archetype->component_set_ids.push_back(component_type);
-				new_archetype->component_arrays_.push_back(comp_array);
+
+			this.component_type_info_ = component_type_info;
+			this.component_set_ids.reserve(source_archetype.component_set_ids.size() + 1);
+			this.component_arrays_.reserve(source_archetype.component_arrays_.size() + 1);
+			auto insert_component_array = [this](ComponentArrayBase* comp_array, ComponentTypeID component_type) {
+				std::size_t index = this.component_set_ids.size();
+				this.component_type_index_map_.insert(std::make_pair(component_type, index));
+				this.component_set_ids.push_back(component_type);
+				this.component_arrays_.push_back(comp_array);
 			};
 
 			bool has_inserted_added_component = false;
-			for (std::size_t c_idx = 0; c_idx < component_set_ids.size(); ++c_idx) {
-				if (added_component_type < component_set_ids[c_idx] && !has_inserted_added_component) {
+			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids.size(); ++c_idx) {
+				if (added_component_type < source_archetype.component_set_ids[c_idx] && !has_inserted_added_component) {
 					insert_component_array(new ComponentArray<T>(), added_component_type);
 					has_inserted_added_component = true;
 				}
-				insert_component_array(component_arrays_[c_idx]->Empty(), component_set_ids[c_idx]);
+				insert_component_array(source_archetype.component_arrays_[c_idx]->Empty(), this.component_set_ids[c_idx]);
 			}
 			if (!has_inserted_added_component) {
 				insert_component_array(new ComponentArray<T>(), added_component_type);
 			}
-			return new_archetype;
 		}
 
 		template<class T>
-		Archetype* EmptyWithRemovedComponentType(TypeInfo* component_type_info)
+		void InitializeWithArchetypeAndRemovedComponentType(TypeInfo* component_type_info, Archetype& source_archetype)
 		{
 			const ComponentTypeID removed_component_type = component_type_info->GetTypeId<T>();
-			Archetype* new_archetype = new Archetype(component_type_info);
-			new_archetype->component_set_ids.reserve(component_set_ids.size() - 1);
-			new_archetype->component_arrays_.reserve(component_arrays_.size() - 1);
-			for (std::size_t c_idx = 0; c_idx < component_set_ids.size(); ++c_idx) {
-				if (component_set_ids[c_idx] != removed_component_type) {
-					new_archetype->component_type_index_map_.insert(std::make_pair(component_set_ids[c_idx], new_archetype->component_set_ids.size()));
-					new_archetype->component_set_ids.push_back(component_set_ids[c_idx]);
-					new_archetype->component_arrays_.push_back(component_arrays_[c_idx]->Empty());
+
+			this.component_type_info_ = component_type_info;
+			this.component_set_ids_.reserve(source_archetype.component_set_ids.size() - 1);
+			this.component_arrays_.reserve(source_archetype.component_arrays_.size() - 1);
+			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids.size(); ++c_idx) {
+				if (source_archetype.component_set_ids[c_idx] != removed_component_type) {
+					this.component_type_index_map_.insert(std::make_pair(source_archetype.component_set_ids[c_idx], this.component_set_ids.size()));
+					this.component_set_ids.push_back(source_archetype.component_set_ids[c_idx]);
+					this.component_arrays_.push_back(source_archetype.component_arrays_[c_idx]->Empty());
 				}
 			}
-			return new_archetype;
 		}
-
-		/*
-		template<class... Ts>
-		static Archetype* ArchetypeWithComponentTypes(TypeInfo* component_type_info)
-		{
-			std::vector<ComponentTypeID> unsorted_component_types = { (component_type_info->GetTypeId<Ts>())... };
-			std::vector<ComponentArrayBase*> unsorted_component_arrays = { (new ComponentArray<Ts>())... };
-			std::vector<std::pair<ComponentTypeID, ComponentArrayBase*>> sorted_component_type_array_pairs;
-			sorted_component_type_array_pairs.reserve(unsorted_component_types.size());
-			for (std::size_t index = 0; index < unsorted_component_types.size(); ++index) {
-				sorted_component_type_array_pairs.push_back(std::make_pair(unsorted_component_types[index], unsorted_component_arrays[index]));
-			}
-			std::sort(sorted_component_type_array_pairs.begin(), sorted_component_type_array_pairs.end());
-
-			Archetype* new_archetype = new Archetype(component_type_info);
-			new_archetype->component_types_.reserve(sorted_component_type_array_pairs.size());
-			new_archetype->component_arrays_.reserve(sorted_component_type_array_pairs.size());
-			for (std::size_t index = 0; index < sorted_component_type_array_pairs.size(); ++index) {
-				new_archetype->component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
-				new_archetype->component_types_.push_back(sorted_component_type_array_pairs[index].first);
-				new_archetype->component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
-			}
-			return new_archetype;
-		}
-
-		template<class T>
-		Archetype* EmptyWithAddedComponentType(TypeInfo* component_type_info)
-		{
-			const ComponentTypeID added_component_type = component_type_info->GetTypeId<T>();
-			Archetype* new_archetype = new Archetype(component_type_info);
-			new_archetype->component_types_.reserve(component_types_.size() + 1);
-			new_archetype->component_arrays_.reserve(component_arrays_.size() + 1);
-			auto insert_component_array = [new_archetype](ComponentArrayBase* comp_array, ComponentTypeID component_type) {
-				std::size_t index = new_archetype->component_types_.size();
-				new_archetype->component_type_index_map_.insert(std::make_pair(component_type, index));
-				new_archetype->component_types_.push_back(component_type);
-				new_archetype->component_arrays_.push_back(comp_array);
-			};
-
-			bool has_inserted_added_component = false;
-			for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
-				if (added_component_type < component_types_[c_idx] && !has_inserted_added_component) {
-					insert_component_array(new ComponentArray<T>(), added_component_type);
-					has_inserted_added_component = true;
-				}
-				insert_component_array(component_arrays_[c_idx]->Empty(), component_types_[c_idx]);
-			}
-			if (!has_inserted_added_component) {
-				insert_component_array(new ComponentArray<T>(), added_component_type);
-			}
-			return new_archetype;
-		}
-
-		template<class T>
-		Archetype* EmptyWithRemovedComponentType(TypeInfo* component_type_info)
-		{
-			const ComponentTypeID removed_component_type = component_type_info->GetTypeId<T>();
-			Archetype* new_archetype = new Archetype(component_type_info);
-			new_archetype->component_types_.reserve(component_types_.size() - 1);
-			new_archetype->component_arrays_.reserve(component_arrays_.size() - 1);
-			for (std::size_t c_idx = 0; c_idx < component_types_.size(); ++c_idx) {
-				if (component_types_[c_idx] != removed_component_type) {
-					new_archetype->component_type_index_map_.insert(std::make_pair(component_types_[c_idx], new_archetype->component_types_.size()));
-					new_archetype->component_types_.push_back(component_types_[c_idx]);
-					new_archetype->component_arrays_.push_back(component_arrays_[c_idx]->Empty());
-				}
-			}
-			return new_archetype;
-		}
-		*/
 
 		template<class T>
 		void MoveEntityToSuperArchetype(EntityID entity_id, Archetype& super_archetype, T added_component)
