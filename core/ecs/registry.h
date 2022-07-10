@@ -18,10 +18,9 @@
 namespace ecs {
 	class IComponentSetEventsListener {
 	public:
-		void OnEntityAcquiredComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids);
-		void OnEntityDidLoseComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids);
+		virtual void OnEntityAddedToComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) = 0;
+		virtual void OnEntityRemovedFromComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) = 0;
 	};
-
 
 	class Registry {
 	
@@ -301,9 +300,13 @@ namespace ecs {
 					group->component_set_ids.end()
 				);
 				if (!prev && next) {
-					group->component_set_events_announcer.Announce(&IComponentSetEventsListener::OnEntityAcquiredComponentSet, entity_id, next_archetype_component_set_ids);
+					// Add archetype to group
+					group->archetypes.push_back(to_archetype);
+					group->component_set_events_announcer.Announce(&IComponentSetEventsListener::OnEntityAddedToComponentSet, entity_id, next_archetype_component_set_ids);
 				} else if (prev && !next) {
-					group->component_set_events_announcer.Announce(&IComponentSetEventsListener::OnEntityDidLoseComponentSet, entity_id, next_archetype_component_set_ids);
+					// Remove archetype from group
+					group->archetypes.erase(std::remove(group->archetypes.begin(), group->archetypes.end(), to_archetype), group->archetypes.end());
+					group->component_set_events_announcer.Announce(&IComponentSetEventsListener::OnEntityRemovedFromComponentSet, entity_id, next_archetype_component_set_ids);
 				}
 			}
 		}

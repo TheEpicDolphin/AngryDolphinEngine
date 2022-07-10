@@ -16,7 +16,8 @@
 class MeshTransformationSystem : 
 	public ISystem,
 	private MeshLifecycleEventsListener,
-	private EntityTransformEventsListener
+	private EntityTransformEventsListener,
+	private ecs::IComponentSetEventsListener
 {
 public:
 	MeshTransformationSystem() = default;

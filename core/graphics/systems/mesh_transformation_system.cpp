@@ -15,14 +15,14 @@ void MeshTransformationSystem::Initialize(ServiceContainer service_container) {
 		// TODO: Throw error.
 	}
 
-	component_registry_->AddComponentSetEventsListener(this);
+	component_registry_->AddComponentSetEventsListener<MeshRenderableComponent>(this);
 }
 
 void MeshTransformationSystem::Cleanup(ServiceContainer service_container) {
 	component_registry_->RemoveComponentSetEventsListener(this);
 }
 
-void MeshTransformationSystem::OnInstantiateEntity(ecs::EntityID entity_id) {
+void MeshTransformationSystem::OnEntityAddedToComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
 	MeshRenderableComponent mesh_rend;
 	std::cout << "Getting component" << std::endl;
 	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, mesh_rend)) {
@@ -40,7 +40,7 @@ void MeshTransformationSystem::OnInstantiateEntity(ecs::EntityID entity_id) {
 	entity_mesh_trans_state_map_[entity_id.index] = { mesh_handle, false };
 }
 
-void MeshTransformationSystem::OnCleanupEntity(ecs::EntityID entity_id) {
+void MeshTransformationSystem::OnEntityRemovedFromComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
 	MeshRenderableComponent _;
 	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, _)) {
 		return;
