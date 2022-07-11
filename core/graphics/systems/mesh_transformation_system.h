@@ -52,6 +52,6 @@ private:
 	void RecalculateMeshBounds(ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend);
 
 	ecs::Registry* component_registry_;
-	SceneGraph* scene_graph_;
+	ITransformService* transform_service_;
 	ecs::ComponentSetIDs mesh_transform_component_set_;
 };

@@ -130,7 +130,7 @@ public:
 		}
 	}
 
-	bool TryGetValueForKeySet(const std::vector<TKey>& key_set, TValue& value) {
+	bool TryGetValueForKeySet(const std::vector<TKey>& key_set, TValue*& value) {
 		SetTrieNode *current_node = root_node_;
 		std::size_t index = 0;
 		while (index < key_set.size()) {
@@ -146,7 +146,7 @@ public:
 			// keyset exists in set trie but the corresponding value is not set.
 			return false;
 		}
-		value = current_node->value;
+		value = &current_node->value;
 		return true;
 	}
 };

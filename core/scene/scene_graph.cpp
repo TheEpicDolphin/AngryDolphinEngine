@@ -3,6 +3,8 @@
 
 #include <core/transform/transform.h>
 
+#include <iostream>
+
 using namespace ecs;
 
 SceneGraph::SceneGraph() {

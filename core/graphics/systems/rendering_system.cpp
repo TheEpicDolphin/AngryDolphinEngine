@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include <core/definitions/graphics/renderer.h>
 #include <core/ecs/registry.h>
@@ -44,7 +45,7 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 				transform_service_->GetWorldTransform(entity_id),
 				mesh_rend.WorldMeshBounds(),
 				{}
-				});
+			});
 		}
 	};
 	component_registry_->EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
@@ -83,6 +84,11 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 				const glm::vec3 camera_forward = transform::Forward(camera_transform);
 				const glm::vec3 camera_up = transform::Up(camera_transform);
 				const glm::vec3 camera_origin = transform::Position(camera_transform);
+
+				std::cout << "origin: " << glm::to_string(camera_origin) << std::endl;
+				std::cout << "forward: " << glm::to_string(camera_forward) << std::endl;
+				std::cout << "left: " << glm::to_string(camera_left) << std::endl;
+				std::cout << "up: " << glm::to_string(camera_up) << std::endl;
 
 				const glm::vec3 near_clip_plane_center_world = camera_origin + camera_component.near_clip_plane_z * camera_forward;
 				const glm::vec3 far_clip_plane_center_world = camera_origin + camera_component.far_clip_plane_z * camera_forward;
@@ -177,11 +183,13 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 				for (std::size_t i = 0; i < 8; i++) {
 					if (renderable_object.aabb.ContainsPoint(view_frustum_corners_world[i])) {
 						non_culled_renderable_objects.push_back(renderable_object);
+						break;
 					}
 				}
 			}
 
 			CameraParams cam_params = { camera_clip_space_matrix, camera_component.viewport_rect };
+			std::cout << non_culled_renderable_objects.size() << std::endl;
 			renderer_->RenderFrame(cam_params, non_culled_renderable_objects);
 		}
 	};

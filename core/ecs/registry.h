@@ -63,7 +63,7 @@ namespace ecs {
 				}
 
 				Archetype* next_archetype;
-				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, *next_archetype)) {
+				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, next_archetype)) {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
 					next_archetype = CreateArchetype(new_component_types);
@@ -84,7 +84,7 @@ namespace ecs {
 				// This entity will be added to an archetype for the first time. This also
 				// means that the component to be added will be this entity's first component.
 				Archetype* archetype;
-				if (!archetype_set_trie_.TryGetValueForKeySet({ added_component_type }, *archetype)) {
+				if (!archetype_set_trie_.TryGetValueForKeySet({ added_component_type }, archetype)) {
 					// Create new archetype for entity.
 					archetype = CreateArchetype({ added_component_type });
 					archetype->InitializeWithComponentSet<T>(&component_type_info_);
@@ -125,7 +125,7 @@ namespace ecs {
 
 			if (new_component_types.size() > 0) {
 				Archetype* next_archetype;
-				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, *next_archetype)) {
+				if (!archetype_set_trie_.TryGetValueForKeySet(new_component_types, next_archetype)) {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
 					next_archetype = CreateArchetype(new_component_types);
@@ -180,11 +180,11 @@ namespace ecs {
 			// Search for an existing component set in component_set_listener_group_trie_.
 			// If found, we can simply enumerate the cached archetypes, which is faster
 			// than doing a superset search in archetype_set_trie_.
-			ComponentSetListenerGroup group;
+			ComponentSetListenerGroup* group;
 			std::vector<Archetype*> archetypes;
 			if (component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, group)) {
 				// Faster
-				archetypes = group.archetypes;
+				archetypes = group->archetypes;
 			} else {
 				// Slower
 				archetypes = archetype_set_trie_.FindSuperKeySetValues(component_set_ids);
@@ -226,7 +226,7 @@ namespace ecs {
 		ecs::ComponentSetIDs AddComponentSetEventsListener(IComponentSetEventsListener* listener) {
 			const ComponentSetIDs component_set_ids = GetComponentSetIDs<Ts...>();
 			ComponentSetListenerGroup* group;
-			if (!component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, *group)) {
+			if (!component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, group)) {
 				// A group does not currently exist with this component set.
 				// Create one.
 				group = component_set_listener_group_trie_.InsertValueForKeySet(component_set_ids, ComponentSetListenerGroup());
@@ -238,10 +238,10 @@ namespace ecs {
 		}
 
 		void RemoveComponentSetEventsListener(ecs::ComponentSetIDs component_set_ids, IComponentSetEventsListener* listener) {
-			ComponentSetListenerGroup group;
+			ComponentSetListenerGroup* group;
 			if (component_set_listener_group_trie_.TryGetValueForKeySet(component_set_ids, group)) {
-				group.component_set_events_announcer.RemoveListener(listener);
-				if (group.component_set_events_announcer.ListenerCount() == 0) {
+				group->component_set_events_announcer.RemoveListener(listener);
+				if (group->component_set_events_announcer.ListenerCount() == 0) {
 					// There are no more remaining listeners for this component set.
 					// Delete this component set listener group.
 					component_set_listener_group_trie_.RemoveValueForKeySet(component_set_ids);

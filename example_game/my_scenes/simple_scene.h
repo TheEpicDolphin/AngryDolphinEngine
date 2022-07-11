@@ -35,7 +35,6 @@ public:
 			return;
 		}
 
-		std::cout << "setting up camera..." << std::endl;
 		// Setup camera
 		ecs::EntityID camera_entity = CreateEntity();
 		CameraComponent camera_component;
@@ -45,14 +44,11 @@ public:
 		camera_component.aspect_ratio = 4.0f / 3.0f;
 		camera_component.near_clip_plane_z = 0.1f;
 		camera_component.far_clip_plane_z = 100.0f;
-		std::cout << "adding component..." << std::endl;
 		component_registry->AddComponent<CameraComponent>(camera_entity, camera_component);
-		std::cout << "added component" << std::endl;
 		glm::mat4 camera_transform = glm::mat4(1.0f);
 		transform::SetPosition(camera_transform, glm::vec3(0, 0, -5));
 		transform_service->SetWorldTransform(camera_entity, camera_transform);
 
-		std::cout << "setting up box..." << std::endl;
 		// Setup box
 		ecs::EntityID box_entity = CreateEntity();
 		MeshRenderableComponent mesh_rend_component;
