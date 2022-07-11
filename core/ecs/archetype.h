@@ -42,13 +42,13 @@ namespace ecs {
 			std::sort(sorted_component_type_array_pairs.begin(), sorted_component_type_array_pairs.end());
 
 			// Set archetype component data.
-			this.component_type_info_ = component_type_info;
-			this.component_set_ids.reserve(sorted_component_type_array_pairs.size());
-			this.component_arrays_.reserve(sorted_component_type_array_pairs.size());
+			component_type_info_ = component_type_info;
+			component_set_ids_.reserve(sorted_component_type_array_pairs.size());
+			component_arrays_.reserve(sorted_component_type_array_pairs.size());
 			for (std::size_t index = 0; index < sorted_component_type_array_pairs.size(); ++index) {
-				this.component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
-				this.component_set_ids.push_back(sorted_component_type_array_pairs[index].first);
-				this.component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
+				component_type_index_map_.insert(std::make_pair(sorted_component_type_array_pairs[index].first, index));
+				component_set_ids_.push_back(sorted_component_type_array_pairs[index].first);
+				component_arrays_.push_back(sorted_component_type_array_pairs[index].second);
 			}
 		}
 
@@ -57,23 +57,23 @@ namespace ecs {
 		{
 			const ComponentTypeID added_component_type = component_type_info->GetTypeId<T>();
 
-			this.component_type_info_ = component_type_info;
-			this.component_set_ids.reserve(source_archetype.component_set_ids.size() + 1);
-			this.component_arrays_.reserve(source_archetype.component_arrays_.size() + 1);
+			component_type_info_ = component_type_info;
+			component_set_ids_.reserve(source_archetype.component_set_ids_.size() + 1);
+			component_arrays_.reserve(source_archetype.component_arrays_.size() + 1);
 			auto insert_component_array = [this](ComponentArrayBase* comp_array, ComponentTypeID component_type) {
-				std::size_t index = this.component_set_ids.size();
-				this.component_type_index_map_.insert(std::make_pair(component_type, index));
-				this.component_set_ids.push_back(component_type);
-				this.component_arrays_.push_back(comp_array);
+				std::size_t index = component_set_ids_.size();
+				component_type_index_map_.insert(std::make_pair(component_type, index));
+				component_set_ids_.push_back(component_type);
+				component_arrays_.push_back(comp_array);
 			};
 
 			bool has_inserted_added_component = false;
-			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids.size(); ++c_idx) {
-				if (added_component_type < source_archetype.component_set_ids[c_idx] && !has_inserted_added_component) {
+			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids_.size(); ++c_idx) {
+				if (added_component_type < source_archetype.component_set_ids_[c_idx] && !has_inserted_added_component) {
 					insert_component_array(new ComponentArray<T>(), added_component_type);
 					has_inserted_added_component = true;
 				}
-				insert_component_array(source_archetype.component_arrays_[c_idx]->Empty(), this.component_set_ids[c_idx]);
+				insert_component_array(source_archetype.component_arrays_[c_idx]->Empty(), component_set_ids_[c_idx]);
 			}
 			if (!has_inserted_added_component) {
 				insert_component_array(new ComponentArray<T>(), added_component_type);
@@ -85,14 +85,14 @@ namespace ecs {
 		{
 			const ComponentTypeID removed_component_type = component_type_info->GetTypeId<T>();
 
-			this.component_type_info_ = component_type_info;
-			this.component_set_ids_.reserve(source_archetype.component_set_ids.size() - 1);
-			this.component_arrays_.reserve(source_archetype.component_arrays_.size() - 1);
-			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids.size(); ++c_idx) {
-				if (source_archetype.component_set_ids[c_idx] != removed_component_type) {
-					this.component_type_index_map_.insert(std::make_pair(source_archetype.component_set_ids[c_idx], this.component_set_ids.size()));
-					this.component_set_ids.push_back(source_archetype.component_set_ids[c_idx]);
-					this.component_arrays_.push_back(source_archetype.component_arrays_[c_idx]->Empty());
+			component_type_info_ = component_type_info;
+			component_set_ids_.reserve(source_archetype.component_set_ids_.size() - 1);
+			component_arrays_.reserve(source_archetype.component_arrays_.size() - 1);
+			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids_.size(); ++c_idx) {
+				if (source_archetype.component_set_ids_[c_idx] != removed_component_type) {
+					component_type_index_map_.insert({ source_archetype.component_set_ids_[c_idx], component_set_ids_.size() });
+					component_set_ids_.push_back(source_archetype.component_set_ids_[c_idx]);
+					component_arrays_.push_back(source_archetype.component_arrays_[c_idx]->Empty());
 				}
 			}
 		}

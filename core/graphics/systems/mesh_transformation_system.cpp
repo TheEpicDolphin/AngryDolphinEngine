@@ -15,41 +15,11 @@ void MeshTransformationSystem::Initialize(ServiceContainer service_container) {
 		// TODO: Throw error.
 	}
 
-	component_registry_->AddComponentSetEventsListener<MeshRenderableComponent>(this);
+	mesh_transform_component_set_ = component_registry_->AddComponentSetEventsListener<MeshRenderableComponent>(this);
 }
 
 void MeshTransformationSystem::Cleanup(ServiceContainer service_container) {
-	component_registry_->RemoveComponentSetEventsListener(this);
-}
-
-void MeshTransformationSystem::OnEntityAddedToComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
-	MeshRenderableComponent mesh_rend;
-	std::cout << "Getting component" << std::endl;
-	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, mesh_rend)) {
-		return;
-	}
-	std::cout << "Got component" << std::endl;
-	Mesh* mesh_handle = mesh_rend.mesh.get();
-	if (mesh_handle) {
-		AddEntityToMesh2EntitiesMapping(entity_id, mesh_handle);
-		if (mesh_rend.mesh->GetVertexPositions().size() > 0) {
-			RecalculateMeshBounds(entity_id, mesh_rend);
-		}
-	}
-
-	entity_mesh_trans_state_map_[entity_id.index] = { mesh_handle, false };
-}
-
-void MeshTransformationSystem::OnEntityRemovedFromComponentSet(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
-	MeshRenderableComponent _;
-	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, _)) {
-		return;
-	}
-
-	Mesh* mesh_handle = entity_mesh_trans_state_map_[entity_id.index].mesh_handle;
-	entity_mesh_trans_state_map_.erase(entity_id.index);
-
-	RemoveEntityFromMesh2EntitiesMapping(entity_id, mesh_handle);
+	component_registry_->RemoveComponentSetEventsListener(mesh_transform_component_set_, this);
 }
 
 void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha)
@@ -91,6 +61,40 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha)
 
 	component_registry_->EnumerateComponentsWithBlock<MeshRenderableComponent>(mesh_renderables_block);
 }
+
+#pragma region ecs::IComponentSetEventsListener
+
+void MeshTransformationSystem::OnEnterComponentSupersetOf(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
+	MeshRenderableComponent mesh_rend;
+	std::cout << "Getting component" << std::endl;
+	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, mesh_rend)) {
+		return;
+	}
+	std::cout << "Got component" << std::endl;
+	Mesh* mesh_handle = mesh_rend.mesh.get();
+	if (mesh_handle) {
+		AddEntityToMesh2EntitiesMapping(entity_id, mesh_handle);
+		if (mesh_rend.mesh->GetVertexPositions().size() > 0) {
+			RecalculateMeshBounds(entity_id, mesh_rend);
+		}
+	}
+
+	entity_mesh_trans_state_map_[entity_id.index] = { mesh_handle, false };
+}
+
+void MeshTransformationSystem::OnExitComponentSupersetOf(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
+	MeshRenderableComponent _;
+	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, _)) {
+		return;
+	}
+
+	Mesh* mesh_handle = entity_mesh_trans_state_map_[entity_id.index].mesh_handle;
+	entity_mesh_trans_state_map_.erase(entity_id.index);
+
+	RemoveEntityFromMesh2EntitiesMapping(entity_id, mesh_handle);
+}
+
+#pragma endregion
 
 inline bool DidMeshVertexPositionsChange(Mesh* mesh, std::size_t attribute_index) {
 	return mesh->GetPipeline()->VertexAttributeInfoAtIndex(attribute_index).category == VertexAttributeUsageCategory::Position;

@@ -23,12 +23,12 @@ public:
 	MeshTransformationSystem() = default;
 
 	void Initialize(ServiceContainer service_container) override;
-
 	void Cleanup(ServiceContainer service_container) override;
-
 	void OnFixedUpdate(double fixed_delta_time) {}
-
 	void OnFrameUpdate(double delta_time, double alpha) override;
+
+	void OnEnterComponentSupersetOf(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) override;
+	void OnExitComponentSupersetOf(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids)  override;
 
 private:
 	struct MeshTransformationState {
@@ -53,4 +53,5 @@ private:
 
 	ecs::Registry* component_registry_;
 	SceneGraph* scene_graph_;
+	ecs::ComponentSetIDs mesh_transform_component_set_;
 };
