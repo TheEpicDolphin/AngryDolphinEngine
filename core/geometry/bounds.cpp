@@ -18,3 +18,9 @@ bool Bounds::ContainsPoint(glm::vec3 p) {
 		(min.y <= p.y && p.y <= max.y) &&
 		(min.z <= p.z && p.z <= max.z);
 }
+
+bool Bounds::Intersects(Bounds other) {
+	return (min.x <= other.max.x && max.x >= other.min.x) &&
+		(min.y <= other.max.y && max.y >= other.min.y) &&
+		(min.z <= other.max.z && max.z >= other.min.z);
+}

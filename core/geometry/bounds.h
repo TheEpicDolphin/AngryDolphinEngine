@@ -14,6 +14,8 @@ namespace geometry {
 		Bounds(glm::vec3 min, glm::vec3 max);
 
 		bool ContainsPoint(glm::vec3 point);
+
+		bool Intersects(Bounds other);
 	};
 }
 

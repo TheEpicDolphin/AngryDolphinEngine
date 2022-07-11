@@ -24,4 +24,5 @@ private:
 	ITransformService* transform_service_;
 	IRenderer* renderer_;
 	std::vector<RenderableObject> renderable_objects_;
+	std::vector<RenderableObject> non_culled_renderable_objects_;
 };
