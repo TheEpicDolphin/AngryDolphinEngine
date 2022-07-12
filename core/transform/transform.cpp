@@ -1,6 +1,6 @@
 #include "transform.h"
 
-glm::vec3 transform::Left(const glm::mat4& transform) {
+glm::vec3 transform::Right(const glm::mat4& transform) {
 	return glm::vec3(transform[0]);
 }
 
@@ -9,7 +9,7 @@ glm::vec3 transform::Up(const glm::mat4& transform) {
 }
 
 glm::vec3 transform::Forward(const glm::mat4& transform) {
-	return glm::vec3(transform[2]);
+	return -glm::vec3(transform[2]);
 }
 
 glm::vec3 transform::Position(const glm::mat4& transform) {

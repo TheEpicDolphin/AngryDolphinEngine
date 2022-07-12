@@ -47,7 +47,7 @@ public:
 		camera_component.viewport_rect = geometry::Rect(0, 0, 1024, 768);
 		component_registry->AddComponent<CameraComponent>(camera_entity, camera_component);
 		glm::mat4 camera_transform = glm::mat4(1.0f);
-		transform::SetPosition(camera_transform, glm::vec3(0, 0, -5));
+		transform::SetPosition(camera_transform, glm::vec3(0, 0, 5));
 		transform_service->SetWorldTransform(camera_entity, camera_transform);
 
 		// Setup box
@@ -58,7 +58,9 @@ public:
 		mesh_rend_component.mesh = Mesh::CreateCubeMeshPrimitive({ rp, false }, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
 		mesh_rend_component.material = Material::CreateMaterial({ rp });
 		component_registry->AddComponent<MeshRenderableComponent>(box_entity, mesh_rend_component);
-		transform_service->SetWorldTransform(box_entity, glm::mat4(1.0));
+		glm::mat4 box_transform = glm::mat4(1.0f);
+		transform::SetPosition(box_transform, glm::vec3(0.2f, 0.2f, 0));
+		transform_service->SetWorldTransform(box_entity, box_transform);
 	}
 
 	void OnUnload(ServiceContainer& service_container) override {

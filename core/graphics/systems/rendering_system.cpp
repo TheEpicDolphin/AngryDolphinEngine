@@ -64,7 +64,6 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 				const float orthographic_half_width = camera_component.aspect_ratio * camera_component.orthographic_half_height;
 				const float orthographic_half_height = camera_component.orthographic_half_height;
 
-				// Orthographic projection matrix
 				projection_matrix = glm::ortho(
 					-orthographic_half_width,
 					orthographic_half_width,
@@ -76,8 +75,8 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 
 				// Bounds of the ortho camera view, in camera space.
 				geometry::Bounds ortho_view_bounds = geometry::Bounds(
-					glm::vec3(-orthographic_half_width, -orthographic_half_height, camera_component.near_clip_plane_z),
-					glm::vec3(orthographic_half_width, orthographic_half_height, camera_component.far_clip_plane_z)
+					glm::vec3(-orthographic_half_width, -orthographic_half_height, -camera_component.far_clip_plane_z),
+					glm::vec3(orthographic_half_width, orthographic_half_height, -camera_component.near_clip_plane_z)
 				);
 
 				intersects_view = [&ortho_view_bounds](geometry::Bounds& renderable_camera_space_aabb) {
@@ -99,24 +98,24 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 				const float hh_far = hh_1 * camera_component.far_clip_plane_z;
 				const float hw_far = hh_far * camera_component.aspect_ratio;
 
+				const float max_z_bound = -camera_component.near_clip_plane_z;
+				const float min_z_bound = -camera_component.far_clip_plane_z;
 				geometry::Line2D min_xz_bound(
-					glm::vec2(-hw_near, camera_component.near_clip_plane_z),
-					glm::vec2(-hw_far, camera_component.far_clip_plane_z)
+					glm::vec2(-hw_near, max_z_bound),
+					glm::vec2(-hw_far, min_z_bound)
 				);
 				geometry::Line2D max_xz_bound(
-					glm::vec2(hw_near, camera_component.near_clip_plane_z),
-					glm::vec2(hw_far, camera_component.far_clip_plane_z)
+					glm::vec2(hw_near, max_z_bound),
+					glm::vec2(hw_far, min_z_bound)
 				);
 				geometry::Line2D min_yz_bound(
-					glm::vec2(-hh_near, camera_component.near_clip_plane_z),
-					glm::vec2(-hh_far, camera_component.far_clip_plane_z)
+					glm::vec2(-hh_near, max_z_bound),
+					glm::vec2(-hh_far, min_z_bound)
 				);
 				geometry::Line2D max_yz_bound(
-					glm::vec2(hh_near, camera_component.near_clip_plane_z),
-					glm::vec2(hh_far, camera_component.far_clip_plane_z)
+					glm::vec2(hh_near, max_z_bound),
+					glm::vec2(hh_far, min_z_bound)
 				);
-				const float min_z_bound = camera_component.near_clip_plane_z;
-				const float max_z_bound = camera_component.far_clip_plane_z;
 				intersects_view = [
 					&min_xz_bound,
 					&max_xz_bound,
@@ -125,12 +124,12 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 					min_z_bound,
 					max_z_bound
 				](geometry::Bounds& aabb) {
-					const glm::vec2 min_x_max_z = glm::vec2(aabb.min.x, aabb.max.z);
-					const glm::vec2 max_x_max_z = glm::vec2(aabb.max.x, aabb.max.z);
-					const glm::vec2 min_y_max_z = glm::vec2(aabb.min.y, aabb.max.z);
-					const glm::vec2 max_y_max_z = glm::vec2(aabb.max.y, aabb.max.z);
-					return !min_xz_bound.IsPointOnLeftSide(max_x_max_z) && max_xz_bound.IsPointOnLeftSide(min_x_max_z)
-						&& !min_xz_bound.IsPointOnLeftSide(max_y_max_z) && max_xz_bound.IsPointOnLeftSide(min_y_max_z)
+					const glm::vec2 min_x_min_z = glm::vec2(aabb.min.x, aabb.max.z);
+					const glm::vec2 max_x_min_z = glm::vec2(aabb.max.x, aabb.max.z);
+					const glm::vec2 min_y_min_z = glm::vec2(aabb.min.y, aabb.max.z);
+					const glm::vec2 max_y_min_z = glm::vec2(aabb.max.y, aabb.max.z);
+					return !min_xz_bound.IsPointOnLeftSide(max_x_min_z) && max_xz_bound.IsPointOnLeftSide(min_x_min_z)
+						&& !min_xz_bound.IsPointOnLeftSide(max_y_min_z) && max_xz_bound.IsPointOnLeftSide(min_y_min_z)
 						&& min_z_bound <= aabb.max.z && max_z_bound >= aabb.min.z;
 				};
 			}
@@ -174,8 +173,7 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 			CameraParams cam_params = { projection_matrix * camera_view_matrix, camera_component.viewport_rect };
 			std::cout << "total renderables: " << renderable_objects_.size() << std::endl;
 			std::cout << "culled: " << renderable_objects_.size() - non_culled_renderable_objects_.size() << std::endl;
-			auto a = glm::inverse(projection_matrix) * camera_view_matrix;
-			std::cout << glm::to_string(transform::TransformedPoint(a, glm::vec3(0, 0, 0))) << std::endl;
+			auto a = projection_matrix * camera_view_matrix;
 			renderer_->RenderFrame(cam_params, non_culled_renderable_objects_);
 		}
 	};
