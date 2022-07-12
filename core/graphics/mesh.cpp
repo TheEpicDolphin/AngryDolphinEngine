@@ -56,7 +56,7 @@ std::shared_ptr<Mesh> Mesh::CreateCubeMeshPrimitive(MeshInfo info, glm::vec3 ori
 		glm::vec3(0, 0, 1)
 	};
 
-	const std::vector<std::size_t> indices =
+	const std::vector<unsigned int> indices =
 	{
 		0, 2, 1, //face front
 		0, 3, 2,
@@ -149,12 +149,12 @@ const VertexAttributeBuffer& Mesh::GetVertexAttributeBufferAtIndex(std::size_t i
 	return vertex_attribute_buffers_[index];
 }
 
-void Mesh::SetTriangleIndices(std::vector<std::size_t> tri_indices) {
+void Mesh::SetTriangleIndices(std::vector<unsigned int> tri_indices) {
 	// This does not affect the world mesh bounds! Yay!
 	triangle_indices_ = tri_indices;
 }
 
-const std::vector<std::size_t>& Mesh::GetTriangleIndices() {
+const std::vector<unsigned int>& Mesh::GetTriangleIndices() {
 	return triangle_indices_;
 }
 

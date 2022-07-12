@@ -79,19 +79,18 @@ void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 
 	const glm::mat4 vp = camera_params.view_projection_matrix;
 	GLint mvp_location = 0;
+	GLuint index_buffer = 0;
 	RenderableObjectBatchKey previous_batch_key = { 0, 0, 0 };
 	for (std::map<RenderableObjectBatchKey, RenderableObjectBatch>::iterator it = sorted_renderable_batches.begin();
 		it != sorted_renderable_batches.end();
 		it++) {
 		RenderableObjectBatchKey current_batch_key = it->first;
 		RenderableObjectBatch batch = it->second;
-
 		//GLint bones_location;
 		if (current_batch_key.pipeline_handle != previous_batch_key.pipeline_handle) {
 			// Switch rendering pipeline configuration
 			const PipelineState pipeline_state = pipeline_state_map_[current_batch_key.pipeline_handle];
 			glUseProgram(pipeline_state.program_id);
-
 			mvp_location = pipeline_state.pipeline->MVPUniform().location;
 			//bones_location = pipeline_state.pipeline->BonesUniform().location;
 		}
@@ -99,6 +98,7 @@ void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 			// Switch mesh configuration
 			const MeshState mesh_state = mesh_state_map_[current_batch_key.mesh_handle];
 			glBindVertexArray(mesh_state.vao);
+			index_buffer = mesh_state.ibo;
 		}
 		if (current_batch_key.material_handle != previous_batch_key.material_handle) {
 			// Switch material configuration
@@ -106,13 +106,16 @@ void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 			for (std::size_t i = 0; i < batch.material->UniformValues().size(); i++) {
 				const UniformInfo uniform_info = batch.mesh->GetPipeline()->MaterialUniforms()[i];
 				const UniformValue uniform_value = batch.material->UniformValues()[i];
-				shader::opengl::SetUniform(uniform_info.data_type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
+				if (uniform_value.data.size() > 0) {
+					// Only set shader uniform value if it has been assigned data.
+					shader::opengl::SetUniform(uniform_info.data_type, uniform_info.location, uniform_info.array_length, uniform_value.data.data());
+				}
 			}
 		}
 
 		// Iterate over instances of mesh and draw each after transforming (and optionally setting bones).
 		for (RenderableObjectInstance& renderable_object_instance : batch.instances) {
-			const glm::mat4 mvp = renderable_object_instance.model_transform * vp;
+			const glm::mat4 mvp = vp * renderable_object_instance.model_transform;
 			// Set MVP matrix in shader.
 			glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
 			/*
@@ -128,7 +131,17 @@ void OpenGLRenderer::RenderFrame(const CameraParams& camera_params, const std::v
 			*/
 
 			// Draw
-			glDrawArrays(GL_TRIANGLES, 0, batch.mesh->VertexCount());
+			if (index_buffer) {
+				const GLsizei indices_count = batch.mesh->GetTriangleIndices().size();
+				//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+				glDrawElements(
+					GL_TRIANGLES,		// mode
+					indices_count,		// count
+					GL_UNSIGNED_INT,	// type
+					(void*)0			// element array buffer offset
+				);
+				//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			}
 		}
 
 		previous_batch_key = current_batch_key;
@@ -190,7 +203,7 @@ OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::sha
 		GLuint shader_id = glCreateShader(GLShaderTypeForStageType(shader.type));
 
 		// Compile shader
-		printf("Compiling %s...\n", NameForStageType(shader.type));
+		printf("Compiling %s...\n", NameForStageType(shader.type).c_str());
 		char const* shader_source_ptr = shader.code.c_str();
 		glShaderSource(shader_id, 1, &shader_source_ptr, NULL);
 		glCompileShader(shader_id);
@@ -231,7 +244,7 @@ OpenGLRenderer::PipelineState OpenGLRenderer::CreatePipelineState(const std::sha
 
 
 
-static inline void WriteVertexBufferData(GLuint& bo, std::vector<char> buffer_data) {
+static inline void WriteVertexBufferData(GLuint& bo, const std::vector<char>& buffer_data) {
 	glBindBuffer(GL_ARRAY_BUFFER, bo);
 	glBufferData(GL_ARRAY_BUFFER, buffer_data.size(), buffer_data.data(), GL_STATIC_DRAW);
 }
@@ -249,12 +262,13 @@ OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
 		glGenVertexArrays(1, &mesh_state.vao);
 		glBindVertexArray(mesh_state.vao);
 		
+		// Generate and set buffer for triangle indices.
 		glGenBuffers(1, &mesh_state.ibo);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_state.ibo);
-		const std::vector<std::size_t>& tri_indices = mesh->GetTriangleIndices();
-		const char* element_array_buffer_data = reinterpret_cast<const char*>(tri_indices.data());
-		glBufferData(GL_ARRAY_BUFFER, tri_indices.size() * sizeof(std::size_t), element_array_buffer_data, GL_STATIC_DRAW);
+		const std::vector<unsigned int>& tri_indices = mesh->GetTriangleIndices();
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, tri_indices.size() * sizeof(unsigned int), tri_indices.data(), GL_STATIC_DRAW);
 
+		// Generate and set buffers for all other vertex attributes.
 		const std::size_t num_va_buffers = mesh->GetVertexAttributeBuffers().size();
 		mesh_state.bos = new GLuint[num_va_buffers];
 		glGenBuffers(num_va_buffers, mesh_state.bos);
@@ -262,20 +276,20 @@ OpenGLRenderer::MeshState OpenGLRenderer::CreateMeshState(Mesh* mesh) {
 		for (std::size_t i = 0; i < num_va_buffers; i++) {
 			const VertexAttributeInfo& vertex_attribute = pipeline->VertexAttributes()[i];
 			const VertexAttributeBuffer& va_buffer = mesh->GetVertexAttributeBuffers()[i];
-			
 			WriteVertexBufferData(*(mesh_state.bos + i), va_buffer.data);
 
 			glEnableVertexAttribArray(vertex_attribute.location);
 			glVertexAttribPointer(
 				vertex_attribute.location,		// The shader's location for vertex attribute.
 				vertex_attribute.dimension,		// number of components
-				vertex_attribute.format,		// type
+				GL_FLOAT, //vertex_attribute.format,		// type
 				GL_FALSE,						// normalized?
 				0,								// stride
 				(void*)0						// array buffer offset
 			);
-			glDisableVertexAttribArray(vertex_attribute.location);
+			//glDisableVertexAttribArray(vertex_attribute.location);
 		}
+
 		glBindVertexArray(0);
 		break;
 	}

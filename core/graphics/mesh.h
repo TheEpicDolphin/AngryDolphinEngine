@@ -65,9 +65,9 @@ public:
 
 	std::vector<glm::ivec4> GetBoneIndices();
 
-	void SetTriangleIndices(std::vector<std::size_t> tri_indices);
+	void SetTriangleIndices(std::vector<unsigned int> tri_indices);
 
-	const std::vector<std::size_t>& GetTriangleIndices();
+	const std::vector<unsigned int>& GetTriangleIndices();
 
 	const std::shared_ptr<RenderingPipeline>& GetPipeline();
 
@@ -113,7 +113,7 @@ private:
 
 	// These elements are indices into the vertex positions. 
 	// Elements n, n+1, and n+2, where n % 3 == 0, form a triangle going clockwise.
-	std::vector<std::size_t> triangle_indices_;
+	std::vector<unsigned int> triangle_indices_;
 
 	std::vector<VertexAttributeBuffer> vertex_attribute_buffers_;
 	std::unordered_map<std::string, std::size_t> vertex_attribute_buffer_name_map_;

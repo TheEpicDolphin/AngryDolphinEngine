@@ -174,6 +174,8 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 			CameraParams cam_params = { projection_matrix * camera_view_matrix, camera_component.viewport_rect };
 			std::cout << "total renderables: " << renderable_objects_.size() << std::endl;
 			std::cout << "culled: " << renderable_objects_.size() - non_culled_renderable_objects_.size() << std::endl;
+			auto a = glm::inverse(projection_matrix) * camera_view_matrix;
+			std::cout << glm::to_string(transform::TransformedPoint(a, glm::vec3(0, 0, 0))) << std::endl;
 			renderer_->RenderFrame(cam_params, non_culled_renderable_objects_);
 		}
 	};

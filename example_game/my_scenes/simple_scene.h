@@ -44,6 +44,7 @@ public:
 		camera_component.aspect_ratio = 1.0f; // 4.0f / 3.0f;
 		camera_component.near_clip_plane_z = 0.1f;
 		camera_component.far_clip_plane_z = 100.0f;
+		camera_component.viewport_rect = geometry::Rect(0, 0, 1024, 768);
 		component_registry->AddComponent<CameraComponent>(camera_entity, camera_component);
 		glm::mat4 camera_transform = glm::mat4(1.0f);
 		transform::SetPosition(camera_transform, glm::vec3(0, 0, -5));
