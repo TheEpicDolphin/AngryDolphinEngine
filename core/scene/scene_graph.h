@@ -41,6 +41,8 @@ public:
 
 	void SetLocalTransform(ecs::EntityID entity_id, glm::mat4& local_transform_matrix) const override;
 
+	// Returns the transform of the entity in world space. Can be used to convert
+	// points/directions/transforms in the entity's local space into world space.
 	const glm::mat4& GetWorldTransform(ecs::EntityID entity_id) const override;
 
 	void SetWorldTransform(ecs::EntityID entity_id, glm::mat4& world_transform_matrix) const override;

@@ -29,7 +29,7 @@
 		<element_0 id="13">
 			<type id="26">0</type>
 			<code id="27">
-			#version 330 core
+			#version 430 core
 			layout (location = 0) in vec3 position; // the position variable has attribute position 0
 			layout (location = 1) uniform mat4 mvp;	// mat4 takes up 4 locations
 			layout (location = 5) uniform vec4 mainColor;
@@ -46,7 +46,7 @@
 		<element_1 id="14">
 			<type id="28">2</type>
 			<code id="29">
-			#version 330 core
+			#version 430 core
 			out vec4 fragColor;
 			  
 			in vec4 vertexColor; // the input variable from the vertex shader (same name and same type)  

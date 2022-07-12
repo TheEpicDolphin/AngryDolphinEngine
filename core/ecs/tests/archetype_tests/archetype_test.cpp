@@ -59,9 +59,9 @@ TEST(archetype_test_suite, adding_entity_test)
     Archetype archetype;
     archetype.InitializeWithComponentSet<A, B, C>(&component_type_info);
     archetype.AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
-    B b;
+    B* b;
     ASSERT_TRUE(archetype.GetComponentForEntity({ 0, 1 }, b));
-    ASSERT_EQ(b.name, b_name_0);
+    ASSERT_EQ(b->name, b_name_0);
 
     const std::vector<EntityID> entities = archetype.Entities();
     const std::vector<EntityID> expected_entities = { { 0, 1 } };
@@ -182,7 +182,7 @@ TEST(archetype_test_suite, creating_archetype_with_removed_component_type)
 
     archetype_acd.EnumerateComponentsWithBlock<A, C, D>(test_block);
 
-    B b;
+    B* b;
     ASSERT_FALSE(archetype_acd.GetComponentForEntity({ 0, 3 }, b));
 }
 

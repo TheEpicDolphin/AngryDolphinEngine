@@ -153,7 +153,7 @@ namespace ecs {
 		}
 
 		template<typename T>
-		bool GetComponent(EntityID entity_id, T& component)
+		bool GetComponent(EntityID entity_id, T*& component)
 		{
 			Archetype *archetype = entity_archetype_map_[entity_id.index];
 			if (!archetype) {
@@ -163,7 +163,7 @@ namespace ecs {
 		}
 
 		template<class... Ts>
-		bool GetComponentSet(EntityID entity_id, Ts&... components)
+		bool GetComponentSet(EntityID entity_id, Ts*&... components)
 		{
 			Archetype* archetype = entity_archetype_map_[entity_id.index];
 			if (!archetype) {

@@ -10,8 +10,8 @@ namespace transform {
 	glm::vec3 Forward(const glm::mat4& transform);
 	glm::vec3 Position(const glm::mat4& transform);
 	void SetPosition(glm::mat4& transform, glm::vec3 position);
-	glm::mat4 TransformWorldToLocal(const glm::mat4& transform, const glm::mat4& world_matrix);
-	glm::mat4 TransformLocalToWorld(const glm::mat4& transform, const glm::mat4& local_matrix);
-	glm::vec3 TransformPointWorldToLocal(const glm::mat4& transform, const glm::vec3& world_point);
-	glm::vec3 TransformPointLocalToWorld(const glm::mat4& transform, const glm::vec3& local_point);
+	glm::mat4 InverseTransformedMatrix(const glm::mat4& transform, const glm::mat4& matrix);
+	glm::mat4 TransformedMatrix(const glm::mat4& transform, const glm::mat4& local_matrix);
+	glm::vec3 InverseTransformedPoint(const glm::mat4& transform, const glm::vec3& point);
+	glm::vec3 TransformedPoint(const glm::mat4& transform, const glm::vec3& local_point);
 }

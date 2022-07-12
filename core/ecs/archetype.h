@@ -190,14 +190,14 @@ namespace ecs {
 		}
 
 		template<class T>
-		bool GetComponentForEntity(EntityID entity_id, T& component)
+		bool GetComponentForEntity(EntityID entity_id, T*& component)
 		{
 			ComponentArray<T>* const component_array = FindComponentArray<T>();
 			if (!component_array) {
 				return false;
 			}
 			const std::size_t index = entity_components_index_map_[entity_id.index];
-			component = component_array->ComponentAtIndex(index);
+			component = &component_array->ComponentAtIndex(index);
 			return true;
 		}
 

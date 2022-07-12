@@ -40,8 +40,8 @@ public:
 		CameraComponent camera_component;
 		camera_component.disabled = false;
 		camera_component.is_orthographic = true;
-		camera_component.orthographic_half_height = 10.0f;
-		camera_component.aspect_ratio = 4.0f / 3.0f;
+		camera_component.orthographic_half_height = 1.0f;
+		camera_component.aspect_ratio = 1.0f; // 4.0f / 3.0f;
 		camera_component.near_clip_plane_z = 0.1f;
 		camera_component.far_clip_plane_z = 100.0f;
 		component_registry->AddComponent<CameraComponent>(camera_entity, camera_component);

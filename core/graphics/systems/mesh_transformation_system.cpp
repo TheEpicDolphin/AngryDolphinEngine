@@ -2,6 +2,8 @@
 #include "mesh_transformation_system.h"
 
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
+
 #include <core/transform/transform.h>
 
 #include "../rendering_pipeline.h"
@@ -65,16 +67,16 @@ void MeshTransformationSystem::OnFrameUpdate(double delta_time, double alpha)
 #pragma region ecs::IComponentSetEventsListener
 
 void MeshTransformationSystem::OnEnterComponentSupersetOf(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
-	MeshRenderableComponent mesh_rend;
+	MeshRenderableComponent* mesh_rend;
 	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, mesh_rend)) {
 		return;
 	}
 
-	Mesh* mesh_handle = mesh_rend.mesh.get();
+	Mesh* mesh_handle = mesh_rend->mesh.get();
 	if (mesh_handle) {
 		AddEntityToMesh2EntitiesMapping(entity_id, mesh_handle);
-		if (mesh_rend.mesh->GetVertexPositions().size() > 0) {
-			RecalculateMeshBounds(entity_id, mesh_rend);
+		if (mesh_rend->mesh->GetVertexPositions().size() > 0) {
+			RecalculateMeshBounds(entity_id, *mesh_rend);
 		}
 	}
 
@@ -82,7 +84,7 @@ void MeshTransformationSystem::OnEnterComponentSupersetOf(ecs::EntityID entity_i
 }
 
 void MeshTransformationSystem::OnExitComponentSupersetOf(ecs::EntityID entity_id, const ecs::ComponentSetIDs component_set_ids) {
-	MeshRenderableComponent _;
+	MeshRenderableComponent* _;
 	if (!component_registry_->GetComponent<MeshRenderableComponent>(entity_id, _)) {
 		return;
 	}
@@ -162,12 +164,13 @@ void MeshTransformationSystem::RemoveEntityFromMesh2EntitiesMapping(ecs::EntityI
 void MeshTransformationSystem::RecalculateMeshBounds(ecs::EntityID entity_id, MeshRenderableComponent& mesh_rend) {
 	const std::vector<glm::vec3>& local_vert_positions = mesh_rend.mesh->GetVertexPositions();
 	glm::mat4 entity_transform = transform_service_->GetWorldTransform(entity_id);
-	glm::vec3 min_p = transform::TransformPointLocalToWorld(entity_transform, local_vert_positions[0]);
+	glm::vec3 min_p = transform::TransformedPoint(entity_transform, local_vert_positions[0]);
 	glm::vec3 max_p = min_p;
 	for (std::size_t i = 1; i < local_vert_positions.size(); i++) {
-		glm::vec3 world_p = transform::TransformPointLocalToWorld(entity_transform, local_vert_positions[i]);
+		glm::vec3 world_p = transform::TransformedPoint(entity_transform, local_vert_positions[i]);
 		min_p = glm::min(min_p, world_p);
 		max_p = glm::max(max_p, world_p);
 	}
+	//std::cout << "recalculated mesh bounds min: " << glm::to_string(min_p) << std::endl;
 	mesh_rend.world_mesh_bounds_ = geometry::Bounds(min_p, max_p);
 }
