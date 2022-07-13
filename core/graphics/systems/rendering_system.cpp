@@ -101,20 +101,20 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 				const float max_z_bound = -camera_component.near_clip_plane_z;
 				const float min_z_bound = -camera_component.far_clip_plane_z;
 				geometry::Line2D min_xz_bound(
-					glm::vec2(-hw_near, max_z_bound),
-					glm::vec2(-hw_far, min_z_bound)
+					glm::vec2(-hw_far, min_z_bound),
+					glm::vec2(-hw_near, max_z_bound)
 				);
 				geometry::Line2D max_xz_bound(
-					glm::vec2(hw_near, max_z_bound),
-					glm::vec2(hw_far, min_z_bound)
+					glm::vec2(hw_far, min_z_bound),
+					glm::vec2(hw_near, max_z_bound)
 				);
 				geometry::Line2D min_yz_bound(
-					glm::vec2(-hh_near, max_z_bound),
-					glm::vec2(-hh_far, min_z_bound)
+					glm::vec2(-hh_far, min_z_bound),
+					glm::vec2(-hh_near, max_z_bound)
 				);
 				geometry::Line2D max_yz_bound(
-					glm::vec2(hh_near, max_z_bound),
-					glm::vec2(hh_far, min_z_bound)
+					glm::vec2(hh_far, min_z_bound),
+					glm::vec2(hh_near, max_z_bound)
 				);
 				intersects_view = [
 					&min_xz_bound,
@@ -124,12 +124,12 @@ void RenderingSystem::OnFrameUpdate(double delta_time, double alpha)
 					min_z_bound,
 					max_z_bound
 				](geometry::Bounds& aabb) {
-					const glm::vec2 min_x_min_z = glm::vec2(aabb.min.x, aabb.max.z);
-					const glm::vec2 max_x_min_z = glm::vec2(aabb.max.x, aabb.max.z);
-					const glm::vec2 min_y_min_z = glm::vec2(aabb.min.y, aabb.max.z);
-					const glm::vec2 max_y_min_z = glm::vec2(aabb.max.y, aabb.max.z);
+					const glm::vec2 min_x_min_z = glm::vec2(aabb.min.x, aabb.min.z);
+					const glm::vec2 max_x_min_z = glm::vec2(aabb.max.x, aabb.min.z);
+					const glm::vec2 min_y_min_z = glm::vec2(aabb.min.y, aabb.min.z);
+					const glm::vec2 max_y_min_z = glm::vec2(aabb.max.y, aabb.min.z);
 					return !min_xz_bound.IsPointOnLeftSide(max_x_min_z) && max_xz_bound.IsPointOnLeftSide(min_x_min_z)
-						&& !min_xz_bound.IsPointOnLeftSide(max_y_min_z) && max_xz_bound.IsPointOnLeftSide(min_y_min_z)
+						&& !min_yz_bound.IsPointOnLeftSide(max_y_min_z) && max_yz_bound.IsPointOnLeftSide(min_y_min_z)
 						&& min_z_bound <= aabb.max.z && max_z_bound >= aabb.min.z;
 				};
 			}

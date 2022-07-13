@@ -39,9 +39,10 @@ public:
 		ecs::EntityID camera_entity = CreateEntity();
 		CameraComponent camera_component;
 		camera_component.disabled = false;
-		camera_component.is_orthographic = true;
-		camera_component.orthographic_half_height = 1.0f;
-		camera_component.aspect_ratio = 1.0f; // 4.0f / 3.0f;
+		camera_component.is_orthographic = false;
+		camera_component.orthographic_half_height = 1.0f;	// Ortho only.
+		camera_component.vertical_fov = 45.0f;				// Perspective only.
+		camera_component.aspect_ratio = 1.0f;
 		camera_component.near_clip_plane_z = 0.1f;
 		camera_component.far_clip_plane_z = 100.0f;
 		camera_component.viewport_rect = geometry::Rect(0, 0, 1024, 768);
