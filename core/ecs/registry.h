@@ -8,12 +8,14 @@
 
 #include <core/utils/event_announcer.h>
 #include <core/utils/set_trie.h>
-#include <core/utils/type_info.h>
+#include <core/utils/type_id_mapper.h>
 
 #include <config/core_components.h>
 
 #include "entity.h"
 #include "archetype.h"
+
+#define REGISTER_COMPONENT_TYPE(name) component_type_info_.GetTypeId<##name>();
 
 namespace ecs {
 	class IComponentSetEventsListener {
@@ -28,9 +30,7 @@ namespace ecs {
 		Registry() 
 		{
 			// This maintains the type ids of components consistent across different compilations.
-			#define REGISTER_COMPONENT(name) component_type_info_.GetTypeId<name>();
-				CORE_COMPONENTS
-			#undef REGISTER_COMPONENT
+			FOREACH_CORE_COMPONENT_TYPE(REGISTER_COMPONENT_TYPE)
 		}
 
 		template<typename T>

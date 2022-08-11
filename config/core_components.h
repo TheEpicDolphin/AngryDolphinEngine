@@ -7,7 +7,7 @@ struct MeshRenderableComponent;
 struct CameraComponent;
 struct RigidbodyComponent;
 
-#define CORE_COMPONENTS \
-    REGISTER_COMPONENT(MeshRenderableComponent) \
-    REGISTER_COMPONENT(CameraComponent) \
-    REGISTER_COMPONENT(RigidbodyComponent)
+#define FOREACH_CORE_COMPONENT_TYPE(ACTION) \
+    ACTION(MeshRenderableComponent) \
+    ACTION(CameraComponent) \
+    ACTION(RigidbodyComponent)
