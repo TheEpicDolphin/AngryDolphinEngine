@@ -9,12 +9,12 @@
 #include <core/utils/set_trie.h>
 
 #define REGISTER_MY_TYPE(typeName) int RegisterMyType() { \
-        RuntimeTypeRegistry.Instance()->RegisterType<std::remove_reference(decltype(*this))>(#typeName); \
+        RuntimeTypeRegistry.GetInstance().RegisterType<std::remove_reference(decltype(*this))>(#typeName); \
     } \
 static int i = RegisterMyType(); \
 
 #define REGISTER_MY_TYPE(typeName, ...) int RegisterMyType() { \
-        RuntimeTypeRegistry.Instance()->RegisterTypeWithTemplateArgs<std::remove_reference(decltype(*this)), __VA_ARGS__>(#typeName); \
+        RuntimeTypeRegistry.GetInstance().RegisterTypeWithTemplateArgs<std::remove_reference(decltype(*this)), __VA_ARGS__>(#typeName); \
     } \
 static int i = RegisterMyType(); \
 
@@ -29,7 +29,11 @@ static int i = RegisterMyType(); \
 
 #define REGISTER_ARITHMETIC_TYPE(typeName) RegisterType<##typeName>(#typeName); \
 
-#define REGISTER_STL_TYPE(typeName) RegisterType<##typeName>(#typeName); \
+#define REGISTER_STL_TYPE(typeName) template<typename T> \
+const char* GetTypeName() { \
+    int type_id = type_id_mapper_.GetTypeId<T>(); \
+    return rt_type_data_map_[type_id].type_name; \
+} \
 #define REGISTER_STL_TYPE(typeName, ...) RegisterType<##typeName>(#typeName); \
 
 namespace serialize {
@@ -50,14 +54,22 @@ namespace serialize {
             return new T();
         }
 
-    public:
         RuntimeTypeRegistry() {
             FOREACH_ARITHMETIC_TYPE(REGISTER_ARITHMETIC_TYPE)
         }
 
+    public:
+
+        static RuntimeTypeRegistry& GetInstance() {
+            static RuntimeTypeRegistry rtReg;
+            return rtReg;
+        }
+
         void* InstantiateObjectFromTypeName(const char* type_name) {
             int* type_id;
-            if (!type_name_to_id_trie_.TryGetValueForKeySet(type_name, type_id)) {
+            std::string type_name_string(type_name);
+            std::vector<char> type_name_key_set(type_name_string.begin(), type_name_string.end());
+            if (!type_name_to_id_trie_.TryGetValueForKeySet(type_name_key_set, type_id)) {
                 return nullptr;
             }
 
@@ -126,8 +138,15 @@ namespace serialize {
         template<typename T>
         const char* GetTypeName() {
             int type_id = type_id_mapper_.GetTypeId<T>();
-            return rt_type_data_map_[type_id].type_name;
+            return rt_type_info_map_[type_id].type_name;
+        }
+
+        template<typename K, typename V>
+        const char* GetTypeName<std::unordered_map<K, V>>() {
+            std::string type_name("std::unordered_map");
+            type_name.append(GetTypeName<K>());
+            type_name.append(GetTypeName<V>());
+            return type_name;
         }
     };
-    static RuntimeTypeRegistry rt_type_registry;
 }

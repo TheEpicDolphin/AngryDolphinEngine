@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "variable.h"
 
@@ -12,6 +13,7 @@
 } \
 
 namespace serialize {
+
     template <typename T>
     std::enable_if<std::is_arithmetic<T>::value, std::shared_ptr<IVariable>>
     CreateVariable(std::string name, T& arithmetic_object) {

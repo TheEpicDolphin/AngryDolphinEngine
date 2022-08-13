@@ -277,6 +277,7 @@ private:
 	
 	void DeserializeFromXML(rapidxml::xml_node<>* root_xml_node, std::shared_ptr<IVariable> root_variable, bool strict_format = true)
 	{
+		std::unordered_map<std::shared_ptr<IVariable>, > dependency_tree;
 		std::queue<std::shared_ptr<IVariable>> bfs_queue;
 		bfs_queue.push(root_variable);
 		std::queue<rapidxml::xml_node<>*> bfs_xml_node_queue;

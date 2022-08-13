@@ -21,7 +21,7 @@ enum class VariableTypeCategory
 	// StaticArray,
 	// DynamicArray,
 	Class,
-	// Union
+	// Union,
 };
 
 class IVariable {
@@ -245,8 +245,8 @@ public:
 		return object_.SerializableMemberVariables();
 	}
 
-	virtual void ConstructFromDeserializedMembers() override {
-		return object_.ConstructFromDeserializedMemberVariables();
+	virtual void OnDeserializedAllMembers() override {
+		return object_.OnDeserializedAllMembers();
 	}
 
 private:
