@@ -204,6 +204,31 @@ private:
 				object_xml_node->value(xml_doc.allocate_string(value_as_string.c_str()));
 				break;
 			}
+			case VariableTypeCategory::NonOwningPointerVariable: {
+				std::shared_ptr<IPointerVariable> pointer_var = std::static_pointer_cast<IPointerVariable>(var);
+				// pointee_id might be zero if the pointee hasn't been registered yet.
+				void* pointee_handle = pointer_var->ReferencedObjectHandle();
+				std::size_t pointee_id = IdForObject(pointee_handle);
+				rapidxml::xml_node<>* pointee_xml_node = xml_doc.allocate_node(rapidxml::node_element, "pointee");
+				object_xml_node->append_node(pointee_xml_node);
+
+				if (pointee_id) {
+					// Valid pointee_id. Create an xml node for the pointee.
+					char* pointee_id_string = xml_doc.allocate_string(std::to_string(pointee_id).c_str());
+					rapidxml::xml_attribute<>* pointee_id_atttribute = xml_doc.allocate_attribute("pointee_id", pointee_id_string);
+					pointee_xml_node->append_attribute(pointee_id_atttribute);
+				}
+				else {
+					// The object pointed to by pointee_handle has not been registered yet.
+					if (pointee_to_ser_pointer_vars_map_.find(pointee_handle) != pointee_to_ser_pointer_vars_map_.end()) {
+						pointee_to_ser_pointer_vars_map_[pointee_handle].push_back(pointer_var);
+					}
+					else {
+						pointee_to_ser_pointer_vars_map_[pointee_handle] = { pointer_var };
+					}
+				}
+				break;
+			}
 			case VariableTypeCategory::Pointer: {
 				std::shared_ptr<IPointerVariable> pointer_var = std::static_pointer_cast<IPointerVariable>(var);
 				// pointee_id might be zero if the pointee hasn't been registered yet.

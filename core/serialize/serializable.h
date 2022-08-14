@@ -8,49 +8,20 @@
 
 #include "variable.h"
 
+#define ARITHMETIC(arithmeticVar) std::make_shared<ArithmeticVariable>(#arithmeticVar, ##arithmeticVar)
+#define ENUM(enumVar) std::make_shared<EnumVariable>(#enumVar, ##enumVar)
+#define NON_OWNING_PTR(NonOwningPtrVar) std::make_shared<NonOwningPointerVariable>(#NonOwningPtrVar, ##NonOwningPtrVar)
+#define OWNING_PTR(owningPtrVar) std::make_shared<OwningPointerVariable>(#owningPtrVar, ##owningPtrVar)
+#define STATIC_ARRAY(staticArrayVar) std::make_shared<StaticArrayVariable>(#staticArrayVar, ##staticArrayVar)
+#define DYNAMIC_ARRAY(dynamicArrayVar, count) std::make_shared<DynamicArrayVariable>(#dynamicArrayVar, ##dynamicArrayVar, ##count)
+#define CLASS(classVar) std::make_shared<ClassVariable>(#classVar, ##classVar)
+#define CLASS(classVar, builderClass) std::make_shared<ClassVariable<##builderClass>>(#classVar, ##classVar)
+
 #define SERIALIZABLE_MEMBERS(...) std::vector<std::shared_ptr<IVariable>> SerializableMemberVariables(){ \
     return serializable::CreateVariables(#__VA_ARGS__, __VA_ARGS__); \
 } \
 
 namespace serialize {
-
-    template <typename T>
-    std::enable_if<std::is_arithmetic<T>::value, std::shared_ptr<IVariable>>
-    CreateVariable(std::string name, T& arithmetic_object) {
-        return std::make_shared<ArithmeticVariable<T>>(name, arithmetic_object);
-    }
-
-    template <typename T>
-    std::enable_if<std::is_enum<T>::value, std::shared_ptr<IVariable>>
-        CreateVariable(std::string name, T& enum_object) {
-        return std::make_shared<EnumVariable<T>>(name, enum_object);
-    }
-
-    template <typename T>
-    std::enable_if<std::is_pointer<T>::value, std::shared_ptr<IVariable>>
-        CreateVariable(std::string name, T& pointer_object) {
-        return std::make_shared<PointerVariable<T>>(name, pointer_object);
-    }
-
-    template <typename T, std::size_t N>
-    std::shared_ptr<IVariable> CreateVariable(std::string name, T(&array_object)[N]) {
-        return std::make_shared<ArrayVariable<T, N>>(name, array_object);
-    }
-
-    template<class...> using void_t = void;
-
-    template<class, class = void>
-    struct has_serializable_members : std::false_type {};
-
-    template<class T>
-    struct has_serializable_members <T, void_t<decltype(std::declval<T>().SerializableMemberVariables())>> : std::true_type {};
-
-    template <typename T>
-    std::enable_if<has_serializable_members<T>::value, std::shared_ptr<IVariable>>
-    CreateVariable(std::string name, T& class_object) {
-        return std::make_shared<ClassVariable<T>>(name, class_object);
-    }
-
     template <typename... Args>
     std::vector<std::shared_ptr<IVariable>> CreateVariables(const char* comma_separated_names, Args&... args) {
         const std::size_t member_count = sizeof...(Args);
