@@ -6,9 +6,6 @@
 #include <map>
 #include <stdexcept>
 
-#include <rapidxml/rapidxml.hpp>
-#include <rapidxml/rapidxml_print.hpp>
-
 #include "serdes_utils.h"
 
 enum class VariableTypeCategory
@@ -133,7 +130,7 @@ public:
 		return VariableTypeCategory::NonOwningPointerVariable;
 	}
 
-	virtual void* ReferencedObjectHandle() = 0;
+	virtual void* PointedObjectHandle() = 0;
 	virtual void SetValue(void* ptr) = 0;
 };
 
@@ -150,6 +147,10 @@ public:
 
 	void* ObjectHandle() {
 		return &object_ptr;
+	}
+
+	void* PointedObjectHandle() override {
+		return object_ptr;
 	}
 
 	virtual void SetValue(void* ptr) {
@@ -396,23 +397,4 @@ private:
 	std::string name_;
 	T& object_;
 	B* var_builder_;
-};
-
-class STLStringBuilder {
-public:
-	void OnDeconstructToParameters(const std::string& string) {
-		length_ = string.length();
-		c_string_ = new char[length_];
-		memcpy(c_string_, string.c_str(), length_);
-	}
-
-	void OnConstructFromParameters(std::string& string) {
-		string = std::string(c_string_, c_string_ + length_);
-	}
-
-	SERIALIZABLE_MEMBERS(DYNAMIC_ARRAY(c_string_, length_))
-
-private:
-	char* c_string_;
-	std::size_t length_;
 };
