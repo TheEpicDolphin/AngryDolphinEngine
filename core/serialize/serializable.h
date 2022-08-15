@@ -18,7 +18,7 @@
 #define CLASS(classVar, builderClass) std::make_shared<ClassVariable<##builderClass>>(#classVar, ##classVar)
 
 #define SERIALIZABLE_MEMBERS(...) std::vector<std::shared_ptr<IVariable>> SerializableMemberVariables(){ \
-    return serializable::CreateVariables(#__VA_ARGS__, __VA_ARGS__); \
+    return { __VA_ARGS__ }; \
 } \
 
 namespace serialize {
