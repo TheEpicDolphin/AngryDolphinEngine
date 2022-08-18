@@ -261,7 +261,7 @@ public:
 };
 
 template<class T>
-class DynamicArrayVariable : IStaticArrayVariable {
+class DynamicArrayVariable : IDynamicArrayVariable {
 public:
 	DynamicArrayVariable(std::string name, T* obj_array, std::size_t count)
 		: name_(name)
@@ -304,8 +304,10 @@ public:
 	}
 
 	virtual std::vector<std::shared_ptr<IVariable>> MemberVariables() = 0;
-	virtual void OnWillSerializeMembers() = 0;
-	virtual void OnDidDeserializeAllMembers() = 0;
+
+	virtual void OnWillSerializeMembers() {};
+
+	virtual void OnDidDeserializeAllMembers() {};
 };
 
 template<class...> using void_t = void;
@@ -317,6 +319,14 @@ struct has_serializable_members <T, void_t<decltype(std::declval<T>().Serializab
 
 template<typename T>
 class ClassVariable : IClassVariable {
+	template<class, class = void>
+	struct implements_will_serialize_all_members : std::false_type {};
+	struct implements_will_serialize_all_members <B, void_t<decltype(OnWillSerializeAllMembers())>> : std::true_type {};
+
+	template<class, class = void>
+	struct implements_did_deserialize_all_members : std::false_type {};
+	struct implements_did_deserialize_all_members <B, void_t<decltype(OnDidDeserializeAllMembers())>> : std::true_type {};
+
 public:
 	ClassVariable(std::string name, T& object)
 		: name_(name)
@@ -332,15 +342,17 @@ public:
 		return &object;
 	}
 
-	virtual void OnWillSerializeAllMembers() override {
-		object_.OnWillSerializeAllMembers();
-	}
-
 	std::vector<std::shared_ptr<IVariable>> MemberVariables() override {
 		return object_.SerializableMemberVariables();
 	}
 
-	virtual void OnDidDeserializeAllMembers() override {
+	std::enable_if<implements_will_serialize_all_members<T>::value, void>
+		OnWillSerializeAllMembers() override {
+		object_.OnWillSerializeAllMembers();
+	}
+
+	std::enable_if<implements_did_deserialize_all_members<T>::value, void>
+		OnDidDeserializeAllMembers() override {
 		object_.OnDidDeserializeAllMembers();
 	}
 
@@ -351,14 +363,13 @@ private:
 
 template<typename B, typename T>
 class ClassVariable : IClassVariable {
-private:
 	template<class, class = void>
 	struct deconstructs_to_parameters : std::false_type {};
 	struct deconstructs_to_parameters <B, void_t<decltype(OnDeconstructToParameters(std::declval<const T&>()))>> : std::true_type {};
 
 	template<class, class = void>
 	struct constructs_from_parameters : std::false_type {};
-	struct constructs_from_parameters <B, void_t<decltype(OnDeconstructToParameters(std::declval<const T&>()))>> : std::true_type {};
+	struct constructs_from_parameters <B, void_t<decltype(OnConstructFromParameters(std::declval<T&>()))>> : std::true_type {};
 public:
 	ClassVariable(std::string name, T& object)
 		: name_(name)
@@ -366,11 +377,6 @@ public:
 		static_assert(std::has_serializable_members<T>, "T does not have any serializable member variables.");
 		static_assert(std::deconstructs_to_parameters<B>, "B does not deconstruct T into parameter variables.");
 		static_assert(std::constructs_from_parameters<B>, "B does not construct T from parameter variables.");
-		var_builder_ = new B();
-	}
-
-	~ClassVariable() {
-		delete var_builder_;
 	}
 
 	std::string Name() {
@@ -382,19 +388,19 @@ public:
 	}
 
 	virtual void OnWillSerializeAllMembers() override {
-		var_builder_->OnDeconstructToParameters(object_);
+		var_builder_.OnDeconstructToParameters(object_);
 	}
 
 	std::vector<std::shared_ptr<IVariable>> MemberVariables() override {
-		return var_builder_->SerializableMemberVariables();
+		return var_builder_.SerializableMemberVariables();
 	}
 
 	virtual void OnDidDeserializeAllMembers() override {
-		var_builder_->OnConstructFromParameters(object_);
+		var_builder_.OnConstructFromParameters(object_);
 	}
 
 private:
 	std::string name_;
 	T& object_;
-	B* var_builder_;
+	B var_builder_;
 };
