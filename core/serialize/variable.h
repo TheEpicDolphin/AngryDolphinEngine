@@ -13,10 +13,8 @@ enum class VariableTypeCategory
 	Unknown = 0,
 	Arithmetic,
 	Enum,
-	NonOwningPointerVariable,
-	OwningPointerVariable,
-	StaticArray,
-	DynamicArray,
+	Pointer,
+	Array,
 	Class,
 	// Union,
 };
@@ -124,29 +122,37 @@ private:
 	T& object_enum_value_;
 };
 
-class INonOwningPointerVariable : IVariable {
+class IPointerVariable : IVariable {
 public:
 	VariableTypeCategory TypeCategory() override {
-		return VariableTypeCategory::NonOwningPointerVariable;
+		return VariableTypeCategory::Pointer;
 	}
 
+	virtual bool IsOwning() = 0;
 	virtual void* PointedObjectHandle() = 0;
 	virtual void SetValue(void* ptr) = 0;
+	virtual std::shared_ptr<IVariable> PointedVariable() = 0;
 };
 
 template<typename T>
-class NonOwningPointerVariable : INonOwningPointerVariable {
+class PointerVariable : IPointerVariable {
 public:
-	NonOwningPointerVariable(std::string name, T*& object_ptr)
+	PointerVariable(std::string name, T*& object_ptr, bool is_owning)
 		: name_(name)
-		, object_ptr_(object_ptr_) {}
+		, object_ptr_(object_ptr_)
+		, is_owning_(is_owning)
+	{}
 
-	std::string Name() {
+	std::string Name() override {
 		return name_;
 	}
 
-	void* ObjectHandle() {
+	void* ObjectHandle() override {
 		return &object_ptr;
+	}
+
+	bool IsOwning() override {
+		return is_owning_
 	}
 
 	void* PointedObjectHandle() override {
@@ -157,116 +163,35 @@ public:
 		object_ptr_ = static_cast<T*>(ptr);
 	}
 
-protected:
-	std::string name_;
-	T*& object_ptr_;
-};
-
-class IOwningPointerVariable : IVariable {
-public:
-	VariableTypeCategory TypeCategory() override {
-		return VariableTypeCategory::OwningPointerVariable;
-	}
-
-	virtual void* OwnedObjectHandle() = 0;
-	virtual std::shared_ptr<IVariable> OwnedVariable() = 0;
-	virtual void SetValue(void* ptr) = 0;
-};
-
-template<typename T>
-class OwningPointerVariable : IOwningPointerVariable {
-public:
-	OwningPointerVariable(std::string name, T*& object_ptr)
-		: name_(name)
-		, object_ptr_(object_ptr_) {}
-
-	std::string Name() {
-		return name_;
-	}
-
-	void* ObjectHandle() {
-		return &object_ptr;
-	}
-
-	void* OwnedObjectHandle() override {
-		return object_ptr;
-	}
-
-	std::shared_ptr<IVariable> OwnedVariable() override {
+	std::shared_ptr<IVariable> PointedVariable() override {
 		return serialize::CreateSerializerNode("object", *object_ptr_);
 	}
 
-	virtual void SetValue(void* ptr) {
-		object_ptr_ = static_cast<T*>(ptr);
-	}
-
 protected:
 	std::string name_;
 	T*& object_ptr_;
+	const bool is_owning_;
 };
 
-class IStaticArrayVariable : IVariable {
+class IArrayVariable : IVariable {
 public:
 	VariableTypeCategory TypeCategory() override {
-		return VariableTypeCategory::StaticArray;
+		return VariableTypeCategory::Array;
 	}
 
+	virtual bool IsDynamicallyAllocated() = 0;
 	virtual std::size_t Length() = 0;
 	virtual std::vector<std::shared_ptr<IVariable>> Elements() = 0;
 };
 
-template<class T, std::size_t N>
-class StaticArrayVariable : IStaticArrayVariable {
-public:
-	StaticArrayVariable(std::string name, T(&obj_array)[N])
-		: name_(name)
-		, obj_array_(obj_array)
-	{}
-
-	std::string Name() override {
-		return name_;
-	}
-
-	void* ObjectHandle() override {
-		return obj_array_;
-	}
-
-	std::size_t Length() override {
-		return N;
-	}
-
-	std::vector<std::shared_ptr<IVariable>> Elements() override {
-		std::vector<std::shared_ptr<IVariable>> children(N);
-		for (std::size_t i = 0; i < N; ++i) {
-			std::stringstream element_name_ss;
-			element_name_ss << "element_" << i;
-			children[i] = serialize::CreateSerializerNode(element_name_ss.str(), obj_array_[i]);
-		}
-		return children;
-	}
-
-private:
-	std::string name_;
-	T(&obj_array_)[N];
-};
-
-class IDynamicArrayVariable : IVariable {
-public:
-	VariableTypeCategory TypeCategory() override {
-		return VariableTypeCategory::DynamicArray;
-	}
-
-	virtual std::size_t Count() = 0;
-	virtual std::vector<std::shared_ptr<IVariable>> Elements() = 0;
-};
-
 template<class T>
-class DynamicArrayVariable : IDynamicArrayVariable {
+class ArrayVariable : IArrayVariable {
 public:
-	DynamicArrayVariable(std::string name, T* obj_array, std::size_t count)
+	ArrayVariable(std::string name, T* obj_array, std::size_t count, bool is_dynamically_allocated)
 		: name_(name)
 		, obj_array_(obj_array)
 		, count_(count)
+		, is_dynamically_allocated_(is_dynamically_allocated)
 	{}
 
 	std::string Name() override {
@@ -277,8 +202,12 @@ public:
 		return obj_array_;
 	}
 
+	bool IsDynamicallyAllocated() override {
+		return is_dynamically_allocated_;
+	}
+
 	std::size_t Count() override {
-		return N;
+		return count_;
 	}
 
 	std::vector<std::shared_ptr<IVariable>> Elements() override {
@@ -294,7 +223,8 @@ public:
 private:
 	std::string name_;
 	T* obj_array_;
-	std::size_t count_;
+	const std::size_t count_;
+	const bool is_dynamically_allocated_;
 };
 
 class IClassVariable : IVariable {
@@ -334,11 +264,11 @@ public:
 		static_assert(std::has_serializable_members<T>, "T does not have any serializable member variables.");
 	}
 
-	std::string Name() {
+	std::string Name() override {
 		return name_;
 	}
 
-	void* ObjectHandle() {
+	void* ObjectHandle() override {
 		return &object;
 	}
 
@@ -361,29 +291,29 @@ private:
 	T& object_;
 };
 
-template<typename B, typename T>
+template<typename T, typename BuilderClass>
 class ClassVariable : IClassVariable {
 	template<class, class = void>
 	struct deconstructs_to_parameters : std::false_type {};
-	struct deconstructs_to_parameters <B, void_t<decltype(OnDeconstructToParameters(std::declval<const T&>()))>> : std::true_type {};
+	struct deconstructs_to_parameters <BuilderClass, void_t<decltype(OnDeconstructToParameters(std::declval<const T&>()))>> : std::true_type {};
 
 	template<class, class = void>
 	struct constructs_from_parameters : std::false_type {};
-	struct constructs_from_parameters <B, void_t<decltype(OnConstructFromParameters(std::declval<T&>()))>> : std::true_type {};
+	struct constructs_from_parameters <BuilderClass, void_t<decltype(OnConstructFromParameters(std::declval<T&>()))>> : std::true_type {};
 public:
 	ClassVariable(std::string name, T& object)
 		: name_(name)
 		, object_(object) {
 		static_assert(std::has_serializable_members<T>, "T does not have any serializable member variables.");
-		static_assert(std::deconstructs_to_parameters<B>, "B does not deconstruct T into parameter variables.");
-		static_assert(std::constructs_from_parameters<B>, "B does not construct T from parameter variables.");
+		static_assert(std::deconstructs_to_parameters<BuilderClass>, "B does not deconstruct T into parameter variables.");
+		static_assert(std::constructs_from_parameters<BuilderClass>, "B does not construct T from parameter variables.");
 	}
 
-	std::string Name() {
+	std::string Name() override {
 		return name_;
 	}
 
-	void* ObjectHandle() {
+	void* ObjectHandle() override {
 		return &object;
 	}
 
@@ -402,5 +332,5 @@ public:
 private:
 	std::string name_;
 	T& object_;
-	B var_builder_;
+	BuilderClass var_builder_;
 };

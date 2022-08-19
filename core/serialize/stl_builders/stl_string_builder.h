@@ -9,5 +9,5 @@ public:
 	SERIALIZABLE_MEMBERS(VAR(char_array_))
 
 private:
-	dynamic_memory_array<char> char_array_;
+	dm_array<char> char_array_;
 };

@@ -184,84 +184,68 @@ private:
 				object_xml_node->value(xml_doc.allocate_string(value_as_string.c_str()));
 				break;
 			}
-			case VariableTypeCategory::NonOwningPointerVariable: {
-				std::shared_ptr<INonOwningPointerVariable> non_owning_pointer_var = std::static_pointer_cast<INonOwningPointerVariable>(var);
-				// pointee_id might be zero if the pointee hasn't been registered yet.
-				void* pointed_object_handle = non_owning_pointer_var->PointedObjectHandle();
+			case VariableTypeCategory::Pointer: {
+				std::shared_ptr<IPointerVariable> pointer_var = std::static_pointer_cast<IPointerVariable>(var);
+				void* pointed_object_handle = pointer_var->PointedObjectHandle();
 				std::size_t pointed_object_id = IdForObject(pointed_object_handle);
-				rapidxml::xml_node<>* pointer_xml_node = xml_doc.allocate_node(rapidxml::node_element, "non_owning_ptr");
+
+				const bool isOwning = pointer_var->IsOwning();
+				rapidxml::xml_node<>* pointer_xml_node = xml_doc.allocate_node(rapidxml::node_element, isOwning ? "owning_ptr" : "ptr");
 				object_xml_node->append_node(pointer_xml_node);
 
 				if (pointed_object_id) {
-					// Valid pointee_id. Set it as the value for this non_owning_ptr node.
+					// Set pointed object id as value for this xml node.
 					std::string pointed_object_id_string = serialize::SerializeArithmeticToString(pointed_object_id);
 					pointer_xml_node->value(xml_doc.allocate_string(pointed_object_id_string.c_str()));
-				}
-				else {
-					// The object pointed to by pointee_handle has not been registered yet.
-					if (pointer_xml_node_map_.find(pointed_object_handle) != pointer_xml_node_map_.end()) {
-						pointer_xml_node_map_[pointed_object_handle].push_back(pointer_xml_node);
+				} else {
+					// The pointed object has not been registered yet.
+					if (isOwning) {
+						// The object is dynamically allocated (created using "new"), and this is
+						// the first time a pointer to this object is being serialized. Therefore,
+						// we must queue the pointed object for serialization for the first and last
+						// time.
+						pointed_object_id = StoreObject(pointed_object_handle);
+						child_id_to_parent_xml_node_map[pointed_object_id] = object_xml_node;
+						bfs_queue.push(pointer_var->PointedVariable());
 					}
 					else {
-						pointer_xml_node_map_[pointed_object_handle] = { pointer_xml_node };
+						// Add this pointer xml node as a listener for when the pointed object is
+						// registered for serialization.
+						if (pointer_xml_node_map_.find(pointed_object_handle) != pointer_xml_node_map_.end()) {
+							pointer_xml_node_map_[pointed_object_handle].push_back(pointer_xml_node);
+						}
+						else {
+							pointer_xml_node_map_[pointed_object_handle] = { pointer_xml_node };
+						}
 					}
 				}
 				break;
 			}
-			case VariableTypeCategory::OwningPointerVariable: {
-				std::shared_ptr<IOwningPointerVariable> owning_pointer_var = std::static_pointer_cast<IOwningPointerVariable>(var);
-				void* owned_object_handle = owning_pointer_var->OwnedObjectHandle();
-				std::size_t owned_object_id = IdForObject(owned_object_handle);
-				rapidxml::xml_node<>* owned_object_xml_node = xml_doc.allocate_node(rapidxml::node_element, "owning_ptr");
-				if (!owned_object_id) {
-					// First instance of a pointer to this dynamically allocated object.
-					child_id_to_parent_xml_node_map[owned_object_id] = object_xml_node;
-					bfs_queue.push(owning_pointer_var->OwnedVariable());
+			case VariableTypeCategory::Array: {
+				// TODO: Fix this code below. Make similar to pointer logic, but for arrays.
+
+				std::shared_ptr<IArrayVariable> array_var = std::static_pointer_cast<IArrayVariable>(var);
+				if (array_var->IsDynamicallyAllocated()) {
+					// Write attributes for array xml node such as "container_type" and "length".
+					rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "dynamic_array");
+					object_xml_node->append_attribute(container_attribute);
+					char* array_count_string = xml_doc.allocate_string(std::to_string(array_var->Count()).c_str());
+					rapidxml::xml_attribute<>* array_count_atttribute = xml_doc.allocate_attribute("count", array_count_string);
+					object_xml_node->append_attribute(array_count_atttribute);
 				} else {
-					// Set pointed object id as value for this xml node.
-					std::string owned_object_id_as_string = serialize::SerializeArithmeticToString(owned_object_id);
-					owned_object_xml_node->value(xml_doc.allocate_string(owned_object_id_as_string.c_str()));
+					// Write attributes for array xml node such as "container_type" and "length".
+					rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "static_array");
+					object_xml_node->append_attribute(container_attribute);
+					char* array_length_string = xml_doc.allocate_string(std::to_string(array_var->Length()).c_str());
+					rapidxml::xml_attribute<>* array_length_atttribute = xml_doc.allocate_attribute("length", array_length_string);
+					object_xml_node->append_attribute(array_length_atttribute);
 				}
-			}
-			case VariableTypeCategory::StaticArray: {
-				std::shared_ptr<IStaticArrayVariable> static_array_var = std::static_pointer_cast<IStaticArrayVariable>(var);
-
-				// Write attributes for array xml node such as "container_type" and "length".
-				rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "static_array");
-				object_xml_node->append_attribute(container_attribute);
-				char* array_length_string = xml_doc.allocate_string(std::to_string(static_array_var->Length()).c_str());
-				rapidxml::xml_attribute<>* array_length_atttribute = xml_doc.allocate_attribute("length", array_length_string);
-				object_xml_node->append_attribute(array_length_atttribute);
 
 				// Add serialized node as child to parent.
 				child_id_to_parent_xml_node_map[object_id]->append_node(object_xml_node);
 
 				// Iterate children.
-				std::vector<std::shared_ptr<IVariable>> elements = static_array_var->Elements();
-				for (std::vector<std::shared_ptr<IVariable>>::iterator it = elements.begin(); it != elements.end(); ++it)
-				{
-					std::shared_ptr<IVariable> element = *it;
-					std::size_t element_id = StoreObject(element->ObjectHandle());
-					child_id_to_parent_xml_node_map[element_id] = object_xml_node;
-					bfs_queue.push(element);
-				}
-				break;
-			}
-			case VariableTypeCategory::DynamicArray: {
-				std::shared_ptr<IDynamicArrayVariable> dynamic_array_var = std::static_pointer_cast<IDynamicArrayVariable>(var);
-
-				// Write attributes for array xml node such as "container_type" and "length".
-				rapidxml::xml_attribute<>* container_attribute = xml_doc.allocate_attribute("container_type", "dynamic_array");
-				object_xml_node->append_attribute(container_attribute);
-				char* array_count_string = xml_doc.allocate_string(std::to_string(dynamic_array_var->Count()).c_str());
-				rapidxml::xml_attribute<>* array_count_atttribute = xml_doc.allocate_attribute("count", array_count_string);
-				object_xml_node->append_attribute(array_count_atttribute);
-
-				// Add serialized node as child to parent.
-				child_id_to_parent_xml_node_map[object_id]->append_node(object_xml_node);
-
-				// Iterate children.
-				std::vector<std::shared_ptr<IVariable>> elements = dynamic_array_var->Elements();
+				std::vector<std::shared_ptr<IVariable>> elements = array_var->Elements();
 				for (std::vector<std::shared_ptr<IVariable>>::iterator it = elements.begin(); it != elements.end(); ++it)
 				{
 					std::shared_ptr<IVariable> element = *it;
