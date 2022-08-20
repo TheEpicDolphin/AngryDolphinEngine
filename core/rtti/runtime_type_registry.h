@@ -36,7 +36,7 @@ const char* GetTypeName() { \
 } \
 #define REGISTER_STL_TYPE(typeName, ...) RegisterType<##typeName>(#typeName); \
 
-namespace serialize {
+namespace rtti {
     class RuntimeTypeRegistry {
     private:
         typedef void* (*DynamicInstantiator)();

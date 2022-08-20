@@ -10,6 +10,8 @@
 #include <rapidxml/rapidxml.hpp>
 #include <rapidxml/rapidxml_print.hpp>
 
+#include <core/rtti/runtime_type_registry.h>
+
 #include "serializable.h"
 #include "serdes_utils.h"
 
@@ -67,6 +69,9 @@ public:
 			rapidxml::xml_attribute<>* object_id_atttribute = xml_doc->allocate_attribute("id", object_id_string);
 			object_xml_node->append_attribute(object_id_atttribute);
 
+			// TODO:
+			//rtti::RuntimeTypeRegistry::GetInstance().GetTypeName
+
 			// Add serialized node as child to parent.
 			child_id_to_parent_xml_node_map_[object_id]->append_node(object_xml_node);
 
@@ -90,16 +95,17 @@ public:
 				std::size_t pointed_object_id = IdForObject(pointed_object_handle);
 
 				const bool isOwning = pointer_var->IsOwning();
-				rapidxml::xml_node<>* pointer_xml_node = xml_doc->allocate_node(
-					rapidxml::node_element,
-					isOwning ? "owning_ptr" : "ptr"
+
+				rapidxml::xml_attribute<>* pointer_type_atttribute = xml_doc->allocate_attribute(
+					"pointer_type",
+					isOwning ? "owning" : "non_owning"
 				);
-				object_xml_node->append_node(pointer_xml_node);
+				object_xml_node->append_attribute(pointer_type_atttribute);
 
 				if (pointed_object_id) {
 					// Set pointed object id as value for this xml node.
 					std::string pointed_object_id_string = serialize::SerializeArithmeticToString(pointed_object_id);
-					pointer_xml_node->value(xml_doc->allocate_string(pointed_object_id_string.c_str()));
+					object_xml_node->value(xml_doc->allocate_string(pointed_object_id_string.c_str()));
 				}
 				else {
 					// The pointed object has not been registered yet.
@@ -109,17 +115,17 @@ public:
 						// we must queue the pointed object for serialization for the first and last
 						// time.
 						pointed_object_id = StoreObject(pointed_object_handle);
-						child_id_to_parent_xml_node_map_[pointed_object_id] = pointer_xml_node;
+						child_id_to_parent_xml_node_map_[pointed_object_id] = object_xml_node;
 						bfs_queue.push(pointer_var->PointedVariable());
 					}
 					else {
 						// Add this pointer xml node as a listener for when the pointed object is
 						// registered for serialization.
 						if (pointer_xml_node_map_.find(pointed_object_handle) != pointer_xml_node_map_.end()) {
-							pointer_xml_node_map_[pointed_object_handle].push_back(pointer_xml_node);
+							pointer_xml_node_map_[pointed_object_handle].push_back(object_xml_node);
 						}
 						else {
-							pointer_xml_node_map_[pointed_object_handle] = { pointer_xml_node };
+							pointer_xml_node_map_[pointed_object_handle] = { object_xml_node };
 						}
 					}
 				}
@@ -129,12 +135,11 @@ public:
 				std::shared_ptr<IArrayVariable> array_var = std::static_pointer_cast<IArrayVariable>(var);
 
 				const bool is_dynamically_allocated = array_var->IsDynamicallyAllocated();
-
-				rapidxml::xml_node<>* array_xml_node = xml_doc->allocate_node(
-					rapidxml::node_element,
-					is_dynamically_allocated ? "dynamic_c_array" : "static_c_array"
+				rapidxml::xml_attribute<>* array_type_atttribute = xml_doc->allocate_attribute(
+					"c_array_type",
+					is_dynamically_allocated ? "dynamic" : "static"
 				);
-				object_xml_node->append_node(array_xml_node);
+				object_xml_node->append_attribute(array_type_atttribute);
 
 				rapidxml::xml_node<>* array_length_xml_node = xml_doc->allocate_node(
 					rapidxml::node_element,
@@ -142,13 +147,13 @@ public:
 				);
 				char* array_length_string = xml_doc->allocate_string(std::to_string(array_var->Length()).c_str());
 				array_length_xml_node->value(array_length_string);
-				array_xml_node->append_node(array_length_xml_node);
+				object_xml_node->append_node(array_length_xml_node);
 
 				rapidxml::xml_node<>* array_ptr_xml_node = xml_doc->allocate_node(
 					rapidxml::node_element,
 					"array_ptr"
 				);
-				array_xml_node->append_node(array_ptr_xml_node);
+				object_xml_node->append_node(array_ptr_xml_node);
 
 				void* pointed_array_handle = array_var->ArrayPointer();
 				std::size_t pointed_array_id = IdForObject(pointed_array_handle);
