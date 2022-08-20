@@ -10,13 +10,9 @@ class RenderingSystem : public ISystem
 {
 public:
 	RenderingSystem() = default;
-
 	void Initialize(ServiceContainer service_container) override;
-
 	virtual void Cleanup(ServiceContainer service_container) override;
-
 	void OnFixedUpdate(double fixed_delta_time) {}
-
 	void OnFrameUpdate(double delta_time, double alpha) override;
 
 private:

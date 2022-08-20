@@ -180,6 +180,8 @@ public:
 	}
 
 	virtual bool IsDynamicallyAllocated() = 0;
+	virtual void* ArrayPointer() = 0;
+	virtual void SetValues(void* array_ptr, std::size_t length) = 0;
 	virtual std::size_t Length() = 0;
 	virtual std::vector<std::shared_ptr<IVariable>> Elements() = 0;
 };
@@ -187,10 +189,10 @@ public:
 template<class T>
 class ArrayVariable : IArrayVariable {
 public:
-	ArrayVariable(std::string name, T* obj_array, std::size_t count, bool is_dynamically_allocated)
+	ArrayVariable(std::string name, T* obj_array, std::size_t length, bool is_dynamically_allocated)
 		: name_(name)
 		, obj_array_(obj_array)
-		, count_(count)
+		, length_(length)
 		, is_dynamically_allocated_(is_dynamically_allocated)
 	{}
 
@@ -199,20 +201,34 @@ public:
 	}
 
 	void* ObjectHandle() override {
+		return &obj_array_;
+	}
+
+	void* ArrayPointer() override {
 		return obj_array_;
+	}
+
+	void SetValues(void* array_ptr, std::size_t length) override {
+		// Note: We cannot skip this and just do "new T(length)" when
+		// allocating the array because T might just be a base/virtual
+		// class. Therefore, we must allocate the correct derived class
+		// elsewhere (using runtime type registry), and set the array
+		// pointer and length here.
+		obj_array_ = static_assert<T*>(array_ptr);
+		length_ = length;
 	}
 
 	bool IsDynamicallyAllocated() override {
 		return is_dynamically_allocated_;
 	}
 
-	std::size_t Count() override {
-		return count_;
+	std::size_t Length() override {
+		return length_;
 	}
 
 	std::vector<std::shared_ptr<IVariable>> Elements() override {
-		std::vector<std::shared_ptr<IVariable>> children(N);
-		for (std::size_t i = 0; i < count_; ++i) {
+		std::vector<std::shared_ptr<IVariable>> children(length_);
+		for (std::size_t i = 0; i < length_; ++i) {
 			std::stringstream element_name_ss;
 			element_name_ss << "element_" << i;
 			children[i] = serialize::CreateSerializerNode(element_name_ss.str(), obj_array_[i]);
@@ -223,7 +239,7 @@ public:
 private:
 	std::string name_;
 	T* obj_array_;
-	const std::size_t count_;
+	const std::size_t length_;
 	const bool is_dynamically_allocated_;
 };
 
