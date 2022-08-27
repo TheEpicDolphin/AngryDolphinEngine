@@ -128,8 +128,8 @@ public:
 		return VariableTypeCategory::Pointer;
 	}
 
-	virtual bool IsOwning() = 0;
 	virtual void* PointedObjectHandle() = 0;
+	virtual bool IsOwning() = 0;
 	virtual void SetValue(void* ptr) = 0;
 	virtual std::shared_ptr<IVariable> PointedVariable() = 0;
 };
@@ -148,15 +148,15 @@ public:
 	}
 
 	void* ObjectHandle() override {
-		return &object_ptr;
-	}
-
-	bool IsOwning() override {
-		return is_owning_
+		return dynamic_cast<void*>(&object_ptr);
 	}
 
 	void* PointedObjectHandle() override {
-		return object_ptr;
+		return dynamic_cast<void*>(object_ptr);
+	}
+
+	bool IsOwning() override {
+		return is_owning_;
 	}
 
 	virtual void SetValue(void* ptr) {
@@ -201,11 +201,11 @@ public:
 	}
 
 	void* ObjectHandle() override {
-		return &obj_array_;
+		return dynamic_cast<void*>(&obj_array_);
 	}
 
 	void* ArrayPointer() override {
-		return obj_array_;
+		return dynamic_cast<void*>(obj_array_);
 	}
 
 	void SetValues(void* array_ptr, std::size_t length) override {
@@ -285,7 +285,7 @@ public:
 	}
 
 	void* ObjectHandle() override {
-		return &object;
+		return dynamic_cast<void*>(&object);
 	}
 
 	std::vector<std::shared_ptr<IVariable>> MemberVariables() override {
@@ -330,7 +330,7 @@ public:
 	}
 
 	void* ObjectHandle() override {
-		return &object;
+		return dynamic_cast<void*>(&object);
 	}
 
 	virtual void OnWillSerializeAllMembers() override {

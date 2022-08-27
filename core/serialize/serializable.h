@@ -9,43 +9,71 @@
     return { __VA_ARGS__ }; \
 } \
 
-template <typename T, typename... Args>
-static dm_object_pointer<T> make_object(Args... args) { return dm_object_pointer(new T(args)); }
-
 template <typename T>
-class dm_object_pointer {
+class dynamic_object {
+private:
+    typedef std::shared_ptr<IVariable>* (*PointedObjectVariableInstantiator)(T* object_ptr);
+
 public:
-    dynamic_memory_object() {}
-    dynamic_memory_object(T* object_ptr) { object_ptr_ = object_ptr; }
+    dynamic_object() {}
+
+    template <typename _Derived, typename... Args>
+    static dynamic_object<T> make(Args&... args) {
+        pointed_obj_var_instantiator_ = &PointedObjectVariable<_Derived>;
+        static_assert(std::is_base_of<T, _Derived>::value);
+        return dynamic_object<T>(new _Derived(args));
+    }
+
+    template <typename _Derived>
+    void reset(_Derived* object_ptr) {
+        pointed_obj_var_instantiator_ = &PointedObjectVariable<_Derived>;
+        object_ptr_ = object_ptr
+    }
 
     T& operator* () { return *object_ptr_; }
     T* operator-> () { return object_ptr_; }
 
     T* get() { return object_ptr_ }
 
-    void reset(T* object_ptr) { object_ptr_ = object_ptr }
     void destroy() { delete object_ptr_; }
+
+    std::shared_ptr<IVariable> PointedObjectVariable() {
+        if (!pointed_obj_var_instantiator_) {
+            return nullptr;
+        }
+
+        return pointed_obj_var_instantiator_(object_ptr_);
+    }
     
 private:
+    typedef std::shared_ptr<IVariable> (*PointedObjectVariableInstantiator)(T* object_ptr);
+
     T* object_ptr_;
+    PointedObjectVariableInstantiator pointed_obj_var_instantiator_;
+
+    dynamic_object(T* object_ptr) { object_ptr_ = object_ptr; }
+
+    template<typename _Derived>
+    static std::shared_ptr<IVariable> PointedObjectVariable(T* object_ptr) {
+        _Derived* d = static_cast<_Derived*>(object_ptr);
+        return std::make_shared<PointerVariable>("pointed_object", *d);
+    }
 };
 
 template <typename T>
-class dm_array {
+class dynamic_array {
 public:
-    dm_array() {}
+    dynamic_array() {}
 
-    dm_array(T* array_ptr, std::size_t length) {
-        array_ptr_ = array_ptr;
-        length_ = length;
+    template <typename _Derived>
+    static dynamic_array<T> make(std::size_t length) {
+        static_assert(std::is_base_of<T, _Derived>::value);
+        return dynamic_array<T>(new _Derived[length], length);
     }
 
-    dm_array(std::size_t length) {
-        array_ptr_ = new T[length];
-        length_ = length;
-    }
-
-    void reset(T* array_ptr, std::size_t length) {
+    template <typename _Derived>
+    void reset(_Derived* array_ptr, std::size_t length) {
+        static_assert(std::is_base_of<T, _Derived>::value);
         array_ptr_ = array_ptr;
         length_ = length;
     }
@@ -62,6 +90,16 @@ public:
 private:
     T* array_ptr_;
     std::size_t length_;
+
+    dynamic_array(T* array_ptr, std::size_t length) {
+        array_ptr_ = array_ptr;
+        length_ = length;
+    }
+
+    dynamic_array(std::size_t length) {
+        array_ptr_ = new T[length];
+        length_ = length;
+    }
 };
 
 namespace serialize {

@@ -83,7 +83,7 @@ namespace rtti {
         struct is_self_registering_type : std::false_type {};
 
         template<class T>
-        struct is_self_registering_type <T, void_t<decltype(std::declval<T>(int).RegisterMyType())>> : std::true_type {};
+        struct is_self_registering_type <T, void_t<decltype(std::declval<int>().RegisterMyType())>> : std::true_type {};
 
         /*
         template<typename std::vector<T>>

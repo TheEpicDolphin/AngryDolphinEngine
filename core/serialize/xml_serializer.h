@@ -95,7 +95,6 @@ public:
 				std::size_t pointed_object_id = IdForObject(pointed_object_handle);
 
 				const bool isOwning = pointer_var->IsOwning();
-
 				rapidxml::xml_attribute<>* pointer_type_atttribute = xml_doc->allocate_attribute(
 					"pointer_type",
 					isOwning ? "owning" : "non_owning"
