@@ -130,6 +130,7 @@ public:
 
 	virtual void* PointedObjectHandle() = 0;
 	virtual bool IsOwning() = 0;
+	virtual void SetPointedVariable(std::shared_ptr<IVariable> pointed_var) = 0;
 	virtual void SetValue(void* ptr) = 0;
 	virtual std::shared_ptr<IVariable> PointedVariable() = 0;
 };

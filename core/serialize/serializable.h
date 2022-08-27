@@ -9,6 +9,8 @@
     return { __VA_ARGS__ }; \
 } \
 
+// Consider ditching this idea below and instead register & create objects/arrays dynamically (new) using
+// runtime_type_registry method.
 template <typename T>
 class dynamic_object {
 private:

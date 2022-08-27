@@ -148,5 +148,19 @@ namespace rtti {
             type_name.append(GetTypeName<V>());
             return type_name;
         }
+
+        template<typename T, typename... Args>
+        T* NewObject(Args&... args) {
+            T* object = new T(args);
+            // TODO: Register
+            return object;
+        }
+
+        template<typename T>
+        T* NewArray(std::size_t length) {
+            T* arr = new T[length];
+            // TODO: Register
+            return arr;
+        }
     };
 }
