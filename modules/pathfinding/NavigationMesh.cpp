@@ -1,23 +1,14 @@
+
 #include "NavigationMesh.h"
+
 #include <algorithm>
 #include <Detour/Include/DetourNavMeshBuilder.h>
 
 #include <iostream>
 
 namespace pathfinding {
-    /**
-     * @brief Transforms the point using the given transformation matrix.
-     * @param transformMatrix4x4 The input transformation matrix.
-     * @param point The input point to transform.
-     * @param transformedPoint The output transformed point.
-     */
-    inline void TransformPoint(const float* transformMatrix4x4, const float* point, float* transformedPoint) {
-        transformedPoint[0] = transformMatrix4x4[0] * point[0] + transformMatrix4x4[4] * point[1] +
-            transformMatrix4x4[8] * point[2] + transformMatrix4x4[12];
-        transformedPoint[1] = transformMatrix4x4[1] * point[0] + transformMatrix4x4[5] * point[1] +
-            transformMatrix4x4[9] * point[2] + transformMatrix4x4[13];
-        transformedPoint[2] = transformMatrix4x4[2] * point[0] + transformMatrix4x4[6] * point[1] +
-            transformMatrix4x4[10] * point[2] + transformMatrix4x4[14];
+    inline uint8_t NextPow2(uint32_t value) {
+        return std::ceil(std::log2(value));
     }
 
     /**
@@ -75,67 +66,7 @@ namespace pathfinding {
         triAABBMax[2] = std::max(std::max(v0[2], v1[2]), v2[2]);
     }
 
-    /**
-     * @brief Obtains the navigation mesh triangulation for a single tile, which can be used to visualize the
-     * navigation mesh.
-     * @param polyMesh The input data structure containing the polygons for the tile's navigation mesh.
-     * @param orig The origin point (in world space) of this tile's navigation mesh.
-     * @param triangles The indices to values in 'vertices', where every 3 consecutive indices forms a triangle.
-     * @param trianglesCount The number of triangles formed by the triangle indices. The size of 'triangles' is expected to
-     * be 'trianglesCount' * 3
-     * @param vertices The vertex points of this tile's navigation mesh. The points are relative to 'orig'. Expected memory
-     * arrangement: x0, y0, z0, x1, y1, z1, ..., xn, yn, zn.
-     * @param verticesCount The number of vertices. The size of 'vertices' is expected to be 'verticesCount' * 3.
-     */
-    void getTileNavigationMeshTriangulation(const rcPolyMesh& polyMesh,
-        float* orig,
-        uint16_t*& triangles,
-        uint16_t& trianglesCount,
-        float*& vertices,
-        uint16_t& verticesCount) {
-        const int nvp = polyMesh.nvp;
-        const float cs = polyMesh.cs;
-        const float ch = polyMesh.ch;
-        rcVcopy(orig, polyMesh.bmin);
-
-        trianglesCount = (nvp - 2) * polyMesh.npolys;
-        triangles = new uint16_t[3 * trianglesCount];
-        verticesCount = polyMesh.nverts;
-        vertices = new float[3 * verticesCount];
-        // TODO: area ids
-        // triangleAreas = new unsigned char[trianglesCount];
-
-        for (int i = 0; i < polyMesh.nverts; ++i) {
-            const uint16_t* v = &polyMesh.verts[3 * i];
-            const float x = v[0] * cs;
-            const float y = (v[1] + 1) * ch;
-            const float z = v[2] * cs;
-            vertices[3 * i] = x;
-            vertices[3 * i + 1] = y;
-            vertices[3 * i + 2] = z;
-        }
-
-        for (int i = 0; i < polyMesh.npolys; ++i) {
-            const uint16_t* p = &polyMesh.polys[i * nvp * 2];
-            // const unsigned char area = polyMesh.areas[i];
-            uint16_t vi[3];
-            for (int j = 2; j < nvp; ++j) {
-                if (p[j] == RC_MESH_NULL_IDX) {
-                    break;
-                }
-
-                vi[0] = p[0];
-                vi[1] = p[j - 1];
-                vi[2] = p[j];
-                for (int k = 0; k < 3; ++k) {
-                    triangles[3 * ((nvp - 2) * i + (j - 2)) + k] = vi[k];
-                }
-            }
-            // triangleAreas[i] = area;
-        }
-    }
-
-    NavigationMesh::NavigationMesh() {
+    NavigationMesh::NavigationMesh(std::shared_ptr<NavigableSurfaceRegistry> navSurfaceRegistry) {
         tileHeightfield_ = nullptr;
         tileCompactHeightfield_ = nullptr;
         tileContourSet_ = nullptr;
@@ -143,6 +74,8 @@ namespace pathfinding {
         tilePolyMeshDetail_ = nullptr;
         recastNavMesh_ = nullptr;
         recastNavQuery_ = nullptr;
+        polyPath_ = std::vector<dtPolyRef>(kMaxPolyPathSize);
+        navSurfaceRegistry_ = navSurfaceRegistry;
     }
 
     NavigationMesh::~NavigationMesh() {
@@ -158,9 +91,6 @@ namespace pathfinding {
             dtFreeNavMeshQuery(recastNavQuery_);
             recastNavQuery_ = nullptr;
         }
-
-        delete tileQuadtree_;
-        tileQuadtree_ = nullptr;
     }
 
     void NavigationMesh::cleanup() {
@@ -190,33 +120,117 @@ namespace pathfinding {
         }
     }
 
-    Result NavigationMesh::initialize(float maxWalkableSlope, float agentRadius, float agentHeight, float agentMaxClimb) {
+    Result NavigationMesh::configure(
+        float maxWalkableSlope,
+        float agentRadius,
+        float agentHeight,
+        float agentMaxClimb,
+        const float* targetSize,
+        NavigationMeshConfigFeedback& feedback
+    ) {
+        // According to the author of Recast, a good value for voxel size is
+        // 1/2 or 1/3 of the agent radius.
+        float voxelSize = agentRadius / 3.0f;
+        float voxelHeight = voxelSize / 2.0f;
+
+        // TODO: Check for valid maxWalkableSlope, agentRadius, agentHeight, and 
+        // agentMaxClimb values.
+        
+        // Navigation mesh size must be at least voxelSize along
+        // local x and z axes and at least voxelHeight along y axis.
+        size_[0] = std::max(voxelSize, targetSize[0]);
+        size_[1] = std::max(voxelHeight, targetSize[1]);
+        size_[2] = std::max(voxelSize, targetSize[2]);
+
+        // For any given navigation mesh tile, the upper bound for the number of
+        // triangles generated by Recast on a single floor can be estimated as follows:
+        // 
+        // 1. Calculate the maximum number of regions that can possibly be generated
+        //    across a tile floor during the Recast watershed partioning process (more 
+        //    regions --> more triangles).
+        // 
+        //    Region count is maximized when each region's area is as close to
+        //    mergeRegionArea as possible. Given that each tile's area is tileSize^2,
+        //    we have:
+        //        regions per tile floor (upper bound) = tileSize^2 / mergeRegionArea
+        // 
+        // 2. Approximate each region as a circle, and find the maximum number of
+        //    vertices generated by decimating it using the Ramer–Douglas–Peucker
+        //    algorithm (used by Recast to simplify region outlines).
+        //
+        //    Solve for 'r' below:
+        //        mergeRegionArea = pi * r^2;
+        //    
+        //    And after some geometry:
+        //        Triangles per region (expected) = ceil(2 * pi / acos(1 - maxSimplificationError / r)) - 2
+        //
+        // 3. Multiply tris/region by regions/tile floor to get the upper bound for
+        //    triangles per tile.
+        //
+
+        const int maxRegionsPerTileFloor = std::ceil(kTileSize * kTileSize / kMergeRegionArea);
+        const int regionRadius = std::sqrt(kMergeRegionArea / pi);
+        const int expectedTrisPerRegion = std::ceil(2 * pi / std::acos(1 - kMaxSimplificationError / regionRadius)) - 2;
+        uint32_t maxTrisPerTileFloor = expectedTrisPerRegion * maxRegionsPerTileFloor;
+
+        // There are only 22 bits available to be divided among identifying tiles
+        // and identifying polys within those tiles.
+        // Limitation of Recast. Allow enough bits for at least a single floor.
+        const uint8_t tileBitsBudget = 22 - NextPow2(maxTrisPerTileFloor);
+        const float tileSize = kTileSize * voxelSize;
+        int xTiles = std::ceil(targetSize[0] / tileSize);
+        int zTiles = std::ceil(targetSize[2] / tileSize);
+        uint32_t maxTiles = xTiles * zTiles;
+        const uint8_t tileBits = NextPow2(maxTiles);
+        if (tileBits > tileBitsBudget) {
+            // Use the entire tile bits budget:
+            //     2 ^ tileBitsBudget = xTiles * zTiles;
+            // 
+            // Maintain z/x ratio:
+            //     zTiles / xTiles = size[2] / size[0]
+            // 
+            // Solve for xTiles and zTiles...
+            //
+
+            xTiles = std::floor(std::sqrt((1 << tileBitsBudget) * (targetSize[0] / targetSize[2])));
+            zTiles = std::floor(xTiles * (targetSize[2] / targetSize[0]));
+            maxTiles = xTiles * zTiles;
+            size_[0] = xTiles * tileSize;
+            size_[2] = zTiles * tileSize;
+        }
+
+        xTilesRange[0] = - xTiles / 2;
+        xTilesRange[1] = xTiles / 2;
+        zTilesRange[0] = -zTiles / 2;
+        zTilesRange[1] = zTiles / 2;
+        
+        uint32_t quadtreeDepth = std::max(NextPow2(xTiles), NextPow2(zTiles));
+        chunkQuatree_.reset(tileSize, quadtreeDepth);
+
+        const uint8_t polyBitsBudget = 22 - tileBits;
+        int tileFloors = std::floor(targetSize[1] / agentHeight);
+        uint32_t maxPolysPerTile = maxTrisPerTileFloor * tileFloors;
+        const uint8_t polyBits = NextPow2(maxPolysPerTile);
+        if (polyBits > polyBitsBudget) {
+            // Use the entire poly bits budget and solve for tileFloors:
+            //     2 ^ polyBitsBudget = tileFloors * maxTrisPerTileFloor
+            //
+
+            tileFloors = std::floor((1 << polyBitsBudget) / maxTrisPerTileFloor);
+            maxPolysPerTile = tileFloors * maxTrisPerTileFloor;
+            size_[1] = tileFloors * agentHeight;
+        }
+
         maxWalkableSlope_ = maxWalkableSlope;
         agentRadius_ = agentRadius;
         agentHeight_ = agentHeight;
         agentMaxClimb_ = agentMaxClimb;
-
-        // According to the author of Recast, a good value for voxel size is
-        // 1/2 or 1/3 of the agent radius.
-        voxelSize_ = agentRadius / 3.0f;
-        voxelHeight_ = voxelSize_ / 2.0f;
-
         // The author of recast recommends agent radius * 8 for the max edge length.
         maxEdgeLen_ = agentRadius * 8.0f;
-
-        // There are only 22 bits available to be divided among identifying tiles
-        // and identifying polys within those tiles.
-        const uint32_t tileBits = 12;
-        const uint32_t polyBits = 22 - tileBits;
-        maxTiles_ = 1 << tileBits;
-        maxPolysPerTile_ = 1 << polyBits;
-
-        tileQuadtree_ = new Quadtree<NavigationMeshTile>(kTileSizeVoxels * voxelSize_, tileBits / 2);
 
         dtFreeNavMesh(recastNavMesh_);
         recastNavMesh_ = dtAllocNavMesh();
         if (!recastNavMesh_) {
-            recastContext_.log(RC_LOG_ERROR, "buildTiledNavigation: Failed to allocate navmesh.");
             return Result::kErrorOutOfMemory;
         }
 
@@ -225,17 +239,16 @@ namespace pathfinding {
         navMeshParams.orig[0] = 0;
         navMeshParams.orig[1] = 0;
         navMeshParams.orig[2] = 0;
-        navMeshParams.tileWidth = kTileSizeVoxels * voxelSize_;
-        navMeshParams.tileHeight = kTileSizeVoxels * voxelSize_;
-        navMeshParams.maxTiles = maxTiles_;
-        navMeshParams.maxPolys = maxPolysPerTile_;
+        navMeshParams.tileWidth = tileSize;
+        navMeshParams.tileHeight = tileSize;
+        navMeshParams.maxTiles = maxTiles;
+        navMeshParams.maxPolys = maxPolysPerTile;
 
         dtStatus status;
 
         // Initialize the navigation mesh. This will contain the generated navigation mesh.
         status = recastNavMesh_->init(&navMeshParams);
         if (dtStatusFailed(status)) {
-            recastContext_.log(RC_LOG_ERROR, "buildTiledNavigation: Failed to init navmesh.");
             return Result::kErrorUnexpected;
         }
 
@@ -243,24 +256,23 @@ namespace pathfinding {
         recastNavQuery_ = dtAllocNavMeshQuery();
         status = recastNavQuery_->init(recastNavMesh_, 2048);
         if (dtStatusFailed(status)) {
-            recastContext_.log(RC_LOG_ERROR, "buildTiledNavigation: Failed to init Detour navmesh query");
             return Result::kErrorUnexpected;
         }
 
         // Init build configuration used for all tiles. These fields do not change after initialization.
         memset(&tileConfig_, 0, sizeof(tileConfig_));
-        tileConfig_.cs = voxelSize_;   // Voxel along x and z axis.
-        tileConfig_.ch = voxelHeight_; // Voxel height (y axis).
+        tileConfig_.cs = voxelSize;   // Voxel along x and z axis.
+        tileConfig_.ch = voxelHeight; // Voxel height (y axis).
         tileConfig_.walkableSlopeAngle = maxWalkableSlope_;
         tileConfig_.walkableHeight = (int)ceilf(agentHeight_ / tileConfig_.ch);   // Voxel coordinates.
         tileConfig_.walkableClimb = (int)floorf(agentMaxClimb_ / tileConfig_.ch); // Voxel coordinates.
         tileConfig_.walkableRadius = (int)ceilf(agentRadius_ / tileConfig_.cs);   // Voxel coordinates.
         tileConfig_.maxEdgeLen = (int)(maxEdgeLen_ / tileConfig_.cs);             // Voxel coordinates.
         tileConfig_.maxSimplificationError = kMaxSimplificationError;
-        tileConfig_.minRegionArea = (int)rcSqr(kMinRegionSize);     // Note: area = size*size
-        tileConfig_.mergeRegionArea = (int)rcSqr(kMergeRegionSize); // Note: area = size*size
+        tileConfig_.minRegionArea = kMinRegionArea;
+        tileConfig_.mergeRegionArea = kMergeRegionArea;
         tileConfig_.maxVertsPerPoly = (int)kMaxVertsPerPoly;
-        tileConfig_.tileSize = (int)kTileSizeVoxels;
+        tileConfig_.tileSize = (int)kTileSize;
         tileConfig_.borderSize =
             tileConfig_.walkableRadius + 3; // The 3 adds a little extra buffer to the tile border size for better results.
         tileConfig_.width = tileConfig_.tileSize + tileConfig_.borderSize * 2;
@@ -271,151 +283,36 @@ namespace pathfinding {
         return Result::kOk;
     }
 
-    Result NavigationMesh::registerNavigationMeshGeometryEntity(const float* transform,
-        const uint16_t* triangles,
-        uint32_t trianglesCount,
-        const float* vertices,
-        uint32_t verticesCount,
-        NavigationMeshGeometryEntityHandle& handle) {
-        const NavigationMeshGeometryEntityHandle geometryEntityHandle = nextHandle_.fetch_add(1, std::memory_order_relaxed);
-
-        {
-            const std::lock_guard<std::mutex> regLock(geometryEntityRegistrationMutex_);
-            std::pair<std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity>::iterator, bool>
-                insertion = enqueuedRegisteredGeometryEntities_.insert({ geometryEntityHandle, {} });
-            NavigationMeshGeometryEntity& geometryEntity = insertion.first->second;
-
-            // Set transform
-            setGeometryEntityTransform(geometryEntity, transform);
-
-            // Set geometry data
-            setGeometryEntityGeometry(geometryEntity, triangles, trianglesCount, vertices, verticesCount);
-        }
-
-        // Set handle to the registered geometry entity's handle.
-        handle = geometryEntityHandle;
-
-        return Result::kOk;
-    }
-
-    Result NavigationMesh::deregisterNavigationMeshGeometryEntity(NavigationMeshGeometryEntityHandle handle) {
-        if (isGeometryEntityPendingDestruction(handle)) {
-            // This geometry entity is already pending destruction.
-            return Result::kOk;
-        }
-
-        {
-            const std::lock_guard<std::mutex> regLock(geometryEntityRegistrationMutex_);
-            if (enqueuedRegisteredGeometryEntities_.find(handle) != enqueuedRegisteredGeometryEntities_.end()) {
-                enqueuedRegisteredGeometryEntities_.erase(handle);
-                return Result::kOk;
-            }
-        }
-
-        {
-            const std::lock_guard<std::mutex> deregLock(geometryEntityDeregistrationMutex_);
-            if (findGeometryEntitySafe(handle)) {
-                // Remove pending changes to this geometry entity, if there are any.
-                {
-                    const std::lock_guard<std::mutex> lock(geometryEntitySpatialChangeMutex_);
-                    enqueuedSpatiallyChangedGeometryEntities_.erase(handle);
-                }
-
-                enqueuedDeregisteredGeometryEntities_.insert(handle);
-                return Result::kOk;
-            }
-        }
-
-        return Result::kErrorKeyNotFound;
-    }
-
-    Result NavigationMesh::setNavigationMeshGeometryEntityTransform(NavigationMeshGeometryEntityHandle handle,
-        const float* newTransform) {
-        if (isGeometryEntityPendingDestruction(handle)) {
-            // This geometry entity is queued for destruction. Do not bother modifying its data.
-            return Result::kOk;
-        }
-
-        {
-            const std::lock_guard<std::mutex> regLock(geometryEntityRegistrationMutex_);
-            // Here we consider the case of modifying the transform of an entity
-            // that is still "enqueued".
-            std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity>::iterator
-                enqueuedRegisteredGeometryEntitiesIter = enqueuedRegisteredGeometryEntities_.find(handle);
-            if (enqueuedRegisteredGeometryEntitiesIter != enqueuedRegisteredGeometryEntities_.end()) {
-                NavigationMeshGeometryEntity& geometryEntity = enqueuedRegisteredGeometryEntitiesIter->second;
-                setGeometryEntityTransform(geometryEntity, newTransform);
-                return Result::kOk;
-            }
-        }
-
-        {
-            const std::lock_guard<std::mutex> lock(geometryEntitySpatialChangeMutex_);
-            // Here we consider the case of modifying the transform of an "active"
-            // entity.
-            NavigationMeshGeometryEntity* geometryEntity = findGeometryEntitySafe(handle);
-            if (geometryEntity) {
-                if (!IsApproximatelyEqual(geometryEntity->transform, 16, newTransform, 16)) {
-                    setGeometryEntityTransform(*geometryEntity, newTransform);
-                    enqueuedSpatiallyChangedGeometryEntities_.insert(handle);
-                }
-                return Result::kOk;
-            }
-        }
-
-        return Result::kErrorKeyNotFound;
-    }
-
-    Result NavigationMesh::setNavigationMeshGeometryEntityGeometry(NavigationMeshGeometryEntityHandle handle,
-        const uint16_t* newTriangles,
-        uint32_t newTrianglesCount,
-        const float* newVertices,
-        uint32_t newVerticesCount) {
-        if (isGeometryEntityPendingDestruction(handle)) {
-            // This geometry entity is queued for destruction. Do not bother modifying its data.
-            return Result::kOk;
-        }
-
-        {
-            const std::lock_guard<std::mutex> regLock(geometryEntityRegistrationMutex_);
-            // Here we consider the case of modifying the geometry of an entity
-            // that is still "enqueued".
-            std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity>::iterator
-                enqueuedRegisteredGeometryEntitiesIter = enqueuedRegisteredGeometryEntities_.find(handle);
-            if (enqueuedRegisteredGeometryEntitiesIter != enqueuedRegisteredGeometryEntities_.end()) {
-                NavigationMeshGeometryEntity& geometryEntity = enqueuedRegisteredGeometryEntitiesIter->second;
-                setGeometryEntityGeometry(geometryEntity, newTriangles, newTrianglesCount, newVertices, newVerticesCount);
-                return Result::kOk;
-            }
-        }
-
-        {
-            const std::lock_guard<std::mutex> lock(geometryEntitySpatialChangeMutex_);
-            // Here we consider the case of modifying the geometry of an "active"
-            // entity.
-            NavigationMeshGeometryEntity* geometryEntity = findGeometryEntitySafe(handle);
-            if (geometryEntity) {
-                if (!IsEqual(geometryEntity->geometry.triangles.data(),
-                    geometryEntity->geometry.triangles.size(),
-                    newTriangles,
-                    newTrianglesCount) ||
-                    !IsApproximatelyEqual(geometryEntity->geometry.vertices.data(),
-                        geometryEntity->geometry.vertices.size(),
-                        newVertices,
-                        newVerticesCount)) {
-                    setGeometryEntityGeometry(*geometryEntity, newTriangles, newTrianglesCount, newVertices, newVerticesCount);
-                    enqueuedSpatiallyChangedGeometryEntities_.insert(handle);
-                }
-                return Result::kOk;
-            }
-        }
-
-        return Result::kErrorKeyNotFound;
-    }
-
-    Result NavigationMesh::regenerateIfNeeded(NavigationMeshRegenerationChangeset& navigationMeshRegenerationChangeset) {
+    Result NavigationMesh::regenerateIfNeeded(NavigationMeshChangedChunk*& changedChunks, uint32_t& changedChunksCount) {
         // One navigation mesh regeneration at a time.
         const std::lock_guard<std::mutex> regenLock(navigationMeshRegenerationMutex_);
+
+        displacedGroups_.insert(groupStates_.keys);
+        std::vector<NavigableSurfaceGroupRef> groups = navSurfaceRegistry_->pinAllGroupsAndGet();
+        for (auto groupsIter = groups.begin(); groupsIter != groups.end(); ++groupsIter) {
+            NavigableSurfaceGroupRef groupRef = *groupsIter;
+            navSurfaceRegistry_->getGroupRelativeTransform();
+            if (IsApproximatelyEqual()) {
+                displacedGroups_.erase(groupRef);
+            } else {
+                placedGroups_.push_back(groupRef);
+            }
+        }
+
+        // Moved from
+        for (auto displacedGroupsIter = displacedGroups_.begin();
+            displacedGroupsIter != displacedGroups_.end();
+            ++displacedGroupsIter) {
+            const NavigableSurfaceGroupRef groupRef = *displacedGroupsIter;
+            processDisplacedGroup(groupRef);
+        }
+
+        // Moved to
+        for (auto placedGroupsIter = placedGroups_.begin();
+            placedGroupsIter != placedGroups_.end();
+            ++placedGroupsIter) {
+            processPlacedGroup(*placedGroupsIter);
+        }
 
         // Phase 1: Process registered geometry entities
         {
@@ -448,17 +345,17 @@ namespace pathfinding {
                 const NavigationMeshGeometryEntityHandle handle = *iter;
 
                 NavigationMeshGeometryEntity& geometryEntity = getGeometryEntitySafe(handle);
-                std::vector<QuadtreeCellRef>& previouslyIntersectedTiles = geometryEntity.intersectionCandidateTiles;
+                std::vector<OrthtreeCellRef>& previouslyIntersectedTiles = geometryEntity.intersectionCandidateChunks;
 
                 // For each tile previously intersected by this geometry entity, remove this geometry entity's
                 // handle from its dictionary of intersections, and consider the tile "dirty".
-                for (QuadtreeCellRef tileCellRef : previouslyIntersectedTiles) {
-                    NavigationMeshTile* tile;
-                    if (tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
-                        tile->intersectedGeometryEntityTris.erase(handle);
+                for (OrthtreeCellRef chunkCellRef : previouslyIntersectedTiles) {
+                    NavigationMeshChunk* chunk;
+                    if (chunkQuatree_.ObjectForCellRef(chunkCellRef, chunk)) {
+                        chunk->intersectedGeometryEntityTris.erase(handle);
 
-                        if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
-                            regenCandidateTiles_[tileCellRef] = { false };
+                        if (regenCandidateTiles_.find(chunkCellRef) == regenCandidateTiles_.end()) {
+                            regenCandidateTiles_[chunkCellRef] = { false };
                         }
                     }
                 }
@@ -489,34 +386,39 @@ namespace pathfinding {
         // TODO: Phase 4: Process geometry entity flag/area changes.
 
         // Phase 5: Iterate candidate tiles and perform navigation mesh generation if necessary.
-        for (std::unordered_map<QuadtreeCellRef, RegenerationCandidateTileData>::iterator regenCandidateTileIter =
-            regenCandidateTiles_.begin();
-            regenCandidateTileIter != regenCandidateTiles_.end();
-            ++regenCandidateTileIter) {
-            const QuadtreeCellRef regenCandidateTileCellRef = regenCandidateTileIter->first;
-            const bool isTileNewlyCreated = regenCandidateTileIter->second.isNewlyCreated;
+        const std::unique_lock<std::shared_mutex> navMeshWriteLock(navMeshQueryMutex_);
+        changedChunksFromLastRegeneration_.clear();
+        for (std::unordered_map<OrthtreeCellRef, RegenCandidateChunkData>::iterator regenCandidateChunkIter =
+            regenCandidateChunks_.begin();
+            regenCandidateChunkIter != regenCandidateChunks_.end();
+            ++regenCandidateChunkIter) {
+            const OrthtreeCellRef regenCandidateChunkCellRef = regenCandidateChunkIter->first;
+            const bool isChunkNewlyCreated = regenCandidateChunkIter->second.isNewlyCreated;
 
-            NavigationMeshTile* regenCandidateTile;
-            int32_t tx;
-            int32_t ty;
-            if (!tileQuadtree_->ObjectForCellRef(regenCandidateTileCellRef, regenCandidateTile)
-                || !tileQuadtree_->GetCoordinatesForCellRef(regenCandidateTileCellRef, tx, ty)) {
+            NavigationMeshChunk* regenCandidateChunk;
+            int16_t chunkCoords[3];
+            if (!chunkQuatree_.ObjectForCellRef(regenCandidateChunkCellRef, regenCandidateChunk) ||
+                !chunkQuatree_.GetCoordinatesForCellRef(regenCandidateChunkCellRef, chunkCoords)) {
                 continue;
             }
-            
-            if (!regenCandidateTile->intersectedGeometryEntityTris.empty()) {
+
+            if (!regenCandidateChunk->intersectedGeometryEntityTris.empty()) {
                 // This tile potentially intersects with geometry entities.
                 int navmeshDataSize = 0;
                 unsigned char* navmeshData;
-                TileNavMeshGenStatus genStatus = buildTileNavigationMesh(regenCandidateTile, tx, ty, navmeshData, navmeshDataSize);
+                ChunkNavMeshGenStatus genStatus =
+                    buildNavigationMeshAt(chunkCoords[0], chunkCoords[1], chunkCoords[2], regenCandidateChunk->intersectedGeometryEntityTris, navmeshData, navmeshDataSize);
 
                 switch (genStatus) {
-                case TileNavMeshGenStatus::Success: {
-                    // Clear old navigation mesh for this tile.
-                    clearTileNavigationMesh(regenCandidateTile);
-
-                    // Add newly built navigation mesh for this tile.
-                    dtStatus status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, &regenCandidateTile->tileRef);
+                case ChunkNavMeshGenStatus::Success: {
+                    dtStatus status;
+                    {
+                        const std::unique_lock<std::shared_mutex> writeLock(navMeshTileMutex_);
+                        // Clear old navigation mesh for this tile.
+                        clearNavigationMeshForChunk(regenCandidateChunk);
+                        // Add newly built navigation mesh for this tile.
+                        status = recastNavMesh_->addTile(navmeshData, navmeshDataSize, DT_TILE_FREE_DATA, 0, &regenCandidateChunk->tileRef);
+                    }
                     if (dtStatusFailed(status)) {
                         // Free the navmesh data because we failed to add the tile's navigation mesh.
                         dtFree(navmeshData);
@@ -524,30 +426,18 @@ namespace pathfinding {
                     else {
                         // The tile's navigation mesh was successfully incorporated into the main navigation mesh.
                         //
-                        // Fetch data for this tile's generated navigation mesh.
-                        NavigationMeshTileData navMeshTileData;
-                        navMeshTileData.tileCoordinates[0] = tx;
-                        navMeshTileData.tileCoordinates[1] = ty;
-                        getTileNavigationMeshTriangulation(*tilePolyMesh_,
-                            navMeshTileData.origin,
-                            navMeshTileData.triangles,
-                            navMeshTileData.trianglesCount,
-                            navMeshTileData.vertices,
-                            navMeshTileData.verticesCount);
-
-                        if (isTileNewlyCreated) {
-                            navigationMeshRegenerationChangeset.addedTiles.push_back(navMeshTileData);
-                        }
-                        else {
-                            navigationMeshRegenerationChangeset.modifiedTiles.push_back(navMeshTileData);
-                        }
+                        // Write this tile's generated navigation mesh data to changedTilesDataBuffer, if any space is available.
+                        NavigationMeshChangedChunk changedChunk;
+                        changedChunk.changeType = isChunkNewlyCreated ? (unsigned char)1 : (unsigned char)2;
+                        changedChunk.chunkRef = regenCandidateTileCellRef;
+                        changedChunksFromLastRegeneration_.push_back(changedChunk);
                     }
                 } break;
-                case TileNavMeshGenStatus::NoGeneration: {
+                case ChunkNavMeshGenStatus::NoGeneration: {
                     // No navigation mesh was generated for this tile. It is a false positive.
-                    if (isTileNewlyCreated) {
+                    if (isChunkNewlyCreated) {
                         // If tile was newly created, delete it.
-                        tileQuadtree_->RemoveCell(regenCandidateTileCellRef);
+                        chunkQuatree_.RemoveCell(regenCandidateTileCellRef);
                     }
                 } break;
                 default:
@@ -558,42 +448,42 @@ namespace pathfinding {
             else {
                 // This tile has no geometry intersecting it. Delete it.
                 // TODO: Assert that isTileNewlyCreated is false.
-                NavigationMeshTileData navMeshTileData;
-                navMeshTileData.tileCoordinates[0] = tx;
-                navMeshTileData.tileCoordinates[1] = ty;
-                navigationMeshRegenerationChangeset.removedTiles.push_back(navMeshTileData);
-                clearTileNavigationMesh(regenCandidateTile);
-                tileQuadtree_->RemoveCell(regenCandidateTileCellRef);
+                NavigationMeshChangedChunk changedChunk;
+                changedChunk.changeType = (unsigned char)3;
+                changedChunk.chunkRef = regenCandidateTileCellRef;
+                changedChunksFromLastRegeneration_.push_back(changedChunk);
+
+                {
+                    const std::unique_lock<std::shared_mutex> writeLock(navMeshTileMutex_);
+                    clearNavigationMeshForChunk(regenCandidateChunk);
+                }
+                chunkQuatree_.RemoveCell(regenCandidateTileCellRef);
             }
         }
 
         regenCandidateTiles_.clear();
 
+        // Set the tiles that were changed during this regeneration.
+        changedChunks = changedChunksFromLastRegeneration_.data();
+        changedChunksCount = changedChunksFromLastRegeneration_.size();
+
         return Result::kOk;
     }
 
-    void NavigationMesh::processGeometryEntitySpatialChanges(NavigationMeshGeometryEntityHandle handle) {
-        NavigationMeshGeometryEntity& geometryEntity = getGeometryEntitySafe(handle);
-
-        // Find tiles that were previously intersected by this geometry entity. They are likely
-        // affected by the spatial changes applied to this geometry entity.
-        for (QuadtreeCellRef tileCellRef : geometryEntity.intersectionCandidateTiles) {
-            NavigationMeshTile* tile;
-            if (tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
-                // Assume that this geometry entity no longer intersects this tile.
-                // If we are wrong, it will be corrected in the next step anyway, where
-                // we check for new geometry entity-tile intersections after the vertices
-                // are transformed.
-                tile->intersectedGeometryEntityTris.erase(handle);
-
-                if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
-                    regenCandidateTiles_[tileCellRef] = { false };
-                }
-            }
+    void NavigationMesh::processDisplacedGroup(NavigableSurfaceGroupRef groupRef) {
+        auto foundGroupStateIter = groupStates_.find(groupRef);
+        NavigableSurfaceGroupState& groupState = foundGroupStateIter->second;
+        // Find chunks that were previously intersected by this group.
+        for (NavigationMeshChunkRef chunkRef : groupState.potentiallyIntersectingChunks) {
+            regenCandidateChunks_[chunkRef] = { false };
         }
 
-        // Clear previously intersected tiles. We will calculate new ones.
-        geometryEntity.intersectionCandidateTiles.clear();
+        // Clear previously intersected chunks. We will calculate new ones.
+        groupState.potentiallyIntersectingChunks.clear();
+    }
+
+    void NavigationMesh::processPlacedGroup(NavigableSurfaceGroupRef groupRef) {
+        NavigationMeshGeometryEntity& geometryEntity = getGeometryEntitySafe(handle);
 
         // Transform geometry verts to navigation mesh local space using new transform and/or new geometry.
         geometryEntity.transformedGeometryVertices.clear();
@@ -627,154 +517,166 @@ namespace pathfinding {
             // It is faster to expand the triangle AABB by the border size and check for intersections
             // with surrounding tiles than it is to expand each tile AABB by the border size and check if
             // it intersects this triangle.
-            const float bs = tileConfig_.borderSize * tileConfig_.cs;
-            triAABBMin[0] -= bs;
-            triAABBMin[2] -= bs;
-            triAABBMax[0] += bs;
-            triAABBMax[2] += bs;
+            //const float borderSizeXZ = tileConfig_.borderSize * tileConfig_.cs;
+            //const float borderSizeY = tileConfig_.borderSize * tileConfig_.ch;
+            const float borderSize = tileConfig_.borderSize * tileConfig_.cs;
+            triAABBMin[0] -= borderSize;
+            triAABBMin[1] -= borderSize;
+            triAABBMin[2] -= borderSize;
+            triAABBMax[0] += borderSize;
+            triAABBMax[1] += borderSize;
+            triAABBMax[2] += borderSize;
 
-            int32_t minTx; int32_t minTy;
-            tileCoordinatesForLocalPosition(triAABBMin, minTx, minTy);
-            int32_t maxTx; int32_t maxTy;
-            tileCoordinatesForLocalPosition(triAABBMax, maxTx, maxTy);
+            int16_t minChunkCoords[3];
+            chunkQuatree_.GetCellCoordinatesForPosition(triAABBMin, minChunkCoords);
+            int16_t maxChunkCoords[3];
+            chunkQuatree_.GetCellCoordinatesForPosition(triAABBMax, maxChunkCoords);
             // This may produce some false positives for tile-triangle intersections, but that is ok because
             // the false positives are later filtered out internally by Recast during the rasterization process.
-            for (int32_t tx = minTx; tx <= maxTx; tx++) {
-                for (int32_t ty = minTy; ty <= maxTy; ty++) {
-                    QuadtreeCellRef tileCellRef = tileQuadtree_->GetCellRefForCoordinates(tx, ty);
-                    if (!tileCellRef) {
+            for (int16_t x = minChunkCoords[0]; x <= maxChunkCoords[0]; x++) {
+                for (int16_t z = minChunkCoords[2]; z <= maxChunkCoords[2]; z++) {
+                    int16_t chunkCoords[2] = { x, z };
+                    OrthtreeCellRef chunkCellRef = chunkQuatree_.GetCellRefForCoordinates(chunkCoords);
+                    if (chunkCellRef < 0) {
                         // Create a new tile.
-                        tileCellRef = tileQuadtree_->AddCellAt(tx, ty, { 0, {} });
-                        regenCandidateTiles_[tileCellRef] = { true };
-                    } else {
-                        if (regenCandidateTiles_.find(tileCellRef) == regenCandidateTiles_.end()) {
-                            regenCandidateTiles_[tileCellRef] = { false };
+                        chunkCellRef = chunkQuatree_.AddCellAt(chunkCoords, { 0, {} });
+                        regenCandidateChunks_[chunkCellRef] = { true };
+                    }
+                    else {
+                        if (regenCandidateChunks_.find(chunkCellRef) == regenCandidateChunks_.end()) {
+                            regenCandidateChunks_[chunkCellRef] = { false };
                         }
                     }
 
-                    NavigationMeshTile* tile;
-                    if (tileQuadtree_->ObjectForCellRef(tileCellRef, tile)) {
-                        auto geometryEntityTrisIter = tile->intersectedGeometryEntityTris.find(handle);
-                        if (geometryEntityTrisIter != tile->intersectedGeometryEntityTris.end()) {
+                    NavigationMeshChunk* chunk;
+                    if (chunkQuatree_.ObjectForCellRef(chunkCellRef, chunk)) {
+                        auto geometryEntityTrisIter = chunk->intersectedGeometryEntityTris.find(handle);
+                        if (geometryEntityTrisIter != chunk->intersectedGeometryEntityTris.end()) {
                             geometryEntityTrisIter->second.push_back(v0i);
                             geometryEntityTrisIter->second.push_back(v1i);
                             geometryEntityTrisIter->second.push_back(v2i);
                         }
                         else {
-                            tile->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
+                            chunk->intersectedGeometryEntityTris[handle] = { v0i, v1i, v2i };
                         }
 
-                        geometryEntity.intersectionCandidateTiles.push_back(tileCellRef);
+                        geometryEntity.intersectionCandidateChunks.push_back(chunkCellRef);
                     }
-
                 }
             }
         }
     }
 
-    void NavigationMesh::setGeometryEntityTransform(NavigationMesh::NavigationMeshGeometryEntity& geometryEntity,
-        const float* transform) {
-        memcpy(geometryEntity.transform, transform, 16 * sizeof(float));
-    }
+    Result NavigationMesh::getNavigationMeshDataForChunk(
+        int16_t tx,
+        int16_t ty,
+        int16_t tz,
+        float* origin,
+        uint16_t*& triangles,
+        uint32_t& trianglesCount,
+        float*& vertices,
+        uint32_t& verticesCount) {
+        chunkNavigationMeshTriangles_.clear();
+        chunkNavigationMeshVertices_.clear();
 
-    void NavigationMesh::setGeometryEntityGeometry(NavigationMesh::NavigationMeshGeometryEntity& geometryEntity,
-        const uint16_t* triangles,
-        uint32_t trianglesCount,
-        const float* vertices,
-        uint32_t verticesCount) {
-        geometryEntity.geometry.triangles.clear();
-        geometryEntity.geometry.triangles.insert(geometryEntity.geometry.triangles.begin(),
-            triangles,
-            triangles + 3 * trianglesCount);
-        geometryEntity.geometry.vertices.clear();
-        geometryEntity.geometry.vertices.insert(geometryEntity.geometry.vertices.begin(),
-            vertices,
-            vertices + 3 * verticesCount);
-    }
+        //const float chunkSizeXZ = tileConfig_.tileSize * tileConfig_.cs;
+        //const float chunkSizeY = tileConfig_.tileSize * tileConfig_.ch;
+        const float chunkSize = tileConfig_.tileSize * tileConfig_.cs;
+        origin[0] = tx * chunkSize;
+        origin[1] = ty * chunkSize;
+        origin[2] = tz * chunkSize;
 
-    bool NavigationMesh::isGeometryEntityPendingDestruction(NavigationMeshGeometryEntityHandle handle) {
-        const std::lock_guard<std::mutex> lock(geometryEntityDeregistrationMutex_);
-        return enqueuedDeregisteredGeometryEntities_.find(handle) != enqueuedDeregisteredGeometryEntities_.end();
-    }
-
-    NavigationMesh::NavigationMeshGeometryEntity& NavigationMesh::getGeometryEntitySafe(
-        NavigationMeshGeometryEntityHandle handle) {
-        const std::shared_lock<std::shared_mutex> lock(geometryEntitiesMutex_);
-        return geometryEntities_[handle];
-    }
-
-    NavigationMesh::NavigationMeshGeometryEntity* NavigationMesh::findGeometryEntitySafe(
-        NavigationMeshGeometryEntityHandle handle) {
-        const std::shared_lock<std::shared_mutex> lock(geometryEntitiesMutex_);
-        std::unordered_map<NavigationMeshGeometryEntityHandle, NavigationMeshGeometryEntity>::iterator geometryEntitiesIter =
-            geometryEntities_.find(handle);
-        if (geometryEntitiesIter != geometryEntities_.end()) {
-            return &geometryEntitiesIter->second;
+        const std::shared_lock<std::shared_mutex> readLock(navMeshTileMutex_);
+        const dtMeshTile* meshTile = recastNavMesh_->getTileAt(tx, tz, ty);
+        if (!meshTile) {
+            triangles = nullptr;
+            trianglesCount = 0;
+            vertices = nullptr;
+            verticesCount = 0;
+            return Result::kOk;
         }
-        else {
-            return nullptr;
+
+        trianglesCount = (kMaxVertsPerPoly - 2) * meshTile->header->polyCount;
+        verticesCount = meshTile->header->vertCount;
+        chunkNavigationMeshTriangles_.resize(3 * trianglesCount);
+        chunkNavigationMeshVertices_.resize(3 * verticesCount);
+        triangles = chunkNavigationMeshTriangles_.data();
+        vertices = chunkNavigationMeshVertices_.data();
+
+        const int nvp = tileConfig_.maxVertsPerPoly;
+        for (int i = 0; i < meshTile->header->polyCount; ++i) {
+            const dtPoly poly = meshTile->polys[i];
+            uint16_t vi[3];
+
+            // We perform a simple triangulation of the polygon if the
+            // vertex count exceeds 3.
+            for (int j = 2; j < nvp; ++j) {
+                if (poly.verts[j] == RC_MESH_NULL_IDX) {
+                    break;
+                }
+
+                vi[0] = poly.verts[0];
+                vi[1] = poly.verts[j - 1];
+                vi[2] = poly.verts[j];
+                for (int k = 0; k < 3; ++k) {
+                    chunkNavigationMeshTriangles_[3 * ((nvp - 2) * i + (j - 2)) + k] = vi[k];
+                }
+            }
         }
+
+        // Calculate vertex positions relative to the tile origin.
+        for (uint32_t i = 0; i < chunkNavigationMeshVertices_.size(); i += 3) {
+            for (uint32_t j = 0; j < 3; ++j) {
+                chunkNavigationMeshVertices_[i + j] = meshTile->verts[i + j] - origin[j];
+            }
+        }
+
+        return Result::kOk;
     }
 
-    void NavigationMesh::tileCoordinatesForLocalPosition(const float* pos, int32_t& tx, int32_t& ty) {
-        tileQuadtree_->GetCellCoordinatesForPosition(pos, tx, ty);
+    void NavigationMesh::clearNavigationMeshForChunk(NavigationMeshChunk* chunk) {
+        recastNavMesh_->removeTile(chunk->tileRef, 0, 0);
     }
 
-    void NavigationMesh::clearTileNavigationMesh(NavigationMeshTile* tile) {
-        recastNavMesh_->removeTile(tile->tileRef, 0, 0);
-    }
-
-    NavigationMesh::TileNavMeshGenStatus NavigationMesh::buildTileNavigationMesh(NavigationMeshTile* tile,
-        int32_t tx,
-        int32_t ty,
+    NavigationMesh::ChunkNavMeshGenStatus NavigationMesh::buildNavigationMeshAt(
+        int16_t tx,
+        int16_t ty,
+        int16_t tz,
+        const std::unordered_map<NavigationMeshGeometryEntityHandle, std::vector<uint16_t>>& intersectedGeometryEntityTris,
         unsigned char*& navMeshData,
         int& navMeshDataSize) {
         // Find axis aligned bounding box of the tile.
-        const float ts = tileConfig_.tileSize * tileConfig_.cs;
-        const float minX = tx * ts;
-        const float minZ = ty * ts;
+        //const float chunkSizeXZ = tileConfig_.tileSize * tileConfig_.cs;
+        //const float chunkSizeY = tileConfig_.tileSize * tileConfig_.ch;
+        const float chunkSize = tileConfig_.tileSize * tileConfig_.cs;
+        const float minX = tx * chunkSize;
+        const float minY = ty * chunkSize;
+        const float minZ = tz * chunkSize;
 
-        float tileAABBMin[3] = { minX, 0, minZ };
-        float tileAABBMax[3] = { minX + ts, 0, minZ + ts };
-        // Calculate the min/max Y values of all triangles intersecting this tile.
-        for (auto& intersectedGeometryEntityTris : tile->intersectedGeometryEntityTris) {
-            const NavigationMeshGeometryEntity& geometryEntity = geometryEntities_[intersectedGeometryEntityTris.first];
-            const std::vector<uint16_t>& intersectedTriangles = intersectedGeometryEntityTris.second;
-            for (uint16_t vi : intersectedTriangles) {
-                tileAABBMin[1] = std::min(tileAABBMin[1], geometryEntity.transformedGeometryVertices[3 * vi + 1]);
-                tileAABBMax[1] = std::max(tileAABBMax[1], geometryEntity.transformedGeometryVertices[3 * vi + 1]);
-            }
-        }
-        tileAABBMax[1] += agentHeight_ + 3;
-
-        rcVcopy(tileConfig_.bmin, tileAABBMin);
-        rcVcopy(tileConfig_.bmax, tileAABBMax);
+        float chunkAABBMin[3] = { minX, minY, minZ };
+        float chunkAABBMax[3] = { minX + chunkSize, minY + chunkSize, minZ + chunkSize };
+        rcVcopy(tileConfig_.bmin, chunkAABBMin);
+        rcVcopy(tileConfig_.bmax, chunkAABBMax);
 
         // Expand this box along xz plane by borderSize * cellSize to account for geometry near
         // the edges of the tile.
-        const float bs = tileConfig_.borderSize * tileConfig_.cs;
-        tileConfig_.bmin[0] -= bs;
-        tileConfig_.bmin[2] -= bs;
-        tileConfig_.bmax[0] += bs;
-        tileConfig_.bmax[2] += bs;
+        //const float borderSizeXZ = tileConfig_.borderSize * tileConfig_.cs;
+        //const float borderSizeY = tileConfig_.borderSize * tileConfig_.ch;
+        const float borderSize = tileConfig_.borderSize * tileConfig_.cs;
+        tileConfig_.bmin[0] -= borderSize;
+        tileConfig_.bmin[1] -= borderSize;
+        tileConfig_.bmin[2] -= borderSize;
+        tileConfig_.bmax[0] += borderSize;
+        tileConfig_.bmin[1] += borderSize;
+        tileConfig_.bmax[2] += borderSize;
 
-        // Clean up intermediate tile pipeline stuff.
+        // Clean up objects used in the intermediate tile navmesh generation pipeline.
         cleanup();
-
-        // Reset build times gathering.
-        recastContext_.resetTimers();
-
-        // Start the build process.
-        recastContext_.startTimer(RC_TIMER_TOTAL);
-
-        recastContext_.log(RC_LOG_PROGRESS, "Building tile at: (%d, %d)", tx, ty);
 
         // Allocate voxel heightfield where we rasterize our input data to.
         tileHeightfield_ = rcAllocHeightfield();
         if (!tileHeightfield_) {
-            recastContext_.log(RC_LOG_ERROR,
-                "buildNavigation: Out of memory for heightfield allocation for 'tileHeightfield_'.");
-            return TileNavMeshGenStatus::AllocationFailure;
+            return ChunkNavMeshGenStatus::AllocationFailure;
         }
         if (!rcCreateHeightfield(&recastContext_,
             *tileHeightfield_,
@@ -784,12 +686,11 @@ namespace pathfinding {
             tileConfig_.bmax,
             tileConfig_.cs,
             tileConfig_.ch)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to create solid heightfield.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
         // Rasterize all intersecting geometry entities onto the tile.
-        for (auto& intersectedGeometryEntityTris : tile->intersectedGeometryEntityTris) {
+        for (auto& intersectedGeometryEntityTris : intersectedGeometryEntityTris) {
             const NavigationMeshGeometryEntityHandle handle = intersectedGeometryEntityTris.first;
             const NavigationMeshGeometryEntity& geometryEntity = geometryEntities_[handle];
             const std::vector<uint16_t>& intersectedTriangles = intersectedGeometryEntityTris.second;
@@ -803,8 +704,8 @@ namespace pathfinding {
             unsigned char* triareas = new unsigned char[nctris];
             memset(triareas, RC_WALKABLE_AREA, nctris * sizeof(unsigned char));
 
-            //memset(triareas, 0, nctris * sizeof(unsigned char));
-            //rcMarkWalkableTriangles(&recastContext_, tileConfig_.walkableSlopeAngle,
+            // memset(triareas, 0, nctris * sizeof(unsigned char));
+            // rcMarkWalkableTriangles(&recastContext_, tileConfig_.walkableSlopeAngle,
             //    verts, nverts, ctris, nctris, triareas);
 
             // TODO: Set area ids of triangles for this entity
@@ -822,8 +723,7 @@ namespace pathfinding {
             delete[] triareas;
 
             if (!success) {
-                recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to rasterize triangles.");
-                return TileNavMeshGenStatus::RasterizationFailure;
+                return ChunkNavMeshGenStatus::RasterizationFailure;
             }
         }
 
@@ -839,30 +739,26 @@ namespace pathfinding {
         // between walkable cells will be calculated.
         tileCompactHeightfield_ = rcAllocCompactHeightfield();
         if (!tileCompactHeightfield_) {
-            recastContext_.log(
-                RC_LOG_ERROR,
-                "buildNavigation: Out of memory for compact heightfield allocation for 'tileCompactHeightfield_'.");
-            return TileNavMeshGenStatus::AllocationFailure;
+            return ChunkNavMeshGenStatus::AllocationFailure;
         }
         if (!rcBuildCompactHeightfield(&recastContext_,
             tileConfig_.walkableHeight,
             tileConfig_.walkableClimb,
             *tileHeightfield_,
             *tileCompactHeightfield_)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to build compact heightfield.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
         // Erode the walkable area by agent radius.
-        //if (!rcErodeWalkableArea(&recastContext_, tileConfig_.walkableRadius, *tileCompactHeightfield_)) {
-        //  recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to erode.");
-        //  return TileNavMeshGenStatus::ErosionFailure;
-        //}
+        /*
+        if (!rcErodeWalkableArea(&recastContext_, tileConfig_.walkableRadius, *tileCompactHeightfield_)) {
+            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to erode.");
+            return ChunkNavMeshGenStatus::ErosionFailure;
+        }*/
 
         // Prepare for Watershed region partitioning by calculating distance field along the walkable surface.
         if (!rcBuildDistanceField(&recastContext_, *tileCompactHeightfield_)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Could not build distance field.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
         // Partition the walkable surface into simple regions without holes.
@@ -871,64 +767,53 @@ namespace pathfinding {
             tileConfig_.borderSize,
             tileConfig_.minRegionArea,
             tileConfig_.mergeRegionArea)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Could not build watershed regions.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
         // Create contours.
         tileContourSet_ = rcAllocContourSet();
         if (!tileContourSet_) {
-            recastContext_.log(RC_LOG_ERROR,
-                "buildNavigation: Out of memory for contour set allocation for 'tileContourSet_'.");
-            return TileNavMeshGenStatus::AllocationFailure;
+            return ChunkNavMeshGenStatus::AllocationFailure;
         }
         if (!rcBuildContours(&recastContext_,
             *tileCompactHeightfield_,
             tileConfig_.maxSimplificationError,
             tileConfig_.maxEdgeLen,
             *tileContourSet_)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to create contours.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
         if (tileContourSet_->nconts == 0) {
             // Zero contours were produce. Return early because no navmesh will be generated for this tile.
-            return TileNavMeshGenStatus::NoGeneration;
+            return ChunkNavMeshGenStatus::NoGeneration;
         }
 
         // Build polygon navmesh from the contours.
         tilePolyMesh_ = rcAllocPolyMesh();
         if (!tilePolyMesh_) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Out of memory for poly mesh allocation for 'tilePolyMesh_'.");
-            return TileNavMeshGenStatus::AllocationFailure;
+            return ChunkNavMeshGenStatus::AllocationFailure;
         }
 
         if (!rcBuildPolyMesh(&recastContext_, *tileContourSet_, tileConfig_.maxVertsPerPoly, *tilePolyMesh_)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to triangulate contours.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
         // Build detail mesh.
         tilePolyMeshDetail_ = rcAllocPolyMeshDetail();
         if (!tilePolyMeshDetail_) {
-            recastContext_.log(RC_LOG_ERROR,
-                "buildNavigation: Out of memory for poly mesh detail allocation for 'tilePolyMeshDetail_'.");
-            return TileNavMeshGenStatus::AllocationFailure;
+            return ChunkNavMeshGenStatus::AllocationFailure;
         }
-
         if (!rcBuildPolyMeshDetail(&recastContext_,
             *tilePolyMesh_,
             *tileCompactHeightfield_,
             tileConfig_.detailSampleDist,
             tileConfig_.detailSampleMaxError,
             *tilePolyMeshDetail_)) {
-            recastContext_.log(RC_LOG_ERROR, "buildNavigation: Failed to build polymesh detail.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
-        
+
         // Set poly flags.
-        for (int i = 0; i < tilePolyMesh_->npolys; ++i)
-        {
+        for (int i = 0; i < tilePolyMesh_->npolys; ++i) {
             tilePolyMesh_->flags[i] = 0xFFFF;
         }
 
@@ -952,8 +837,8 @@ namespace pathfinding {
         params.walkableRadius = agentRadius_;
         params.walkableClimb = agentMaxClimb_;
         params.tileX = tx;
-        params.tileY = ty;
-        params.tileLayer = 0;
+        params.tileY = tz;
+        params.tileLayer = ty;
         rcVcopy(params.bmin, tilePolyMesh_->bmin);
         rcVcopy(params.bmax, tilePolyMesh_->bmax);
         params.cs = tileConfig_.cs;
@@ -961,142 +846,141 @@ namespace pathfinding {
         params.buildBvTree = true;
 
         if (!dtCreateNavMeshData(&params, &navMeshData, &navMeshDataSize)) {
-            recastContext_.log(RC_LOG_ERROR, "Failed to build Detour navmesh.");
-            return TileNavMeshGenStatus::BuildFailure;
+            return ChunkNavMeshGenStatus::BuildFailure;
         }
 
-        recastContext_.stopTimer(RC_TIMER_TOTAL);
-        float tileBuildTime = recastContext_.getAccumulatedTime(RC_TIMER_TOTAL) / 1000.0f;
-        float tileMemoryUsage = navMeshDataSize / 1024.0f;
-
-        recastContext_.log(RC_LOG_PROGRESS, ">> Tile Build Time: %f sec", tileBuildTime);
-        recastContext_.log(RC_LOG_PROGRESS, ">> Tile Memory Usage: %f KB", tileMemoryUsage);
-        recastContext_.log(RC_LOG_PROGRESS,
-            ">> Tile polymesh has: %d vertices and %d polygons",
-            tilePolyMesh_->nverts,
-            tilePolyMesh_->npolys);
-
-        return TileNavMeshGenStatus::Success;
+        return ChunkNavMeshGenStatus::Success;
     }
 
-    Result NavigationMesh::findPath(
-        const float* fromPoint,
+    Result NavigationMesh::findPath(const float* fromPoint,
         const float* toPoint,
         uint32_t maxPathPointsCount,
         float* pathPoints,
-        uint32_t& foundPathPointsCount
-    ) {
-        recastNavMesh_->setPolyFlags(4204545, 0);
-
+        uint32_t& foundPathPointsCount) {
         float inputPoint[3];
-        QuadtreeCellRef cellContainingInputPoint;
+        OrthtreeCellRef cellContainingInputPoint;
         dtPolyRef closestPoly;
         float closestPolyPoint[3];
-        std::function<float(QuadtreeCellRef, NavigationMeshTile&, float)> actionBlock =
-            [this, &inputPoint, &cellContainingInputPoint, &closestPoly, &closestPolyPoint](QuadtreeCellRef cellRef, NavigationMeshTile& tile, float closestPolyPointSqrDist) {
-            const dtMeshTile* meshTile = recastNavMesh_->getTileByRef(tile.tileRef);
-            const dtPolyRef polyRefBase = recastNavMesh_->getPolyRefBase(meshTile);
-            const int polyCount = meshTile->header->polyCount;
-            for (int polyIdx = 0; polyIdx < polyCount; ++polyIdx) {
-                const dtPolyRef candidatePolyRef = polyRefBase + polyIdx;
-                float closestPointOnPoly[3];
-                if (cellContainingInputPoint == cellRef) {
-                    bool isInputPointOverPoly;
-                    recastNavQuery_->closestPointOnPoly(candidatePolyRef, inputPoint, closestPointOnPoly, &isInputPointOverPoly);
-                } else {
-                    // If the examined cell does not contain the input point, we can perform
-                    // the less expensive 'closestPointOnPolyBoundary' function. 
-                    recastNavQuery_->closestPointOnPolyBoundary(candidatePolyRef, inputPoint, closestPointOnPoly);
-                }
-                
-                const float sqrDist = rcVdistSqr(inputPoint, closestPointOnPoly);
-                if (sqrDist < closestPolyPointSqrDist) {
-                    closestPolyPointSqrDist = sqrDist;
-                    closestPoly = candidatePolyRef;
-                    rcVcopy(closestPolyPoint, closestPointOnPoly);
-                }
-            }
+        std::function<float(OrthtreeCellRef, NavigationMeshChunk&, float)> actionBlock =
+            [this, &inputPoint, &cellContainingInputPoint, &closestPoly, &closestPolyPoint](OrthtreeCellRef cellRef,
+                NavigationMeshChunk& chunk,
+                float closestPolyPointSqrDist) {
+                    const dtMeshTile* meshTile = recastNavMesh_->getTileByRef(chunk.tileRef);
+                    const dtPolyRef polyRefBase = recastNavMesh_->getPolyRefBase(meshTile);
+                    const int polyCount = meshTile->header->polyCount;
+                    for (int polyIdx = 0; polyIdx < polyCount; ++polyIdx) {
+                        const dtPolyRef candidatePolyRef = polyRefBase + polyIdx;
+                        float closestPointOnPoly[3];
+                        if (cellContainingInputPoint == cellRef) {
+                            bool isInputPointOverPoly;
+                            recastNavQuery_->closestPointOnPoly(candidatePolyRef, inputPoint, closestPointOnPoly, &isInputPointOverPoly);
+                        }
+                        else {
+                            // If the examined cell does not contain the input point, we can perform
+                            // the less expensive 'closestPointOnPolyBoundary' function.
+                            recastNavQuery_->closestPointOnPolyBoundary(candidatePolyRef, inputPoint, closestPointOnPoly);
+                        }
 
-            return closestPolyPointSqrDist;
+                        const float sqrDist = rcVdistSqr(inputPoint, closestPointOnPoly);
+                        if (sqrDist < closestPolyPointSqrDist) {
+                            closestPolyPointSqrDist = sqrDist;
+                            closestPoly = candidatePolyRef;
+                            rcVcopy(closestPolyPoint, closestPointOnPoly);
+                        }
+                    }
+                    return closestPolyPointSqrDist;
         };
 
-        int32_t x, y;
+        const std::shared_lock<std::shared_mutex> navMeshReadLock(navMeshQueryMutex_);
+        int16_t chunkCoords[3];
+
+        // Get closest point on the navigation mesh to 'fromPoint'.
         rcVcopy(inputPoint, fromPoint);
-        tileQuadtree_->GetCellCoordinatesForPosition(inputPoint, x, y);
-        cellContainingInputPoint = tileQuadtree_->GetCellRefForCoordinates(x, y);
+        chunkQuatree_.GetCellCoordinatesForPosition(inputPoint, chunkCoords);
+        cellContainingInputPoint = chunkQuatree_.GetCellRefForCoordinates(chunkCoords);
         closestPoly = 0;
-        tileQuadtree_->QueryNearestNeighbourCells(fromPoint, actionBlock);
-        if (!closestPolyPoint) {
-            pathPoints = nullptr;
+        chunkQuatree_.QueryNearestNeighbourCells(fromPoint, actionBlock);
+        if (!closestPoly) {
             foundPathPointsCount = 0;
             return Result::kOk;
         }
         const dtPolyRef closestStartPoly = closestPoly;
         float closestStartPoint[3];
         rcVcopy(closestStartPoint, closestPolyPoint);
-        std::cout << "closest start point: (" << closestPolyPoint[0] << ", " << closestPolyPoint[1] << ", " << closestPolyPoint[2] << ")" << std::endl;
-        std::cout << "closest start poly: " << closestStartPoly << std::endl;
 
+        // Get closest point on the navigation mesh to 'toPoint'.
         rcVcopy(inputPoint, toPoint);
-        tileQuadtree_->GetCellCoordinatesForPosition(inputPoint, x, y);
-        cellContainingInputPoint = tileQuadtree_->GetCellRefForCoordinates(x, y);
+        chunkQuatree_.GetCellCoordinatesForPosition(inputPoint, chunkCoords);
+        cellContainingInputPoint = chunkQuatree_.GetCellRefForCoordinates(chunkCoords);
         closestPoly = 0;
-        tileQuadtree_->QueryNearestNeighbourCells(toPoint, actionBlock);
-        if (!closestPolyPoint) {
-            pathPoints = nullptr;
+        chunkQuatree_.QueryNearestNeighbourCells(toPoint, actionBlock);
+        if (!closestPoly) {
             foundPathPointsCount = 0;
             return Result::kOk;
         }
         const dtPolyRef closestEndPoly = closestPoly;
         float closestEndPoint[3];
         rcVcopy(closestEndPoint, closestPolyPoint);
-        std::cout << "closest end point: (" << closestEndPoint[0] << ", " << closestEndPoint[1] << ", " << closestEndPoint[2] << ")" << std::endl;
-        std::cout << "closest end poly: " << closestEndPoly << std::endl;
-
-        dtPolyRef polyPath[200];
-        int polyPathCount;
 
         dtQueryFilter queryFilter;
         queryFilter.setIncludeFlags(0xFFFF);
         queryFilter.setExcludeFlags(0);
         queryFilter.setAreaCost(RC_WALKABLE_AREA, 1.0f);
 
-        dtStatus status;
-        status = recastNavQuery_->findPath(
-            closestStartPoly, 
-            closestEndPoly, 
+        // Calculate the path of triangles leading from 'fromPoint' to 'toPoint'.
+        int polyPathCount;
+        dtStatus status = recastNavQuery_->findPath(closestStartPoly,
+            closestEndPoly,
             closestStartPoint,
             closestEndPoint,
-            &queryFilter, 
-            polyPath,
+            &queryFilter,
+            polyPath_.data(),
             &polyPathCount,
-            200);
+            std::min(kMaxPolyPathSize, maxPathPointsCount));
         if (dtStatusFailed(status)) {
-            std::cout << "Find Path failure" << std::endl;
+            foundPathPointsCount = 0;
+            return Result::kOk;
         }
 
-        std::cout << "polyPath: ";
-        for (int i = 0; i < polyPathCount; i++) {
-            std::cout << polyPath[i] << " ";
-        }
-        std::cout << std::endl;
+        const bool isPartialPath = dtStatusDetail(status, DT_PARTIAL_RESULT);
 
-        unsigned char straightPathFlags[100];
-        dtPolyRef straightPathPolyRefs[100];
+        // We don't care about these.
+        unsigned char* straightPathFlags = nullptr;
+        dtPolyRef* straightPathPolyRefs = nullptr;
+
+        // Calculate the 'string pulled' path of points leading from 'fromPoint' to 'toPoint'.
         int straightPathCount;
-        recastNavQuery_->findStraightPath(
-            closestStartPoint,
+        recastNavQuery_->findStraightPath(closestStartPoint,
             closestEndPoint,
-            polyPath,
+            polyPath_.data(),
             polyPathCount,
             pathPoints,
             straightPathFlags,
             straightPathPolyRefs,
             &straightPathCount,
-            maxPathPointsCount);
-        foundPathPointsCount = straightPathCount;
+            maxPathPointsCount,
+            DT_STRAIGHTPATH_ALL_CROSSINGS);
 
+        // When the end point is not reachable from the starting point, Detour makes a "best guess" and
+        // returns a partial path that leads to a location near the end point. Sometimes, Detour erroneously
+        // produces a partial path in which the last point coincides exactly with the target end point and
+        // is impossible to walk to (e.g., requires the agent to walk vertically or off-mesh). We correct
+        // this by simply removing the last path point whenever this occurs.
+        if (isPartialPath && straightPathCount > 0) {
+            const float* lastPathPoint = pathPoints + 3 * (straightPathCount - 1);
+            // Below, we ensure that the square distance threshold scales with the
+            // cell size/height of the navigation mesh.
+            const double refDist = std::min(tileConfig_.cs, tileConfig_.ch);
+            const double threshold = refDist * refDist * 1e-4;
+            if (rcVdistSqr(lastPathPoint, closestEndPoint) < threshold) {
+                // Remove last path point.
+                straightPathCount -= 1;
+            }
+        }
+
+        foundPathPointsCount = straightPathCount;
         return Result::kOk;
     }
 
 } // namespace pathfinding
+

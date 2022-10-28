@@ -4,6 +4,7 @@ add_library (pathfinding ${SOURCES})
 
 target_link_libraries(pathfinding PUBLIC Recast)
 target_link_libraries(pathfinding PUBLIC Detour)
+target_link_libraries(pathfinding PUBLIC utils)
 
 add_subdirectory(tests)
 

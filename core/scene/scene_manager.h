@@ -1,6 +1,5 @@
 #pragma once
 
-#include <core/serialize/archive.h>
 #include <core/definitions/graphics/renderer.h>
 #include <core/definitions/scene/scene_service.h>
 #include <core/services/service_container.h>
@@ -36,7 +35,7 @@ public:
 
 private:
 	// Used for serializing/deserializing the scenes
-	//Archive archive_;
+	//XMLSerializer serializer_;
 
 	std::vector<IScene*> loaded_scenes_;
 

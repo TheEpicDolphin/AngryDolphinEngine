@@ -18,10 +18,11 @@ enum class VariableTypeCategory
 	Class,
 	// Union,
 };
-
+/*
 class IVariable {
 public:
 	virtual std::string Name() = 0;
+	virtual int TypeId() = 0;
 	virtual std::string TypeName() = 0;
 	virtual void* ObjectHandle() = 0;
 	virtual VariableTypeCategory TypeCategory() = 0;
@@ -128,20 +129,19 @@ public:
 		return VariableTypeCategory::Pointer;
 	}
 
+	virtual std::string ReferencedConcreteTypeName() = 0;
+	virtual PointerType PointerType() = 0;
 	virtual void* PointedObjectHandle() = 0;
-	virtual bool IsOwning() = 0;
-	virtual void SetPointedVariable(std::shared_ptr<IVariable> pointed_var) = 0;
 	virtual void SetValue(void* ptr) = 0;
-	virtual std::shared_ptr<IVariable> PointedVariable() = 0;
+	virtual std::shared_ptr<IVariable> OwnedVariable() = 0;
 };
 
 template<typename T>
 class PointerVariable : IPointerVariable {
 public:
-	PointerVariable(std::string name, T*& object_ptr, bool is_owning)
+	PointerVariable(std::string name, T*& object_ptr)
 		: name_(name)
 		, object_ptr_(object_ptr_)
-		, is_owning_(is_owning)
 	{}
 
 	std::string Name() override {
@@ -156,22 +156,21 @@ public:
 		return dynamic_cast<void*>(object_ptr);
 	}
 
-	bool IsOwning() override {
-		return is_owning_;
-	}
-
 	virtual void SetValue(void* ptr) {
 		object_ptr_ = static_cast<T*>(ptr);
 	}
 
-	std::shared_ptr<IVariable> PointedVariable() override {
-		return serialize::CreateSerializerNode("object", *object_ptr_);
+	std::shared_ptr<IVariable> OwnedVariable() override {
+		if (!object_ptr_) {
+			return nullptr;
+		}
+		
+		return DynamicMemory::GetInstance().GetPointedVariable(object_ptr_);
 	}
 
 protected:
 	std::string name_;
 	T*& object_ptr_;
-	const bool is_owning_;
 };
 
 class IArrayVariable : IVariable {
@@ -180,7 +179,6 @@ public:
 		return VariableTypeCategory::Array;
 	}
 
-	virtual bool IsDynamicallyAllocated() = 0;
 	virtual void* ArrayPointer() = 0;
 	virtual void SetValues(void* array_ptr, std::size_t length) = 0;
 	virtual std::size_t Length() = 0;
@@ -190,11 +188,10 @@ public:
 template<class T>
 class ArrayVariable : IArrayVariable {
 public:
-	ArrayVariable(std::string name, T* obj_array, std::size_t length, bool is_dynamically_allocated)
+	ArrayVariable(std::string name, T* obj_array, std::size_t length)
 		: name_(name)
 		, obj_array_(obj_array)
 		, length_(length)
-		, is_dynamically_allocated_(is_dynamically_allocated)
 	{}
 
 	std::string Name() override {
@@ -219,10 +216,6 @@ public:
 		length_ = length;
 	}
 
-	bool IsDynamicallyAllocated() override {
-		return is_dynamically_allocated_;
-	}
-
 	std::size_t Length() override {
 		return length_;
 	}
@@ -232,7 +225,7 @@ public:
 		for (std::size_t i = 0; i < length_; ++i) {
 			std::stringstream element_name_ss;
 			element_name_ss << "element_" << i;
-			children[i] = serialize::CreateSerializerNode(element_name_ss.str(), obj_array_[i]);
+			children[i] = serialize::CreateVariable(element_name_ss.str(), obj_array_[i]);
 		}
 		return children;
 	}
@@ -351,3 +344,4 @@ private:
 	T& object_;
 	BuilderClass var_builder_;
 };
+*/

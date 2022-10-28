@@ -18,22 +18,38 @@ std::vector<T> _ConvertFrom(std::vector<T *>& input)
     return output;
 }
 
-void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& tiles, const float* pathPoints, uint32_t numPathPoints)
+
+void _WriteToObjectFile(
+    pathfinding::NavigationMesh& navigationMesh, 
+    pathfinding::NavigationMeshChangedChunk* changedChunks, 
+    uint32_t changedChunksCount, 
+    const float* pathPoints, 
+    uint32_t numPathPoints
+)
 {
     std::ofstream objFile;
     objFile.open("navigation_mesh_generation.obj", std::ios::out);
 
-    for (const pathfinding::NavigationMeshTileData& tileNavMeshData : tiles) {
-        objFile << "\n# tile: ("
-            << tileNavMeshData.tileCoordinates[0] << ", "
-            << tileNavMeshData.tileCoordinates[1] << ")"
-            << std::endl;
-        for (int i = 0; i < tileNavMeshData.verticesCount * 3; i += 3) {
-            objFile << "v "
-                << tileNavMeshData.origin[0] + tileNavMeshData.vertices[i] << " "
-                << tileNavMeshData.origin[1] + tileNavMeshData.vertices[i + 1] << " "
-                << tileNavMeshData.origin[2] + tileNavMeshData.vertices[i + 2]
+    for (uint32_t i = 0; i < changedChunksCount; ++i) {
+        if (changedChunks[i].changeType == 1) {
+            float origin[3];
+            uint16_t* triangles;
+            uint32_t trianglesCount;
+            float* vertices;
+            uint32_t verticesCount;
+            navigationMesh.getNavigationMeshDataForChunk(changedChunks[i].coords[0], changedChunks[i].coords[1], changedChunks[i].coords[2], origin, triangles, trianglesCount, vertices, verticesCount);
+            objFile << "\n# tile: ("
+                << changedChunks[i].coords[0] << ", "
+                << changedChunks[i].coords[1] << ", "
+                << changedChunks[i].coords[2] << ")"
                 << std::endl;
+            for (int j = 0; j < verticesCount * 3; j += 3) {
+                objFile << "v "
+                    << origin[0] + vertices[j] << " "
+                    << origin[1] + vertices[j + 1] << " "
+                    << origin[2] + vertices[j + 2]
+                    << std::endl;
+            }
         }
     }
 
@@ -49,15 +65,23 @@ void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& 
 
     objFile << "\n# triangle face elements" << std::endl;
     int triangleIndicesOffset = 0;
-    for (const pathfinding::NavigationMeshTileData& tileNavMeshData : tiles) {
-        for (int i = 0; i < tileNavMeshData.trianglesCount * 3; i += 3) {
-            objFile << "f "
-                << triangleIndicesOffset + tileNavMeshData.triangles[i] + 1 << " "
-                << triangleIndicesOffset + tileNavMeshData.triangles[i + 1] + 1 << " "
-                << triangleIndicesOffset + tileNavMeshData.triangles[i + 2] + 1
-                << std::endl;
+    for (uint32_t i = 0; i < changedChunksCount; ++i) {
+        if (changedChunks[i].changeType == 1) {
+            float origin[3];
+            uint16_t* triangles;
+            uint32_t trianglesCount;
+            float* vertices;
+            uint32_t verticesCount;
+            navigationMesh.getNavigationMeshDataForChunk(changedChunks[i].coords[0], changedChunks[i].coords[1], changedChunks[i].coords[2], origin, triangles, trianglesCount, vertices, verticesCount);
+            for (int i = 0; i < trianglesCount * 3; i += 3) {
+                objFile << "f "
+                    << triangleIndicesOffset + triangles[i] + 1 << " "
+                    << triangleIndicesOffset + triangles[i + 1] + 1 << " "
+                    << triangleIndicesOffset + triangles[i + 2] + 1
+                    << std::endl;
+            }
+            triangleIndicesOffset += verticesCount;
         }
-        triangleIndicesOffset += tileNavMeshData.verticesCount;
     }
 
     if (numPathPoints > 0) {
@@ -77,35 +101,40 @@ void _WriteToObjectFile(const std::vector<pathfinding::NavigationMeshTileData>& 
     objFile.close();
 }
 
-void _PrintNavigationMeshTriangulation(const std::vector<pathfinding::NavigationMeshTileData>& tiles) {
-    for (const pathfinding::NavigationMeshTileData& tileNavMeshData : tiles) {
-        std::cout << "Tile Coordinates: (" 
-            << tileNavMeshData.tileCoordinates[0] << " ," 
-            << tileNavMeshData.tileCoordinates[1] << ")" << std::endl;
-        std::cout << "Tile Origin: ("
-            << tileNavMeshData.origin[0] << ", "
-            << tileNavMeshData.origin[1] << ", "
-            << tileNavMeshData.origin[2] << ")"
-            << std::endl;
-        std::cout << "TRIANGLES: " << tileNavMeshData.trianglesCount << std::endl;
-        std::cout << "\n" << std::endl;
+void _PrintNavigationMeshRegenerationChanges(pathfinding::NavigationMeshChangedChunk* changedChunks, uint32_t changedChunksCount) {
+    for (uint32_t i = 0; i < changedChunksCount; ++i) {
+        switch (changedChunks[i].changeType) {
+        case 1:
+            std::cout << "Added tile at: ";
+            break;
+        case 2:
+            std::cout << "Modified tile at: ";
+            break;
+        case 3:
+            std::cout << "Removed tile at: ";
+            break;
+        }
+
+        std::cout << "("
+            << changedChunks[i].coords[0] << " ,"
+            << changedChunks[i].coords[1] << " ,"
+            << changedChunks[i].coords[2] << ")" << std::endl << std::endl;
     }
 }
 
 TEST(pathfinding_test_suite, creation_test)
 {
     pathfinding::NavigationMesh navigationMesh;
-    float boundsMin[3] = { -1000, -1000, -1000 };
-    float boundsMax[3] = { 1000, 1000, 1000 };
-   
-    //navigationMesh.initialize(60.0f, 0.5f, 1.5f, 0.5f, boundsMin, boundsMax);
-    navigationMesh.initialize(60.0f, 0.5f, 1.5f, 0.5f);
+
+    float chunkSize;
+    navigationMesh.initialize(60.0f, 0.5f, 1.5f, 0.5f, chunkSize);
+    std::cout << "chunk size: " << chunkSize << std::endl;
     
     float transform[16] = {
         1, 0, 0, 0,
         0, 1, 0, 0,
         0, 0, 1, 0,
-        0, 0, 0, 1,
+        0, 2, 0, 1,
     };
     /*
     float transform[16] = {
@@ -116,10 +145,10 @@ TEST(pathfinding_test_suite, creation_test)
     };
     */
     float vertices[] = {
-        25, 0, 25,
-        -25, 0, 25,
-        -25, 0, -25,
-        25, 0, -25
+        25, 10, 25,
+        -25, 10, 25,
+        -25, -10, -25,
+        25, -10, -25
     };
     unsigned short indices[] = {
         0, 1, 2,
@@ -129,24 +158,19 @@ TEST(pathfinding_test_suite, creation_test)
     navigationMesh.registerNavigationMeshGeometryEntity(transform, indices, 2, vertices, 4, handle);
     std::cout << "Registered geometry entity with handle: " << handle << std::endl;
 
-    pathfinding::NavigationMeshRegenerationChangeset changeset;
-    navigationMesh.regenerateIfNeeded(changeset);
+    pathfinding::NavigationMeshChangedChunk* changedChunks; uint32_t changedChunksCount;
+    navigationMesh.regenerateIfNeeded(changedChunks, changedChunksCount);
 
-    std::cout << "Finished regenerating" << std::endl;
-    std::cout << "Added:" << std::endl;
-    _PrintNavigationMeshTriangulation(changeset.addedTiles);
-    std::cout << "Modifed:" << std::endl;
-    _PrintNavigationMeshTriangulation(changeset.modifiedTiles);
-    std::cout << "Removed:" << std::endl;
-    _PrintNavigationMeshTriangulation(changeset.removedTiles);
-
+    std::cout << "Finished regenerating!" << std::endl;
+    _PrintNavigationMeshRegenerationChanges(changedChunks, changedChunksCount);
 
     float fromPoint[3] = { 18, 0, 15 };
     //float toPoint[3] = { 8, 0, 8 };
-    float toPoint[3] = { -8, 0, 15 };
+    float toPoint[3] = { -18, 0, -15 };
     float pathPoints[300];
     uint32_t foundPathPointsCount;
     navigationMesh.findPath(fromPoint, toPoint, 100, pathPoints, foundPathPointsCount);
+    std::cout << "Found path!" << std::endl;
     for (uint32_t i = 0; i < 3 * foundPathPointsCount; i+=3) {
         float* pathPoint = &pathPoints[i];
         std::cout << "(" << pathPoint[0] << ", " << pathPoint[1] << ", " << pathPoint[2] << ")" << std::endl;
@@ -167,62 +191,7 @@ TEST(pathfinding_test_suite, creation_test)
     //pathPoints[4] = 20.0592;
     //pathPoints[5] = 8;
     //foundPathPointsCount = 2;
-    _WriteToObjectFile(changeset.addedTiles, pathPoints, foundPathPointsCount);
-
-    /*
-    float newTransform[16] = {
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        1, 0, 1, 1,
-    };
-    navigationMesh.setNavigationMeshGeometryEntityTransform(handle, newTransform);
-
-    navigationMesh.regenerateIfNeeded([](pathfinding::NavigationMeshRegenerationChangeset changeset) {
-        std::cout << "Finished regenerating" << std::endl;
-        std::cout << "Added:" << std::endl;
-        for (pathfinding::NavigationMeshTileRegenerationResults addedTileRegenResults : changeset.addedTiles) {
-            std::cout << "(" << addedTileRegenResults.tx << " ," << addedTileRegenResults.ty << ")" << std::endl;
-        }
-        std::cout << "Modifed:" << std::endl;
-        for (pathfinding::NavigationMeshTileRegenerationResults modifiedTileRegenResults: changeset.modifiedTiles) {
-            std::cout << "(" << modifiedTileRegenResults.tx << " ," << modifiedTileRegenResults.ty << ")" << std::endl;
-        }
-        std::cout << "Removed:" << std::endl;
-        for (pathfinding::NavigationMeshTileRegenerationResults removedTileRegenResults : changeset.removedTiles) {
-            std::cout << "(" << removedTileRegenResults.tx << " ," << removedTileRegenResults.ty << ")" << std::endl;
-        }
-    });
-
-    navigationMesh.unregisterNavigationMeshGeometryEntity(handle);
-
-    navigationMesh.regenerateIfNeeded([](pathfinding::NavigationMeshRegenerationChangeset changeset) {
-        std::cout << "Finished regenerating" << std::endl;
-        std::cout << "Added:" << std::endl;
-        for (pathfinding::NavigationMeshTileRegenerationResults addedTileRegenResults : changeset.addedTiles) {
-            std::cout << "(" << addedTileRegenResults.tx << " ," << addedTileRegenResults.ty << ")" << std::endl;
-            std::cout << "TRIANGLES:" << std::endl;
-            for (int i = 0; i < addedTileRegenResults.navMeshVertices.size(); i+=9) {
-                std::cout << "(" << addedTileRegenResults.navMeshVertices[i] << ", " << addedTileRegenResults.navMeshVertices[i + 1] << ", " << addedTileRegenResults.navMeshVertices[i + 2] << ")" << std::endl;
-                std::cout << "(" << addedTileRegenResults.navMeshVertices[i + 3] << ", " << addedTileRegenResults.navMeshVertices[i + 4] << ", " << addedTileRegenResults.navMeshVertices[i + 5] << ")" << std::endl;
-                std::cout << "(" << addedTileRegenResults.navMeshVertices[i + 6] << ", " << addedTileRegenResults.navMeshVertices[i + 7] << ", " << addedTileRegenResults.navMeshVertices[i + 8] << ")" << std::endl;
-            }
-        }
-        std::cout << "Modifed:" << std::endl;
-        for (pathfinding::NavigationMeshTileRegenerationResults modifiedTileRegenResults : changeset.modifiedTiles) {
-            std::cout << "(" << modifiedTileRegenResults.tx << " ," << modifiedTileRegenResults.ty << ")" << std::endl;
-            std::cout << "TRIANGLES:" << std::endl;
-            for (int i = 0; i < modifiedTileRegenResults.navMeshVertices.size(); i += 9) {
-                std::cout << "(" << modifiedTileRegenResults.navMeshVertices[i] << ", " << modifiedTileRegenResults.navMeshVertices[i + 1] << ", " << modifiedTileRegenResults.navMeshVertices[i + 2] << ")" << std::endl;
-                std::cout << "(" << modifiedTileRegenResults.navMeshVertices[i + 3] << ", " << modifiedTileRegenResults.navMeshVertices[i + 4] << ", " << modifiedTileRegenResults.navMeshVertices[i + 5] << ")" << std::endl;
-                std::cout << "(" << modifiedTileRegenResults.navMeshVertices[i + 6] << ", " << modifiedTileRegenResults.navMeshVertices[i + 7] << ", " << modifiedTileRegenResults.navMeshVertices[i + 8] << ")" << std::endl;
-            }
-        }
-        std::cout << "Removed:" << std::endl;
-        for (pathfinding::NavigationMeshTileRegenerationResults removedTileRegenResults : changeset.removedTiles) {
-            std::cout << "(" << removedTileRegenResults.tx << " ," << removedTileRegenResults.ty << ")" << std::endl;
-        }
-        });
-        */
+    
+    _WriteToObjectFile(navigationMesh, changedChunks, changedChunksCount, pathPoints, foundPathPointsCount);
 }
 

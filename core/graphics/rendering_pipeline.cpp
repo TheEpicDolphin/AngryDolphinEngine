@@ -5,8 +5,8 @@
 
 #include <rapidxml/rapidxml.hpp>
 #include <core/resource_manager/resource_manager.h>
-#include <core/serialize/archive.h>
-#include <core/serialize/serdes_utils.h>
+//#include <core/serialize/archive.h>
+//#include <core/serialize/serdes_utils.h>
 
 #include "shader/shader.h"
 #include "shader/shader_vars/shader_var_helpers.h"
@@ -31,13 +31,13 @@ std::shared_ptr<RenderingPipeline> RenderingPipeline::RenderingPipelineForResour
 
 	std::vector<char> pipeline_asset = resource_manager::ResourceManager::LoadAsset(resource_path);
 
-	Archive archive;
-	rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
+	//Archive archive;
+	//rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
 	RenderingPipelineInfo deserialized_rp_info;
-	xml_doc->parse<0>(pipeline_asset.data());
-	archive.DeserializeHumanReadable(*xml_doc, deserialized_rp_info);
-	xml_doc->clear();
-	delete xml_doc;
+	//xml_doc->parse<0>(pipeline_asset.data());
+	//archive.DeserializeHumanReadable(*xml_doc, deserialized_rp_info);
+	//xml_doc->clear();
+	//delete xml_doc;
 
 	std::shared_ptr<RenderingPipeline> pipeline = std::make_shared<RenderingPipeline>(deserialized_rp_info);
 	loaded_rendering_pipelines_assets[resource_path] = pipeline;

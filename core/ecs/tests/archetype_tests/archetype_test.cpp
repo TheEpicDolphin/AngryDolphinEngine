@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include <core/utils/gtest_helpers.h>
-#include <core/utils/type_info.h>
+#include <core/utils/type_id_mapper.h>
 #include "../../archetype.h"
 
 using namespace ecs;
@@ -51,13 +51,13 @@ struct C
 
 TEST(archetype_test_suite, adding_entity_test)
 {
-    TypeInfo component_type_info;
-    component_type_info.GetTypeId<A>();
-    component_type_info.GetTypeId<B>();
-    component_type_info.GetTypeId<C>();
+    TypeIDMapper component_type_id_mapper;
+    component_type_id_mapper.GetTypeId<A>();
+    component_type_id_mapper.GetTypeId<B>();
+    component_type_id_mapper.GetTypeId<C>();
  
     Archetype archetype;
-    archetype.InitializeWithComponentSet<A, B, C>(&component_type_info);
+    archetype.InitializeWithComponentSet<A, B, C>(&component_type_id_mapper);
     archetype.AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
     B* b;
     ASSERT_TRUE(archetype.GetComponentForEntity({ 0, 1 }, b));
@@ -70,13 +70,13 @@ TEST(archetype_test_suite, adding_entity_test)
 
 TEST(archetype_test_suite, removing_entity_test)
 {
-    TypeInfo component_type_info;
-    component_type_info.GetTypeId<A>();
-    component_type_info.GetTypeId<B>();
-    component_type_info.GetTypeId<C>();
+    TypeIDMapper component_type_id_mapper;
+    component_type_id_mapper.GetTypeId<A>();
+    component_type_id_mapper.GetTypeId<B>();
+    component_type_id_mapper.GetTypeId<C>();
 
     Archetype archetype;
-    archetype.InitializeWithComponentSet<A, B, C>(&component_type_info);
+    archetype.InitializeWithComponentSet<A, B, C>(&component_type_id_mapper);
     archetype.AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
     archetype.AddEntity<B, C, A>({ 0, 2 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
@@ -113,19 +113,19 @@ struct D
 TEST(archetype_test_suite, creating_archetype_with_added_component_type)
 {
 
-    TypeInfo component_type_info;
-    component_type_info.GetTypeId<A>();
-    component_type_info.GetTypeId<B>();
-    component_type_info.GetTypeId<C>();
-    component_type_info.GetTypeId<D>();
+    TypeIDMapper component_type_id_mapper;
+    component_type_id_mapper.GetTypeId<A>();
+    component_type_id_mapper.GetTypeId<B>();
+    component_type_id_mapper.GetTypeId<C>();
+    component_type_id_mapper.GetTypeId<D>();
 
     Archetype archetype_abc;
-    archetype_abc.InitializeWithComponentSet<A, B, C>(&component_type_info);
+    archetype_abc.InitializeWithComponentSet<A, B, C>(&component_type_id_mapper);
     archetype_abc.AddEntity<B, C, A>({ 0, 1 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
     archetype_abc.AddEntity<B, C, A>({ 0, 2 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
     Archetype archetype_abcd;
-    archetype_abcd.InitializeWithArchetypeAndAddedComponentType<D>(&component_type_info, archetype_abc);
+    archetype_abcd.InitializeWithArchetypeAndAddedComponentType<D>(&component_type_id_mapper, archetype_abc);
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
 
     std::vector<EntityID> expected_entities = { { 0, 3 } };
@@ -150,19 +150,19 @@ TEST(archetype_test_suite, creating_archetype_with_added_component_type)
 
 TEST(archetype_test_suite, creating_archetype_with_removed_component_type)
 {
-    TypeInfo component_type_info;
-    component_type_info.GetTypeId<A>();
-    component_type_info.GetTypeId<B>();
-    component_type_info.GetTypeId<C>();
-    component_type_info.GetTypeId<D>();
+    TypeIDMapper component_type_id_mapper;
+    component_type_id_mapper.GetTypeId<A>();
+    component_type_id_mapper.GetTypeId<B>();
+    component_type_id_mapper.GetTypeId<C>();
+    component_type_id_mapper.GetTypeId<D>();
 
     Archetype archetype_abcd;
-    archetype_abcd.InitializeWithComponentSet<A, B, C, D>(&component_type_info);
+    archetype_abcd.InitializeWithComponentSet<A, B, C, D>(&component_type_id_mapper);
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 1 }, { d_name_0 }, { b_name_0 }, { c_name_0 }, { a_name_0 });
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 2 }, { d_name_1 }, { b_name_1 }, { c_name_1 }, { a_name_1 });
 
     Archetype archetype_acd;
-    archetype_acd.InitializeWithArchetypeAndRemovedComponentType<B>(&component_type_info, archetype_abcd);
+    archetype_acd.InitializeWithArchetypeAndRemovedComponentType<B>(&component_type_id_mapper, archetype_abcd);
     archetype_acd.AddEntity<D, C, A>({ 0, 3 }, { d_name_2 }, { c_name_2 }, { a_name_2 });
 
     std::vector<EntityID> expected_entities = { { 0, 3 } };
@@ -188,19 +188,19 @@ TEST(archetype_test_suite, creating_archetype_with_removed_component_type)
 
 TEST(archetype_test_suite, moving_entity_to_super_archetype)
 {
-    TypeInfo component_type_info;
-    component_type_info.GetTypeId<A>();
-    component_type_info.GetTypeId<B>();
-    component_type_info.GetTypeId<C>();
-    component_type_info.GetTypeId<D>();
+    TypeIDMapper component_type_id_mapper;
+    component_type_id_mapper.GetTypeId<A>();
+    component_type_id_mapper.GetTypeId<B>();
+    component_type_id_mapper.GetTypeId<C>();
+    component_type_id_mapper.GetTypeId<D>();
 
     Archetype archetype_abc;
-    archetype_abc.InitializeWithComponentSet<A, B, C>(&component_type_info);
+    archetype_abc.InitializeWithComponentSet<A, B, C>(&component_type_id_mapper);
     archetype_abc.AddEntity<A, B, C>({ 0, 1 }, { a_name_0 }, { b_name_0 }, { c_name_0 });
     archetype_abc.AddEntity<A, B, C>({ 0, 2 }, { a_name_1 }, { b_name_1 }, { c_name_1 });
 
     Archetype archetype_abcd;
-    archetype_abcd.InitializeWithComponentSet<A, B, C, D>(&component_type_info);
+    archetype_abcd.InitializeWithComponentSet<A, B, C, D>(&component_type_id_mapper);
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 4 }, { d_name_3 }, { b_name_3 }, { c_name_3 }, { a_name_3 });
 
@@ -240,19 +240,19 @@ TEST(archetype_test_suite, moving_entity_to_super_archetype)
 
 TEST(archetype_test_suite, moving_entity_to_sub_archetype)
 {
-    TypeInfo component_type_info;
-    component_type_info.GetTypeId<A>();
-    component_type_info.GetTypeId<B>();
-    component_type_info.GetTypeId<C>();
-    component_type_info.GetTypeId<D>();
+    TypeIDMapper component_type_id_mapper;
+    component_type_id_mapper.GetTypeId<A>();
+    component_type_id_mapper.GetTypeId<B>();
+    component_type_id_mapper.GetTypeId<C>();
+    component_type_id_mapper.GetTypeId<D>();
 
     Archetype archetype_abc;
-    archetype_abc.InitializeWithComponentSet<A, B, C>(&component_type_info);
+    archetype_abc.InitializeWithComponentSet<A, B, C>(&component_type_id_mapper);
     archetype_abc.AddEntity<A, B, C>({ 0, 1 }, { a_name_0 }, { b_name_0 }, { c_name_0 });
     archetype_abc.AddEntity<A, B, C>({ 0, 2 }, { a_name_1 }, { b_name_1 }, { c_name_1 });
 
     Archetype archetype_abcd;
-    archetype_abcd.InitializeWithComponentSet<A, B, C, D>(&component_type_info);
+    archetype_abcd.InitializeWithComponentSet<A, B, C, D>(&component_type_id_mapper);
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 3 }, { d_name_2 }, { b_name_2 }, { c_name_2 }, { a_name_2 });
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 4 }, { d_name_3 }, { b_name_3 }, { c_name_3 }, { a_name_3 });
     archetype_abcd.AddEntity<D, B, C, A>({ 0, 5 }, { d_name_4 }, { b_name_4 }, { c_name_4 }, { a_name_4 });

@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <core/serialize/serializable.h>
+//#include <core/serialize/serializable.h>
 
 namespace shader {
 	enum class ShaderStageType {
@@ -17,6 +17,6 @@ namespace shader {
 		ShaderStageType type;
 		std::string code;
 
-		SERIALIZE_MEMBERS(type, code)
+		//SERIALIZE_MEMBERS(type, code)
 	};
 }

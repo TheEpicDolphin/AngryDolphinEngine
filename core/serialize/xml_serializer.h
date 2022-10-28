@@ -92,15 +92,20 @@ public:
 			case VariableTypeCategory::Pointer: {
 				std::shared_ptr<IPointerVariable> pointer_var = std::static_pointer_cast<IPointerVariable>(var);
 				void* pointed_object_handle = pointer_var->PointedObjectHandle();
-				std::size_t pointed_object_id = IdForObject(pointed_object_handle);
+				if (pointed_object_handle == nullptr) {
+					// Ignore null pointers.
+					break;
+				}
 
-				const bool isOwning = pointer_var->IsOwning();
+				std::shared_ptr<IVariable> owned_var = pointer_var->OwnedVariable();
+				const bool is_owning = owned_var != nullptr;
 				rapidxml::xml_attribute<>* pointer_type_atttribute = xml_doc->allocate_attribute(
 					"pointer_type",
-					isOwning ? "owning" : "non_owning"
+					is_owning ? "owning" : "non_owning"
 				);
 				object_xml_node->append_attribute(pointer_type_atttribute);
 
+				std::size_t pointed_object_id = IdForObject(pointed_object_handle);
 				if (pointed_object_id) {
 					// Set pointed object id as value for this xml node.
 					std::string pointed_object_id_string = serialize::SerializeArithmeticToString(pointed_object_id);
@@ -108,14 +113,14 @@ public:
 				}
 				else {
 					// The pointed object has not been registered yet.
-					if (isOwning) {
+					if (is_owning) {
 						// The object is dynamically allocated (created using "new"), and this is
 						// the first time a pointer to this object is being serialized. Therefore,
 						// we must queue the pointed object for serialization for the first and last
 						// time.
 						pointed_object_id = StoreObject(pointed_object_handle);
 						child_id_to_parent_xml_node_map_[pointed_object_id] = object_xml_node;
-						bfs_queue.push(pointer_var->PointedVariable());
+						bfs_queue.push(owned_var);
 					}
 					else {
 						// Add this pointer xml node as a listener for when the pointed object is
@@ -133,13 +138,6 @@ public:
 			case VariableTypeCategory::Array: {
 				std::shared_ptr<IArrayVariable> array_var = std::static_pointer_cast<IArrayVariable>(var);
 
-				const bool is_dynamically_allocated = array_var->IsDynamicallyAllocated();
-				rapidxml::xml_attribute<>* array_type_atttribute = xml_doc->allocate_attribute(
-					"c_array_type",
-					is_dynamically_allocated ? "dynamic" : "static"
-				);
-				object_xml_node->append_attribute(array_type_atttribute);
-
 				rapidxml::xml_node<>* array_length_xml_node = xml_doc->allocate_node(
 					rapidxml::node_element,
 					"length"
@@ -156,30 +154,15 @@ public:
 
 				void* pointed_array_handle = array_var->ArrayPointer();
 				std::size_t pointed_array_id = IdForObject(pointed_array_handle);
-				if (!is_dynamically_allocated
-					|| (is_dynamically_allocated && !pointed_array_id)) {
-					// Handles the two cases below:
-					// 1. This array was statically allocated with a predetermined size (e.g. int ar[3])
-					// 2. This array was dynamically allocated, and this is the first time we are
-					//	  encountering this array pointer during serialization.
-					// 
-					// We now serialize the elements of the array.
 
-					// Iterate children.
-					std::vector<std::shared_ptr<IVariable>> elements = array_var->Elements();
-					for (std::vector<std::shared_ptr<IVariable>>::iterator it = elements.begin(); it != elements.end(); ++it)
-					{
-						std::shared_ptr<IVariable> element = *it;
-						std::size_t element_id = StoreObject(element->ObjectHandle());
-						child_id_to_parent_xml_node_map_[element_id] = array_ptr_xml_node;
-						bfs_queue.push(element);
-					}
-				} else if (is_dynamically_allocated && pointed_array_id) {
-					// This is a dynamically alocated array that has already had its elements registered
-					// for serialization. It is not necessary to serialize its elements again, and so we
-					// instead just serialize the xml id of node containing the array elements.
-					std::string pointed_array_id_string = serialize::SerializeArithmeticToString(pointed_array_id);
-					array_ptr_xml_node->value(xml_doc->allocate_string(pointed_array_id_string.c_str()));
+				// Iterate children.
+				std::vector<std::shared_ptr<IVariable>> elements = array_var->Elements();
+				for (std::vector<std::shared_ptr<IVariable>>::iterator it = elements.begin(); it != elements.end(); ++it)
+				{
+					std::shared_ptr<IVariable> element = *it;
+					std::size_t element_id = StoreObject(element->ObjectHandle());
+					child_id_to_parent_xml_node_map_[element_id] = array_ptr_xml_node;
+					bfs_queue.push(element);
 				}
 				break;
 			}

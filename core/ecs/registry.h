@@ -15,7 +15,7 @@
 #include "entity.h"
 #include "archetype.h"
 
-#define REGISTER_COMPONENT_TYPE(name) component_type_info_.GetTypeId<##name>();
+#define REGISTER_COMPONENT_TYPE(name) component_type_id_mapper_.GetTypeId<##name>();
 
 namespace ecs {
 	class IComponentSetEventsListener {
@@ -37,7 +37,7 @@ namespace ecs {
 		void AddComponent(EntityID entity_id, T component)
 		{
 			assert(entity_id.index < entity_archetype_map_.size());
-			ComponentTypeID added_component_type = component_type_info_.GetTypeId<T>();
+			ComponentTypeID added_component_type = component_type_id_mapper_.GetTypeId<T>();
 			if (entity_archetype_map_[entity_id.index] != nullptr) {
 				// The entity currently belongs to an archetype. This archetype will be
 				// referred to as the "previous_archetype"
@@ -67,7 +67,7 @@ namespace ecs {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
 					next_archetype = CreateArchetype(new_component_types);
-					next_archetype->InitializeWithArchetypeAndAddedComponentType<T>(&component_type_info_, *previous_archetype);
+					next_archetype->InitializeWithArchetypeAndAddedComponentType<T>(&component_type_id_mapper_, *previous_archetype);
 				}
 
 				// Move over the entity's component data from the previous archetype to
@@ -87,7 +87,7 @@ namespace ecs {
 				if (!archetype_set_trie_.TryGetValueForKeySet({ added_component_type }, archetype)) {
 					// Create new archetype for entity.
 					archetype = CreateArchetype({ added_component_type });
-					archetype->InitializeWithComponentSet<T>(&component_type_info_);
+					archetype->InitializeWithComponentSet<T>(&component_type_id_mapper_);
 				}
 				archetype->AddEntity<T>(entity_id, component);
 				entity_archetype_map_[entity_id.index] = archetype;
@@ -98,7 +98,7 @@ namespace ecs {
 		template<typename T>
 		void RemoveComponent(EntityID entity_id)
 		{
-			ComponentTypeID removed_component_type = component_type_info_.GetTypeId<T>();
+			ComponentTypeID removed_component_type = component_type_id_mapper_.GetTypeId<T>();
 			assert(entity_id.index < entity_archetype_map_.size());
 			if (entity_archetype_map_[entity_id.index] == nullptr) {
 				throw std::runtime_error("Attempting to remove component from entity that does not belong to an archetype.");
@@ -129,7 +129,7 @@ namespace ecs {
 					// No archetype exists for the entity's new set of component types. Create
 					// new archetype.
 					next_archetype = CreateArchetype(new_component_types);
-					next_archetype->InitializeWithArchetypeAndRemovedComponentType<T>(&component_type_info_, *previous_archetype);
+					next_archetype->InitializeWithArchetypeAndRemovedComponentType<T>(&component_type_id_mapper_, *previous_archetype);
 				}
 
 				// Move over the entity's component data from the previous archetype to
@@ -261,12 +261,12 @@ namespace ecs {
 		};
 		SetTrie<ComponentTypeID, ComponentSetListenerGroup> component_set_listener_group_trie_;
 
-		TypeInfo component_type_info_;
+		TypeIDMapper component_type_id_mapper_;
 
 		template<class... Ts>
 		const ComponentSetIDs GetComponentSetIDs()
 		{
-			ComponentSetIDs component_set_ids = { (component_type_info_.GetTypeId<Ts>())... };
+			ComponentSetIDs component_set_ids = { ((std::uint32_t)component_type_id_mapper_.GetTypeId<Ts>())... };
 			// Sort component set ids from least -> greatest.
 			std::sort(component_set_ids.begin(), component_set_ids.end());
 			return component_set_ids;

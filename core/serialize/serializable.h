@@ -1,7 +1,9 @@
 #pragma once
 
-#include "variable.h"
+#include <core/utils/set_trie.h>
 
+#include "variable.h"
+/*
 #define VAR(var) serialize::CreateVariable(#var, ##var)
 #define VAR_BUILDER(var, BuilderClass) serialize::CreateVariable<##BuilderClass>(#var, ##var)
 
@@ -9,103 +11,7 @@
     return { __VA_ARGS__ }; \
 } \
 
-// Consider ditching this idea below and instead register & create objects/arrays dynamically (new) using
-// runtime_type_registry method.
-template <typename T>
-class dynamic_object {
-private:
-    typedef std::shared_ptr<IVariable>* (*PointedObjectVariableInstantiator)(T* object_ptr);
-
-public:
-    dynamic_object() {}
-
-    template <typename _Derived, typename... Args>
-    static dynamic_object<T> make(Args&... args) {
-        pointed_obj_var_instantiator_ = &PointedObjectVariable<_Derived>;
-        static_assert(std::is_base_of<T, _Derived>::value);
-        return dynamic_object<T>(new _Derived(args));
-    }
-
-    template <typename _Derived>
-    void reset(_Derived* object_ptr) {
-        pointed_obj_var_instantiator_ = &PointedObjectVariable<_Derived>;
-        object_ptr_ = object_ptr
-    }
-
-    T& operator* () { return *object_ptr_; }
-    T* operator-> () { return object_ptr_; }
-
-    T* get() { return object_ptr_ }
-
-    void destroy() { delete object_ptr_; }
-
-    std::shared_ptr<IVariable> PointedObjectVariable() {
-        if (!pointed_obj_var_instantiator_) {
-            return nullptr;
-        }
-
-        return pointed_obj_var_instantiator_(object_ptr_);
-    }
-    
-private:
-    typedef std::shared_ptr<IVariable> (*PointedObjectVariableInstantiator)(T* object_ptr);
-
-    T* object_ptr_;
-    PointedObjectVariableInstantiator pointed_obj_var_instantiator_;
-
-    dynamic_object(T* object_ptr) { object_ptr_ = object_ptr; }
-
-    template<typename _Derived>
-    static std::shared_ptr<IVariable> PointedObjectVariable(T* object_ptr) {
-        _Derived* d = static_cast<_Derived*>(object_ptr);
-        return std::make_shared<PointerVariable>("pointed_object", *d);
-    }
-};
-
-template <typename T>
-class dynamic_array {
-public:
-    dynamic_array() {}
-
-    template <typename _Derived>
-    static dynamic_array<T> make(std::size_t length) {
-        static_assert(std::is_base_of<T, _Derived>::value);
-        return dynamic_array<T>(new _Derived[length], length);
-    }
-
-    template <typename _Derived>
-    void reset(_Derived* array_ptr, std::size_t length) {
-        static_assert(std::is_base_of<T, _Derived>::value);
-        array_ptr_ = array_ptr;
-        length_ = length;
-    }
-
-    T* begin() { return array_ptr_; }
-    T* end() { return array_ptr_ + length_; }
-    std::size_t length() { return length_; }
-
-    int operator [] (int i) const { return array_ptr_[i]; }
-    int& operator [] (int i) { return array_ptr_[i]; }
-
-    void destroy() { delete[] array_ptr_; }
-
-private:
-    T* array_ptr_;
-    std::size_t length_;
-
-    dynamic_array(T* array_ptr, std::size_t length) {
-        array_ptr_ = array_ptr;
-        length_ = length;
-    }
-
-    dynamic_array(std::size_t length) {
-        array_ptr_ = new T[length];
-        length_ = length;
-    }
-};
-
 namespace serialize {
-
     template <typename T>
     std::enable_if<std::is_arithmetic<T>::value, std::shared_ptr<IVariable>>
         CreateVariable(std::string name, T& arithmetic_object) {
@@ -120,22 +26,12 @@ namespace serialize {
 
     template <typename T>
     std::shared_ptr<IVariable> CreateVariable(std::string name, T* pointer) {
-        return std::make_shared<PointerVariable<T>>(name, pointer, false);
-    }
-
-    template <typename T>
-    std::shared_ptr<IVariable> CreateVariable(std::string name, dm_object_pointer<T>& dynamic_object) {
-        return std::make_shared<PointerVariable<T>>(name, dynamic_object.get(), true);
+        return std::make_shared<PointerVariable<T>>(name, pointer);
     }
 
     template <typename T, std::size_t N>
     std::shared_ptr<IVariable> CreateVariable(std::string name, T(&static_array)[N]) {
-        return std::make_shared<ArrayVariable<T>>(name, static_array, N);
-    }
-
-    template <typename T>
-    std::shared_ptr<IVariable> CreateVariable(std::string name, dm_array<T>& dynamic_array) {
-        return std::make_shared<ArrayVariable<T>>(name, dynamic_array.begin(), dynamic_array.length());
+        return std::make_shared<ArrayVariable<T>>(name, static_array, N, false);
     }
 
     template <typename T>
@@ -149,4 +45,41 @@ namespace serialize {
         CreateVariable(std::string name, T& class_object) {
         return std::make_shared<ClassVariable<T, BuilderClass>>(name, class_object);
     }
+
+    template<typename T, typename... Args>
+    T* new_object(Args&... args) {
+        T* object = new T(args);
+        variable_map_[dynamic_cast<void*>(object)] = serialize::CreateVariable("pointed_object", object);
+        return object;
+    }
+
+    template<typename T>
+    T* new_array(std::size_t length) {
+        T* array = new T[length];
+        variable_map_[dynamic_cast<void*>(array)] = std::make_shared<ArrayVariable<T>>("pointed_array", array, length, true);
+        return array;
+    }
+
+    template<typename T, typename... Args>
+    void delete_object(T* object) {
+        variable_map_.erase(dynamic_cast<void*>(object));
+        delete object;
+    }
+
+    template<typename T>
+    void delete_array(T* array) {
+        variable_map_.erase(dynamic_cast<void*>(array));
+        delete[] array;
+    }
+
+    template<typename _Derived, typename _Base>
+    _Base* upcast(_Derived* from) {
+
+    }
+
+    std::shared_ptr<IVariable> GetPointedVariable(void* pointer) {
+        auto iter = variable_map_.find(pointer);
+        return iter == variable_map_.end() ? nullptr : iter->second;
+    }
 }
+*/

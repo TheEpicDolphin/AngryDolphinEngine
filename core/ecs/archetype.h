@@ -5,7 +5,7 @@
 #include <functional>
 #include <algorithm>
 
-#include <core/utils/type_info.h>
+#include <core/utils/type_id_mapper.h>
 
 #include "component_array.h"
 #include "entity.h"
@@ -19,7 +19,7 @@ namespace ecs {
 	{
 	public:
 		Archetype() {
-			component_type_info_ = nullptr;
+			component_type_id_mapper_ = nullptr;
 		};
 
 		~Archetype() {
@@ -29,10 +29,10 @@ namespace ecs {
 		}
 
 		template<class... Ts>
-		void InitializeWithComponentSet(TypeInfo* component_type_info)
+		void InitializeWithComponentSet(TypeIDMapper* component_type_id_mapper)
 		{
 			// Sort component set ids and arrays from least -> greatest.
-			std::vector<ComponentTypeID> unsorted_component_set_ids = { (component_type_info->GetTypeId<Ts>())... };
+			std::vector<ComponentTypeID> unsorted_component_set_ids = { ((std::uint64_t)component_type_id_mapper->GetTypeId<Ts>())... };
 			std::vector<ComponentArrayBase*> unsorted_component_arrays = { (new ComponentArray<Ts>())... };
 			std::vector<std::pair<ComponentTypeID, ComponentArrayBase*>> sorted_component_type_array_pairs;
 			sorted_component_type_array_pairs.reserve(unsorted_component_set_ids.size());
@@ -42,7 +42,7 @@ namespace ecs {
 			std::sort(sorted_component_type_array_pairs.begin(), sorted_component_type_array_pairs.end());
 
 			// Set archetype component data.
-			component_type_info_ = component_type_info;
+			component_type_id_mapper_ = component_type_id_mapper;
 			component_set_ids_.reserve(sorted_component_type_array_pairs.size());
 			component_arrays_.reserve(sorted_component_type_array_pairs.size());
 			for (std::size_t index = 0; index < sorted_component_type_array_pairs.size(); ++index) {
@@ -53,11 +53,11 @@ namespace ecs {
 		}
 
 		template<class T>
-		void InitializeWithArchetypeAndAddedComponentType(TypeInfo* component_type_info, Archetype& source_archetype)
+		void InitializeWithArchetypeAndAddedComponentType(TypeIDMapper* component_type_id_mapper, Archetype& source_archetype)
 		{
-			const ComponentTypeID added_component_type = component_type_info->GetTypeId<T>();
+			const ComponentTypeID added_component_type = component_type_id_mapper->GetTypeId<T>();
 
-			component_type_info_ = component_type_info;
+			component_type_id_mapper_ = component_type_id_mapper;
 			component_set_ids_.reserve(source_archetype.component_set_ids_.size() + 1);
 			component_arrays_.reserve(source_archetype.component_arrays_.size() + 1);
 			auto insert_component_array = [this](ComponentArrayBase* comp_array, ComponentTypeID component_type) {
@@ -81,11 +81,11 @@ namespace ecs {
 		}
 
 		template<class T>
-		void InitializeWithArchetypeAndRemovedComponentType(TypeInfo* component_type_info, Archetype& source_archetype)
+		void InitializeWithArchetypeAndRemovedComponentType(TypeIDMapper* component_type_id_mapper, Archetype& source_archetype)
 		{
-			const ComponentTypeID removed_component_type = component_type_info->GetTypeId<T>();
+			const ComponentTypeID removed_component_type = component_type_id_mapper->GetTypeId<T>();
 
-			component_type_info_ = component_type_info;
+			component_type_id_mapper_ = component_type_id_mapper;
 			component_set_ids_.reserve(source_archetype.component_set_ids_.size() - 1);
 			component_arrays_.reserve(source_archetype.component_arrays_.size() - 1);
 			for (std::size_t c_idx = 0; c_idx < source_archetype.component_set_ids_.size(); ++c_idx) {
@@ -101,7 +101,7 @@ namespace ecs {
 		void MoveEntityToSuperArchetype(EntityID entity_id, Archetype& super_archetype, T added_component)
 		{
 			std::size_t index = entity_components_index_map_[entity_id.index];
-			ComponentTypeID added_component_type = component_type_info_->GetTypeId<T>();
+			ComponentTypeID added_component_type = component_type_id_mapper_->GetTypeId<T>();
 			for (std::size_t c_idx = 0; c_idx < super_archetype.component_set_ids_.size(); ++c_idx) {
 				if (super_archetype.component_set_ids_[c_idx] == added_component_type) {
 					ComponentArray<T>* casted_existing_component_array = static_cast<ComponentArray<T> *>(super_archetype.component_arrays_[c_idx]);
@@ -130,7 +130,7 @@ namespace ecs {
 		void MoveEntityToSubArchetype(EntityID entity_id, Archetype& sub_archetype)
 		{
 			std::size_t index = entity_components_index_map_[entity_id.index];
-			ComponentTypeID removed_component_type = component_type_info_->GetTypeId<T>();
+			ComponentTypeID removed_component_type = component_type_id_mapper_->GetTypeId<T>();
 			for (std::size_t c_idx = 0; c_idx < component_arrays_.size(); ++c_idx) {
 				if (component_set_ids_[c_idx] == removed_component_type) {
 					component_arrays_[c_idx]->RemoveWithSwapAtIndex(index);
@@ -156,7 +156,7 @@ namespace ecs {
 		template<class... Ts>
 		void AddEntity(EntityID entity_id, Ts ...components)
 		{
-			std::vector<ComponentTypeID> added_component_types = { (component_type_info_->GetTypeId<Ts>())... };
+			std::vector<ComponentTypeID> added_component_types = { ((std::uint32_t)component_type_id_mapper_->GetTypeId<Ts>())... };
 			std::sort(component_set_ids_.begin(), component_set_ids_.end());
 			if (component_set_ids_ != component_set_ids_) {
 				throw std::runtime_error("Number and order of specified components must match that of Archetype.");
@@ -235,12 +235,12 @@ namespace ecs {
 
 		std::unordered_map<ComponentTypeID, std::size_t> component_type_index_map_;
 
-		TypeInfo* component_type_info_;
+		TypeIDMapper* component_type_id_mapper_;
 
 		template<class T>
 		ComponentArray<T>* FindComponentArray()
 		{
-			const ComponentTypeID component_type = component_type_info_->GetTypeId<T>();
+			const ComponentTypeID component_type = component_type_id_mapper_->GetTypeId<T>();
 			const std::unordered_map<ComponentTypeID, std::size_t>::iterator component_array_index_iter = component_type_index_map_.find(component_type);
 			if (component_array_index_iter == component_type_index_map_.end()) {
 				return nullptr;

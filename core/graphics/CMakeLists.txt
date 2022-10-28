@@ -9,7 +9,7 @@ target_link_libraries(graphics PRIVATE rapidxml)
 
 target_link_libraries(graphics PRIVATE definitions)
 target_link_libraries(graphics PRIVATE ecs)
-target_link_libraries(graphics PRIVATE serialize)
+#target_link_libraries(graphics PRIVATE serialize)
 target_link_libraries(graphics PRIVATE utils)
 target_link_libraries(graphics PRIVATE geometry)
 target_link_libraries(graphics PRIVATE resource_manager)

@@ -6,7 +6,7 @@
 #include <fstream>
 #include <algorithm>
 
-#include <core/serialize/archive.h>
+//#include <core/serialize/archive.h>
 #include <core/graphics/rendering_pipeline.h>
 
 std::string NameForStageType(shader::ShaderStageType type)
@@ -63,17 +63,17 @@ TEST(rendering_pipeline_test_suite, rendering_pipeline_serialization_test)
     rp_info.vertex_attributes = { vertex_pos_info };
     rp_info.shader_stages = { vert_shader, frag_shader };
 
-    Archive archive;
-    rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
-    archive.SerializeHumanReadable(*xml_doc, "uniform_info", rp_info);
+    //Archive archive;
+    //rapidxml::xml_document<>* xml_doc = new rapidxml::xml_document<>();
+    //archive.SerializeHumanReadable(*xml_doc, "uniform_info", rp_info);
 
     std::ofstream xmlofile;
     xmlofile.open("serialized_rendering_pipeline_info.xml", std::ios::out);
-    xmlofile << *xml_doc;
+    //xmlofile << *xml_doc;
     
-    xml_doc->clear();
+    //xml_doc->clear();
     xmlofile.close();
-    delete xml_doc;
+    //delete xml_doc;
 }
 
 TEST(rendering_pipeline_test_suite, rendering_pipeline_for_resource_path_test)

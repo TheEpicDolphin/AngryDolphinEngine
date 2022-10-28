@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include <core/utils/event_announcer.h>
-#include <core/serialize/serializable.h>
+//#include <core/serialize/serializable.h>
 
 #include "shader/shader.h"
 #include "shader/shader_vars/shader_data_type.h"
@@ -29,7 +29,7 @@ struct UniformInfo {
 	// The usage category for this uniform.
 	UniformUsageCategory category;
 
-	SERIALIZE_MEMBERS(name, data_type, location, array_length, category)
+	//SERIALIZE_MEMBERS(name, data_type, location, array_length, category)
 };
 
 enum class VertexAttributeUsageCategory
@@ -57,7 +57,7 @@ struct VertexAttributeInfo {
 	// The usage category for this vertex attribute.
 	VertexAttributeUsageCategory category;
 
-	SERIALIZE_MEMBERS(name, data_type, location, dimension, format, category)
+	//SERIALIZE_MEMBERS(name, data_type, location, dimension, format, category)
 };
 
 class RenderingPipeline;
@@ -73,7 +73,7 @@ struct RenderingPipelineInfo
 	std::vector<VertexAttributeInfo> vertex_attributes;
 	std::vector<shader::Shader> shader_stages;
 
-	SERIALIZE_MEMBERS(mvp_uniform, material_uniforms, vertex_attributes, shader_stages)
+	//SERIALIZE_MEMBERS(mvp_uniform, material_uniforms, vertex_attributes, shader_stages)
 };
 
 // This is equivalent to a "pipeline" in Vulkan and a "program" in OpenGL.
